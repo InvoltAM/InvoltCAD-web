@@ -13,6 +13,7 @@ import { DimensionTool } from '@core/tools/DimensionTool'
 import { ThemeManager } from '@core/editor/ThemeManager'
 import { useCadStore } from '@/stores/cadStore'
 import { EditorProvider } from './EditorContext'
+import { projectSync } from '@/lib/projects/sync'
 import Toolbar from './Toolbar'
 import PropertyPanel from './PropertyPanel'
 import LayersPanel from './LayersPanel'
@@ -66,10 +67,11 @@ export default function PlanEditor() {
       },
     })
 
-    // Подписка на изменения плана для валидации
+    // Подписка на изменения плана для валидации и автосохранения
     engine.onChange = () => {
       const validation = plan.validate()
       useCadStore.getState().setValidationIssues(validation.issues)
+      projectSync.scheduleSave(plan)
     }
 
     engine.setTool(currentTool)

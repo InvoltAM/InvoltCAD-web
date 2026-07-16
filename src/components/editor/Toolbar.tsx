@@ -4,6 +4,7 @@ import { useCadStore } from '@/stores/cadStore'
 import { useEditor } from './EditorContext'
 import type { ToolName } from '@core/tools/ToolManager'
 import { Vector2 } from '@core/geometry/Vector2'
+import { projectSync } from '@/lib/projects/sync'
 
 const tools: Array<{ name: ToolName; label: string; icon: string }> = [
   { name: 'wall', label: 'Стена', icon: '▬' },
@@ -63,8 +64,14 @@ export default function Toolbar() {
   }
 
   const handleSave = async () => {
-    // TODO: сохранение проекта в облако
-    alert('Сохранение проекта (в разработке)')
+    const engine = engineRef.current
+    if (!engine) return
+    try {
+      await projectSync.saveProject(engine.plan)
+      alert('Проект сохранён')
+    } catch (error) {
+      alert('Ошибка сохранения проекта')
+    }
   }
 
   const handleExportPng = () => {
