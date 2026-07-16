@@ -12,6 +12,14 @@ import { CableTool } from '@core/tools/CableTool'
 import { DimensionTool } from '@core/tools/DimensionTool'
 import { ThemeManager } from '@core/editor/ThemeManager'
 import { useCadStore } from '@/stores/cadStore'
+import { EditorProvider } from './EditorContext'
+import Toolbar from './Toolbar'
+import PropertyPanel from './PropertyPanel'
+import LayersPanel from './LayersPanel'
+import SpecPanel from './SpecPanel'
+import ValidationPanel from './ValidationPanel'
+import MobileMenu from './MobileMenu'
+import ProjectsPanel from './ProjectsPanel'
 
 export default function PlanEditor() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -90,11 +98,20 @@ export default function PlanEditor() {
   }, [theme])
 
   return (
-    <div className="relative h-full w-full">
-      <canvas
-        ref={canvasRef}
-        className="block h-full w-full touch-none"
-      />
-    </div>
+    <EditorProvider engineRef={engineRef} themeManagerRef={themeManagerRef}>
+      <div className="relative h-full w-full">
+        <canvas
+          ref={canvasRef}
+          className="block h-full w-full touch-none"
+        />
+        <Toolbar />
+        <PropertyPanel />
+        <LayersPanel />
+        <SpecPanel />
+        <ValidationPanel />
+        <MobileMenu />
+        <ProjectsPanel />
+      </div>
+    </EditorProvider>
   )
 }
