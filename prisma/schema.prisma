@@ -1,0 +1,393 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ProjectRole {
+  owner
+  editor
+  viewer
+}
+
+// ---------- Auth (NextAuth) ----------
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String   @unique
+  emailVerified DateTime?
+  image         String?
+  role          String   @default("user")
+  credits       Int      @default(0)
+
+  accounts           Account[]
+  sessions           Session[]
+  projects           Project[]
+  projectMembers     ProjectMember[]
+  templates          ProjectTemplate[] @relation("TemplateCreator")
+  subscriptions      UserSubscription[]
+  creditTransactions CreditTransaction[]
+  payments           Payment[]
+  purchases          Purchase[]        @relation("PurchaseBuyer")
+  sales              Purchase[]        @relation("PurchaseSeller")
+  marketplaceDevices DeviceCatalogItem[] @relation("DeviceSeller")
+  marketplaceTemplates ProjectTemplate[] @relation("TemplateSeller")
+  reviewsWritten     Review[]          @relation("ReviewBuyer")
+  reviewsReceived    Review[]          @relation("ReviewSeller")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------- Projects ----------
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  userId      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  walls     Wall[]
+  openings  Opening[]
+  rooms     Room[]
+  devices   Device[]
+  cables    Cable[]
+  dimensions Dimension[]
+  members   ProjectMember[]
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model ProjectMember {
+  id        String      @id @default(cuid())
+  projectId String
+  userId    String
+  role      ProjectRole @default(viewer)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+model Wall {
+  id        String @id @default(cuid())
+  projectId String
+  startX    Float
+  startY    Float
+  endX      Float
+  endY      Float
+  thickness Float  @default(200)
+  arcRadius Float?
+  arcClockwise Boolean?
+
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  openings  Opening[]
+}
+
+model Opening {
+  id        String @id @default(cuid())
+  projectId String
+  wallId    String
+  offset    Float
+  width     Float
+  type      String @default("door")
+  height    Float  @default(2000)
+  swingSide String @default("left")
+  openDir   Int    @default(1)
+
+  wall      Wall   @relation(fields: [wallId], references: [id], onDelete: Cascade)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Room {
+  id          String @id @default(cuid())
+  projectId   String
+  name        String
+  area        Float?
+  perimeter   Float?
+  centroidX   Float?
+  centroidY   Float?
+  type        String @default("other")
+
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Device {
+  id            String @id @default(cuid())
+  projectId     String
+  deviceType    String
+  name          String
+  wallId        String?
+  wallT         Float?
+  wallSide      Int?
+  offset        Float  @default(0)
+  height        Float?
+  rotation      Float  @default(0)
+  properties    Json   @default("{}")
+
+  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Cable {
+  id            String @id @default(cuid())
+  projectId     String
+  cableType     String @default("power")
+  crossSection  Float  @default(2.5)
+  length        Float?
+  totalLength   Float?
+  waypoints     Json   @default("[]")
+  sourceDeviceId String?
+  targetDeviceId String?
+
+  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Dimension {
+  id            String @id @default(cuid())
+  projectId     String
+  startX        Float
+  startY        Float
+  endX          Float
+  endY          Float
+  length        Float
+  text          String?
+  offset        Float  @default(0)
+
+  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// ---------- Marketplace ----------
+
+model DeviceCatalogItem {
+  id                String   @id @default(cuid())
+  externalId        String?  @unique
+  category          String
+  deviceType        String
+  name              String
+  nameRu            String
+  svg               String   @db.Text
+  width             Float    @default(50)
+  height            Float    @default(50)
+  defaultHeight     Float?
+  properties        Json     @default("[]")
+  isBuiltin         Boolean  @default(false)
+  userId            String?
+  price             Int?
+  currency          String   @default("RUB")
+  published         Boolean  @default(false)
+  isHiddenByAdmin   Boolean  @default(false)
+  salesCount        Int      @default(0)
+  sellerId          String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  seller   User?      @relation("DeviceSeller", fields: [sellerId], references: [id], onDelete: SetNull)
+  purchases Purchase[]
+  reviews Review[]
+
+  @@index([userId])
+  @@index([sellerId])
+  @@index([published])
+}
+
+model ProjectTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String   @default("other")
+  isBuiltin   Boolean  @default(false)
+  userId      String?
+  thumbnail   String?
+  data        Json
+  price       Int?
+  currency    String   @default("RUB")
+  published   Boolean  @default(false)
+  isHiddenByAdmin Boolean @default(false)
+  salesCount  Int      @default(0)
+  sellerId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user   User?      @relation("TemplateCreator", fields: [userId], references: [id], onDelete: SetNull)
+  seller User?      @relation("TemplateSeller", fields: [sellerId], references: [id], onDelete: SetNull)
+  purchases Purchase[]
+  reviews Review[]
+
+  @@index([userId])
+  @@index([sellerId])
+  @@index([published])
+}
+
+// ---------- Monetization ----------
+
+model Plan {
+  id                  String   @id @default(cuid())
+  slug                String   @unique
+  name                String
+  description         String?
+  priceMonthly        Int      @default(0)
+  priceYearly         Int      @default(0)
+  currency            String   @default("RUB")
+  maxProjects         Int?
+  maxExportsPerMonth  Int?
+  creditsIncludedMonthly Int   @default(0)
+  features            Json     @default("{}")
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  subscriptions UserSubscription[]
+}
+
+model UserSubscription {
+  id                   String   @id @default(cuid())
+  userId               String
+  planId               String
+  status               String   @default("active") // active | cancelled | past_due | expired
+  interval             String   @default("month")   // month | year
+  currentPeriodStart   DateTime @default(now())
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean  @default(false)
+  provider             String   @default("manual")  // manual | yookassa | stripe
+  providerSubscriptionId String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Payment {
+  id                String   @id @default(cuid())
+  userId            String
+  provider          String   @default("manual")
+  providerPaymentId String?
+  amount            Int
+  currency          String   @default("RUB")
+  status            String   @default("pending") // pending | succeeded | cancelled | refunded
+  purpose           String   // subscription | credits | marketplace
+  metadata          Json     @default("{}")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creditTransactions CreditTransaction[]
+  purchases          Purchase[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model CreditTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Int
+  type        String   // purchase | subscription_grant | usage | refund | manual
+  description String?
+  paymentId   String?
+  createdAt   DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Purchase {
+  id                String   @id @default(cuid())
+  buyerId           String
+  sellerId          String?
+  itemType          String   // device | template
+  deviceCatalogItemId String?
+  projectTemplateId String?
+  pricePaid         Int
+  platformFee       Int      @default(0)
+  sellerEarnings    Int      @default(0)
+  paymentId         String?
+  createdAt         DateTime @default(now())
+
+  buyer           User             @relation("PurchaseBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller          User?            @relation("PurchaseSeller", fields: [sellerId], references: [id], onDelete: SetNull)
+  deviceCatalogItem DeviceCatalogItem? @relation(fields: [deviceCatalogItemId], references: [id], onDelete: SetNull)
+  projectTemplate ProjectTemplate? @relation(fields: [projectTemplateId], references: [id], onDelete: SetNull)
+  payment         Payment?         @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([itemType])
+  @@unique([buyerId, deviceCatalogItemId])
+  @@unique([buyerId, projectTemplateId])
+}
+
+model Review {
+  id                String   @id @default(cuid())
+  buyerId           String
+  sellerId          String?
+  itemType          String   // "device" | "template"
+  deviceCatalogItemId String?
+  projectTemplateId String?
+  rating            Int
+  comment           String?  @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  buyer           User             @relation("ReviewBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller          User?            @relation("ReviewSeller", fields: [sellerId], references: [id], onDelete: SetNull)
+  deviceCatalogItem DeviceCatalogItem? @relation(fields: [deviceCatalogItemId], references: [id], onDelete: SetNull)
+  projectTemplate ProjectTemplate? @relation(fields: [projectTemplateId], references: [id], onDelete: SetNull)
+
+  @@unique([buyerId, deviceCatalogItemId])
+  @@unique([buyerId, projectTemplateId])
+  @@index([deviceCatalogItemId])
+  @@index([projectTemplateId])
+}
