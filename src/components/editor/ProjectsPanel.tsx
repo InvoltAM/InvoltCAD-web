@@ -5,12 +5,14 @@ import { useCadStore } from '@/stores/cadStore'
 import { useEditor } from './EditorContext'
 import { projectSync, ProjectMeta } from '@/lib/projects/sync'
 import { Plan } from '@core/model/Plan'
+import ShareDialog from './ShareDialog'
 
 export default function ProjectsPanel() {
   const [open, setOpen] = useState(false)
   const [projects, setProjects] = useState<ProjectMeta[]>([])
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
+  const [shareProject, setShareProject] = useState<{ id: string; name: string } | null>(null)
   const { engineRef } = useEditor()
 
   const loadProjects = async () => {
@@ -172,6 +174,13 @@ export default function ProjectsPanel() {
                         ↗
                       </button>
                       <button
+                        onClick={() => setShareProject({ id: p.id, name: p.name })}
+                        className="rounded border border-gray-200 p-1 text-sm hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-600"
+                        title="Поделиться"
+                      >
+                        👥
+                      </button>
+                      <button
                         onClick={() => handleDuplicateProject(p.id)}
                         className="rounded border border-gray-200 p-1 text-sm hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-600"
                         title="Дублировать"
@@ -192,6 +201,14 @@ export default function ProjectsPanel() {
             </div>
           </div>
         </div>
+      )}
+
+      {shareProject && (
+        <ShareDialog
+          projectId={shareProject.id}
+          projectName={shareProject.name}
+          onClose={() => setShareProject(null)}
+        />
       )}
     </>
   )
