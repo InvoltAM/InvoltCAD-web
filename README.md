@@ -1,36 +1,109 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# InvoltCAD Web
 
-## Getting Started
+Веб-платформа для проектирования электроснабжения помещений. Редактор планировки + облачные проекты + маркетплейс.
 
-First, run the development server:
+## Стек
+
+- **Frontend:** Next.js 16, React 19, TypeScript, Tailwind CSS
+- **Editor Core:** собственный Canvas 2D движок (перенесён из InvoltCAD)
+- **Backend:** Next.js API routes, PostgreSQL, Prisma 7
+- **Auth:** NextAuth 5 (Google, Email)
+- **Payments:** YooKassa
+- **State:** Zustand
+
+## Быстрый старт
+
+### Локальная разработка
 
 ```bash
+# Установка зависимостей
+npm install
+
+# Настройка окружения
+cp .env.example .env
+# Заполните DATABASE_URL, NEXTAUTH_SECRET и другие переменные
+
+# Генерация Prisma client
+npx prisma generate
+
+# Миграции БД
+npx prisma migrate dev
+
+# Запуск dev-сервера
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Откройте http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Docker
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# Запуск всего стека (app + PostgreSQL)
+docker-compose up -d
 
-## Learn More
+# Логи
+docker-compose logs -f app
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Скрипты
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run dev          # Dev-сервер
+npm run build        # Production build
+npm run start        # Production server
+npm run lint         # ESLint
+npm test             # Юнит-тесты (Vitest)
+npm run test:watch   # Тесты в watch-режиме
+npm run test:coverage # Тесты с покрытием
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Структура
 
-## Deploy on Vercel
+```
+involtcad-web/
+├── packages/core/          # Editor core (перенесён из InvoltCAD)
+│   ├── geometry/           # Vector2, Polygon, RoomDetector
+│   ├── model/              # Plan, Wall, Opening, Device, Cable, Dimension
+│   ├── render/             # Canvas-рендереры
+│   ├── snap/               # Snap engine
+│   ├── rules/              # Валидация
+│   ├── catalogs/           # Каталоги устройств/кабелей
+│   ├── engine/             # CanvasEngine, Camera, InputManager
+│   ├── editor/             # CommandManager, EditorState, ThemeManager
+│   └── tools/              # WallTool, DoorTool, SelectTool и т.д.
+├── src/
+│   ├── app/                # Next.js App Router
+│   │   ├── api/            # API routes
+│   │   ├── editor/         # Страница редактора
+│   │   ├── login/          # Авторизация
+│   │   ├── marketplace/    # Маркетплейс
+│   │   ├── pricing/        # Тарифы
+│   │   └── billing/        # Биллинг
+│   ├── components/         # React-компоненты
+│   │   └── editor/         # UI редактора
+│   ├── stores/             # Zustand stores
+│   ├── lib/                # Бизнес-логика
+│   │   ├── auth.ts         # NextAuth
+│   │   ├── prisma.ts       # Prisma client
+│   │   ├── projects/       # Проекты (sync, serializer, access)
+│   │   ├── billing/        # Платежи (limits, fulfillment, yookassa)
+│   │   └── marketplace/    # Маркетплейс
+│   └── types/              # TypeScript типы
+├── prisma/
+│   └── schema.prisma       # Схема БД
+├── .github/workflows/      # CI/CD
+├── Dockerfile
+├── docker-compose.yml
+└── vitest.config.ts        # Конфигурация тестов
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Документация
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [HYBRID_MIGRATION_PLAN.md](../3.%20Project%20InvoltCAD/docs/HYBRID_MIGRATION_PLAN.md) — план миграции
+- [AGENTS.md](AGENTS.md) — заметки для агентов
+- [DEPLOY.md](DEPLOY.md) — инструкция по деплою
+
+## Связанные проекты
+
+- [InvoltCAD](https://github.com/InvoltAM/InvoltCAD) — стабильная клиентская версия редактора (Vite + TypeScript)
+- [ACAD-v.1](https://github.com/InvoltAM/ACAD-v.1) — старый проект (источник backend-модулей)
