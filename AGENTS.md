@@ -53,3 +53,15 @@ See `.env.example` for all required variables.
 - GitHub Actions: `.github/workflows/ci.yml`
 - Jobs: test (with PostgreSQL service), build, docker (on main push)
 - Docker image: `involtam/involtcad-web:latest`
+
+## MCP Servers
+
+Настроены в `~/.kimi-code/mcp.json`:
+
+- **playwright** — E2E тестирование, автоматизация браузера (`@playwright/mcp`)
+- **context7** — документация библиотек (`@upstash/context7-mcp`)
+- **github** — работа с репозиториями (`@modelcontextprotocol/server-github`)
+- **postgres** — прямая работа с PostgreSQL (`@ahmetkca/mcp-server-postgres`)
+- **docker** — управление Docker контейнерами (`mcp-server-docker`)
+
+После изменения `mcp.json` перезапустите Kimi Code (`/reload` или новая сессия), чтобы MCP сервера подключились.

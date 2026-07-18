@@ -30,6 +30,8 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@ahmetkca/mcp-server-postgres": "^1.2.0",
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -42,6 +44,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "jsdom": "^29.1.1",
+    "mcp-server-docker": "^1.0.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"
