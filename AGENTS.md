@@ -63,5 +63,7 @@ See `.env.example` for all required variables.
 - **github** — работа с репозиториями (`@modelcontextprotocol/server-github`)
 - **postgres** — прямая работа с PostgreSQL (`@ahmetkca/mcp-server-postgres`)
 - **docker** — управление Docker контейнерами (`mcp-server-docker`)
+- **eslint** — проверка кода на правильность (`@eslint/mcp`)
+- **semgrep** — статический анализ безопасности (`mcp-server-semgrep`)
 
 После изменения `mcp.json` перезапустите Kimi Code (`/reload` или новая сессия), чтобы MCP сервера подключились.
