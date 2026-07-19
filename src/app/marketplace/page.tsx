@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 
 interface MarketplaceItem {
   id: string
@@ -95,9 +96,11 @@ export default function MarketplacePage() {
                       dangerouslySetInnerHTML={{ __html: item.svg }}
                     />
                   ) : item.thumbnail ? (
-                    <img
+                    <Image
                       src={item.thumbnail}
                       alt={item.name}
+                      width={128}
+                      height={128}
                       className="h-full w-full object-cover"
                     />
                   ) : (

@@ -2,9 +2,8 @@ import { Plan } from '../model/Plan';
 import { Device, DeviceType, defaultDeviceHeight } from '../model/Device';
 import { Room } from '../geometry/RoomDetector';
 import { Vector2 } from '../geometry/Vector2';
-import { projectPointToSegment, pointInPolygon } from '../geometry/Geometry';
+import { pointInPolygon } from '../geometry/Geometry';
 import {
-  ValidationIssue,
   ValidationResult,
   addIssue,
   nextIssueId,

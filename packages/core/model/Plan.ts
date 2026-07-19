@@ -2,13 +2,60 @@ import { Vector2 } from '../geometry/Vector2';
 import { Wall, DEFAULT_WALL_THICKNESS, wallLength, wallDirection } from './Wall';
 import { Opening, OpeningType, DEFAULT_DOOR_WIDTH, DEFAULT_WINDOW_WIDTH } from './Opening';
 import { Device, DeviceType, DEVICE_SIZE, DEFAULT_DEVICE_NAMES, defaultDeviceHeight } from './Device';
-import { Cable, CableType, DEFAULT_CABLE, computeCableSpareLength, computeCableTotalLength } from './Cable';
+import { Cable, CableType, DEFAULT_CABLE, computeCableSpareLength } from './Cable';
 import { Dimension, createDimension } from './Dimension';
 import { detectRooms, Room } from '../geometry/RoomDetector';
 import { Quadtree, buildWallQuadtree } from '../geometry/Quadtree';
 
 import { validatePlan, ValidationResult } from '../rules/PlanValidator';
 import { projectPointToSegment } from '../geometry/Geometry';
+
+interface PlanJSON {
+  walls?: Array<{
+    id?: string;
+    a?: { x?: number; y?: number };
+    b?: { x?: number; y?: number };
+    thickness?: number;
+    openings?: Array<{
+      id?: string;
+      type?: OpeningType;
+      wallId?: string;
+      t?: number;
+      width?: number;
+      swingSide?: 'left' | 'right';
+      openDir?: 1 | -1;
+    }>;
+  }>;
+  devices?: Array<{
+    id?: string;
+    type?: DeviceType;
+    name?: string;
+    wallId?: string;
+    t?: number;
+    offset?: number;
+    side?: 1 | -1;
+    rotation?: number;
+    height?: number;
+  }>;
+  cables?: Array<{
+    id?: string;
+    fromDeviceId?: string;
+    toDeviceId?: string;
+    type?: CableType;
+    crossSection?: number;
+    length?: number;
+    spareLength?: number;
+    totalLength?: number;
+    route?: Array<{ x?: number; y?: number }>;
+  }>;
+  dimensions?: Array<{
+    id?: string;
+    a?: { x?: number; y?: number };
+    b?: { x?: number; y?: number };
+    length?: number;
+    text?: string;
+  }>;
+}
 
 /**
  * Корневая модель плана помещения.
@@ -158,9 +205,7 @@ export class Plan {
 
     // Ориентация объединённой стены от a к b. Сопоставляем исходные стены.
     const w1Start = a.distanceTo(w1.a) < eps ? w1.a : w1.b;
-    const w1End = a.distanceTo(w1.a) < eps ? w1.b : w1.a;
     const w2Start = a.distanceTo(w2.a) < eps ? w2.a : w2.b;
-    const w2End = a.distanceTo(w2.a) < eps ? w2.b : w2.a;
 
     if (len1 > 0) {
       const base = w1Start.distanceTo(a);
@@ -542,7 +587,7 @@ export class Plan {
     };
   }
 
-  static fromJSON(data: any): Plan {
+  static fromJSON(data: PlanJSON): Plan {
     const plan = new Plan();
     if (!data) return plan;
 
@@ -557,7 +602,7 @@ export class Plan {
       for (const o of w.openings ?? []) {
         wall.openings.push({
           id: o.id || crypto.randomUUID(),
-          type: o.type,
+          type: o.type || 'door',
           wallId: o.wallId || wall.id,
           t: o.t ?? 0.5,
           width: o.width ?? (o.type === 'door' ? DEFAULT_DOOR_WIDTH : DEFAULT_WINDOW_WIDTH),
@@ -573,7 +618,7 @@ export class Plan {
         id: d.id || crypto.randomUUID(),
         type: d.type || 'socket',
         name: d.name || DEFAULT_DEVICE_NAMES[(d.type || 'socket') as DeviceType],
-        wallId: d.wallId,
+        wallId: d.wallId || '',
         t: d.t ?? 0.5,
         offset: d.offset ?? 0,
         side: (d.side ?? 1) as 1 | -1,
@@ -592,8 +637,8 @@ export class Plan {
 
       plan.cables.push({
         id: c.id || crypto.randomUUID(),
-        fromDeviceId: c.fromDeviceId,
-        toDeviceId: c.toDeviceId,
+        fromDeviceId: c.fromDeviceId || '',
+        toDeviceId: c.toDeviceId || '',
         type: c.type || DEFAULT_CABLE.type,
         crossSection: c.crossSection ?? DEFAULT_CABLE.crossSection,
         length: c.length ?? Plan.routeLength(route),

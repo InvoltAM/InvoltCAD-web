@@ -107,7 +107,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
           crossSection: c.crossSection,
           length: c.length,
           totalLength: c.totalLength,
-          waypoints: c.waypoints as any,
+          waypoints: c.waypoints as Array<{ x: number; y: number }>,
           sourceDeviceId: c.sourceDeviceId ? deviceIdMap.get(c.sourceDeviceId) ?? null : null,
           targetDeviceId: c.targetDeviceId ? deviceIdMap.get(c.targetDeviceId) ?? null : null,
         },

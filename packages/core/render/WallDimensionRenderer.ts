@@ -1,6 +1,5 @@
 import { Camera } from '../engine/Camera';
 import { Plan } from '../model/Plan';
-import { Vector2 } from '../geometry/Vector2';
 import { wallDirection, wallLength } from '../model/Wall';
 import { segmentIntersectsRect } from '../geometry/Geometry';
 import { ThemeManager } from '../editor/ThemeManager';

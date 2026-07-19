@@ -2,7 +2,6 @@ import { Plan } from '../model/Plan';
 import { Cable, CableType } from '../model/Cable';
 import { Vector2 } from '../geometry/Vector2';
 import {
-  ValidationIssue,
   ValidationResult,
   addIssue,
   nextIssueId,

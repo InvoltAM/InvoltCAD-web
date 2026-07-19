@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionUser } from '@/lib/projects/access'
 import { prisma } from '@/lib/prisma'
+
+interface WhereFilter {
+  published: boolean
+  isHiddenByAdmin: boolean
+  category?: string
+  OR?: Array<{
+    name?: { contains: string; mode: 'insensitive' }
+    nameRu?: { contains: string; mode: 'insensitive' }
+    description?: { contains: string; mode: 'insensitive' }
+  }>
+}
 
 // GET /api/marketplace/items — каталог маркетплейса
 export async function GET(request: NextRequest) {
@@ -9,7 +19,7 @@ export async function GET(request: NextRequest) {
   const category = searchParams.get('category')
   const search = searchParams.get('search')
 
-  const where: any = {
+  const where: WhereFilter = {
     published: true,
     isHiddenByAdmin: false,
   }

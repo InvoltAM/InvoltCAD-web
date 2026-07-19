@@ -1,5 +1,4 @@
 import { Camera } from '../engine/Camera';
-import { Vector2 } from '../geometry/Vector2';
 import { Plan } from '../model/Plan';
 import { Dimension } from '../model/Dimension';
 import { segmentIntersectsRect } from '../geometry/Geometry';

@@ -69,7 +69,7 @@ export default function Toolbar() {
     try {
       await projectSync.saveProject(engine.plan)
       alert('Проект сохранён')
-    } catch (error) {
+    } catch {
       alert('Ошибка сохранения проекта')
     }
   }

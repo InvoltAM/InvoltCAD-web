@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { ProjectRole } from '@prisma/client'
+import { Project, ProjectRole } from '@prisma/client'
 
 export async function getSessionUser() {
   const session = await auth()
@@ -11,7 +11,7 @@ export async function assertProjectAccess(
   projectId: string,
   userId: string,
   minRole: ProjectRole = 'viewer'
-): Promise<{ project: any; role: ProjectRole }> {
+): Promise<{ project: Project; role: ProjectRole }> {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: {

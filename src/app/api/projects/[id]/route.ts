@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser, assertProjectAccess } from '@/lib/projects/access'
 import { prisma } from '@/lib/prisma'
-import { serializePlan, deserializePlan, SerializedPlan } from '@/lib/projects/serializer'
+import { SerializedPlan } from '@/lib/projects/serializer'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -17,7 +17,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   const { id } = await params
 
   try {
-    const { project, role } = await assertProjectAccess(id, user.id, 'viewer')
+    const { role } = await assertProjectAccess(id, user.id, 'viewer')
 
     const fullProject = await prisma.project.findUnique({
       where: { id },

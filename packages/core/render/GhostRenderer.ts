@@ -144,7 +144,6 @@ export class GhostRenderer {
     type: string,
     width: number,
     height: number,
-    side = 1,
   ): void {
     ctx.strokeStyle = this.themeManager.getColor('ghostWall');
     ctx.fillStyle = this.themeManager.getColor('deviceIconBg');

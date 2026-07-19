@@ -3,7 +3,6 @@ import { Vector2 } from '../geometry/Vector2';
 import { Plan } from '../model/Plan';
 import { Opening } from '../model/Opening';
 import { Wall, wallDirection, wallLength } from '../model/Wall';
-import { segmentIntersectsRect } from '../geometry/Geometry';
 import { ThemeManager } from '../editor/ThemeManager';
 
 /**

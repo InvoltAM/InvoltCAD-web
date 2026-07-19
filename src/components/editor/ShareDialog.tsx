@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 interface Member {
   id: string
@@ -26,7 +26,7 @@ export default function ShareDialog({ projectId, projectName, onClose }: ShareDi
   const [role, setRole] = useState<'editor' | 'viewer'>('viewer')
   const [loading, setLoading] = useState(false)
 
-  const loadMembers = async () => {
+  const loadMembers = useCallback(async () => {
     try {
       const res = await fetch(`/api/projects/${projectId}/members`)
       if (res.ok) {
@@ -37,11 +37,14 @@ export default function ShareDialog({ projectId, projectName, onClose }: ShareDi
     } catch (error) {
       console.error('Ошибка загрузки участников:', error)
     }
-  }
+  }, [projectId])
 
   useEffect(() => {
-    loadMembers()
-  }, [projectId])
+    const timer = setTimeout(() => {
+      void loadMembers()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [loadMembers])
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -62,7 +65,7 @@ export default function ShareDialog({ projectId, projectName, onClose }: ShareDi
         const data = await res.json()
         alert(data.error ?? 'Ошибка приглашения')
       }
-    } catch (error) {
+    } catch {
       alert('Ошибка сети')
     } finally {
       setLoading(false)
@@ -83,7 +86,7 @@ export default function ShareDialog({ projectId, projectName, onClose }: ShareDi
         const data = await res.json()
         alert(data.error ?? 'Ошибка удаления')
       }
-    } catch (error) {
+    } catch {
       alert('Ошибка сети')
     }
   }

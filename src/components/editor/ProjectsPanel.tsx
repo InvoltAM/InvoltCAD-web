@@ -1,10 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useCadStore } from '@/stores/cadStore'
+import { useState } from 'react'
 import { useEditor } from './EditorContext'
 import { projectSync, ProjectMeta } from '@/lib/projects/sync'
-import { Plan } from '@core/model/Plan'
 import ShareDialog from './ShareDialog'
 
 export default function ProjectsPanel() {
@@ -20,30 +18,30 @@ export default function ProjectsPanel() {
     try {
       const list = await projectSync.listProjects()
       setProjects(list)
-    } catch (error) {
-      console.error('Ошибка загрузки проектов:', error)
+    } catch (err) {
+      console.error('Ошибка загрузки проектов:', err)
       setProjects([])
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => {
-    if (open) {
-      loadProjects()
-    }
-  }, [open])
+  const handleOpenPanel = () => {
+    setOpen(true)
+    void loadProjects()
+  }
 
   const handleOpenProject = async (id: string) => {
     if (!engineRef.current) return
     try {
-      const { plan, name } = await projectSync.loadProject(id)
+      const { plan } = await projectSync.loadProject(id)
       // Заменяем план в engine
       engineRef.current.plan = plan
       engineRef.current.notifyChanged()
       engineRef.current.requestRender()
       setOpen(false)
-    } catch (error) {
+    } catch (err) {
+      console.error('Ошибка загрузки проекта:', err)
       alert('Ошибка загрузки проекта')
     }
   }
@@ -56,7 +54,7 @@ export default function ProjectsPanel() {
       const id = await projectSync.createProject(trimmed)
       await handleOpenProject(id)
       await loadProjects()
-    } catch (error) {
+    } catch {
       alert('Ошибка создания проекта')
     }
   }
@@ -66,7 +64,7 @@ export default function ProjectsPanel() {
     try {
       await projectSync.deleteProject(id)
       await loadProjects()
-    } catch (error) {
+    } catch {
       alert('Ошибка удаления проекта')
     }
   }
@@ -76,7 +74,7 @@ export default function ProjectsPanel() {
       const newId = await projectSync.duplicateProject(id)
       await loadProjects()
       await handleOpenProject(newId)
-    } catch (error) {
+    } catch {
       alert('Ошибка дублирования проекта')
     }
   }
@@ -91,7 +89,7 @@ export default function ProjectsPanel() {
     <>
       {/* Projects button */}
       <button
-        onClick={() => setOpen(true)}
+        onClick={handleOpenPanel}
         className="absolute left-20 top-3 z-40 rounded-lg border border-gray-200 bg-white p-2 shadow-md dark:border-gray-700 dark:bg-gray-800 md:left-3"
         title="Проекты"
       >

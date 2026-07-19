@@ -1,5 +1,5 @@
 import { Camera } from './Camera';
-import { InputManager, InputEvent } from './InputManager';
+import { InputManager } from './InputManager';
 import { Plan } from '../model/Plan';
 import { Vector2 } from '../geometry/Vector2';
 import { SnapEngine, SnapResult } from '../snap/SnapEngine';
@@ -277,7 +277,7 @@ export class CanvasEngine {
   }
 
   /** Регистрация инструмента. */
-  registerTool(name: ToolName, tool: { name: ToolName } & any): void {
+  registerTool(name: ToolName, tool: { name: ToolName } & import('../tools/ToolManager').Tool): void {
     this.toolManager.register(tool);
   }
 

@@ -1,10 +1,19 @@
 'use client'
 
-import { useCadStore } from '@/stores/cadStore'
+import { useEffect, useState } from 'react'
+import { useEditor } from './EditorContext'
+import { Plan } from '@core/model/Plan'
 
 export default function SpecPanel() {
-  const { engineRef } = useEditorSafe()
-  const plan = engineRef.current?.plan
+  const { engineRef } = useEditor()
+  const [plan, setPlan] = useState<Plan | null>(null)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPlan(engineRef.current?.plan ?? null)
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [engineRef])
 
   if (!plan) {
     return (
@@ -64,15 +73,4 @@ export default function SpecPanel() {
       </div>
     </div>
   )
-}
-
-// Вспомогательный хук для безопасного доступа к editor
-import { useEditor } from './EditorContext'
-
-function useEditorSafe() {
-  try {
-    return useEditor()
-  } catch {
-    return { engineRef: { current: null }, themeManagerRef: { current: null } }
-  }
 }

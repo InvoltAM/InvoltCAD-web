@@ -1,7 +1,6 @@
 import { Camera } from '../engine/Camera';
 import { Plan } from '../model/Plan';
 import { Vector2 } from '../geometry/Vector2';
-import { Wall } from '../model/Wall';
 import { ThemeManager } from '../editor/ThemeManager';
 
 const HANDLE_WORLD_THRESHOLD = 5; // мм

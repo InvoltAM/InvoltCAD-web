@@ -101,7 +101,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const { id } = await params
 
   // Ищем товар
-  let item: any = null
+  let item: { id: string; price: number | null; sellerId: string | null } | null = null
   let itemType: 'device' | 'template' = 'device'
   let sellerId: string | null = null
 

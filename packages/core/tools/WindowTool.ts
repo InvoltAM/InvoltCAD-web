@@ -47,7 +47,7 @@ export class WindowTool implements Tool {
     this.updateGhost();
   }
 
-  onPointerDown(e: InputEvent): void {
+  onPointerDown(): void {
     if (this.preview) {
       const wall = this.plan.findWall(this.preview.wallId);
       if (wall) {

@@ -1,7 +1,7 @@
 import { Camera } from '../engine/Camera';
 import { Vector2 } from '../geometry/Vector2';
 import { Plan } from '../model/Plan';
-import { Wall, wallDirection, wallHasArc, wallPolyline } from '../model/Wall';
+import { Wall, wallHasArc, wallPolyline } from '../model/Wall';
 import {
   segmentIntersectsRect,
   projectPointToSegment,

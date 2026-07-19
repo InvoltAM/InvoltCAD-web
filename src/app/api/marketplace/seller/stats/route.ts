@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/projects/access'
 import { prisma } from '@/lib/prisma'
 
 // GET /api/marketplace/seller/stats — статистика продавца
-export async function GET(_request: NextRequest) {
+export async function GET() {
   const user = await getSessionUser()
   if (!user) {
     return NextResponse.json({ error: 'Не авторизован' }, { status: 401 })
@@ -56,7 +56,7 @@ export async function GET(_request: NextRequest) {
   const recentSales = allItems
     .flatMap((item) =>
       item.purchases.map((p) => ({
-        itemName: (item as any).nameRu || item.name,
+        itemName: 'nameRu' in item ? item.nameRu : item.name,
         itemType: item.itemType,
         price: p.pricePaid,
         earnings: p.sellerEarnings,
@@ -75,7 +75,7 @@ export async function GET(_request: NextRequest) {
     recentSales,
     items: allItems.map((item) => ({
       id: item.id,
-      name: (item as any).nameRu || item.name,
+      name: 'nameRu' in item ? item.nameRu : item.name,
       type: item.itemType,
       salesCount: item.salesCount,
       rating:

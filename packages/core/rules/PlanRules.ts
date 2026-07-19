@@ -3,7 +3,6 @@ import { Wall } from '../model/Wall';
 import { Vector2 } from '../geometry/Vector2';
 import { projectPointToSegment } from '../geometry/Geometry';
 import {
-  ValidationIssue,
   ValidationResult,
   addIssue,
   nextIssueId,

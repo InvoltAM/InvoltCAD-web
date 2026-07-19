@@ -48,11 +48,11 @@ export default function PricingPage() {
 
       const data = await res.json()
       if (data.confirmationUrl) {
-        window.location.href = data.confirmationUrl
+        router.push(data.confirmationUrl)
       } else {
         alert(data.error ?? 'Ошибка создания платежа')
       }
-    } catch (error) {
+    } catch {
       alert('Ошибка сети')
     } finally {
       setLoading(null)

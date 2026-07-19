@@ -77,7 +77,7 @@ export default function PlanEditor() {
     engine.setTool(currentTool)
 
     // Для отладки
-    // @ts-ignore
+    // @ts-expect-error — добавляем глобальную переменную для отладки
     window.__engine = engine
 
     return () => {

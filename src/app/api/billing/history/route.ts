@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/projects/access'
 import { prisma } from '@/lib/prisma'
 
 // GET /api/billing/history — история платежей пользователя
-export async function GET(_request: NextRequest) {
+export async function GET() {
   const user = await getSessionUser()
   if (!user) {
     return NextResponse.json({ error: 'Не авторизован' }, { status: 401 })

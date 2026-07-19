@@ -1,5 +1,5 @@
 import { Vector2 } from './Vector2';
-import { Wall, wallDirection, wallLength, wallPolyline } from '../model/Wall';
+import { Wall, wallPolyline } from '../model/Wall';
 import { Quadtree } from './Quadtree';
 import { projectPointToSegment } from './Geometry';
 

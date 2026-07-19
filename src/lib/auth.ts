@@ -7,7 +7,7 @@ import { prisma } from './prisma'
 const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build'
 
 function createAuth() {
-  const providers: any[] = [
+  const providers: unknown[] = [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
@@ -34,6 +34,7 @@ function createAuth() {
   // Во время сборки используем JWT и не подключаемся к БД
   if (isBuildTime) {
     return NextAuth({
+      // @ts-expect-error — типы провайдеров NextAuth сложны
       providers,
       session: { strategy: 'jwt' },
       pages: {
@@ -45,6 +46,7 @@ function createAuth() {
 
   return NextAuth({
     adapter: PrismaAdapter(prisma),
+    // @ts-expect-error — типы провайдеров NextAuth сложны
     providers,
     session: {
       strategy: 'database',
@@ -85,14 +87,14 @@ export function getAuth() {
   return globalForAuth.auth
 }
 
-export const auth: ReturnType<typeof createAuth>['auth'] = async (...args: any[]) => {
+export const auth: ReturnType<typeof createAuth>['auth'] = async (...args: unknown[]) => {
   return getAuth().auth(...args)
 }
 
-export const signIn: ReturnType<typeof createAuth>['signIn'] = async (...args: any[]) => {
+export const signIn: ReturnType<typeof createAuth>['signIn'] = async (...args: unknown[]) => {
   return getAuth().signIn(...args)
 }
 
-export const signOut: ReturnType<typeof createAuth>['signOut'] = async (...args: any[]) => {
+export const signOut: ReturnType<typeof createAuth>['signOut'] = async (...args: unknown[]) => {
   return getAuth().signOut(...args)
 }

@@ -1,7 +1,6 @@
 'use client'
 
 import { useCadStore } from '@/stores/cadStore'
-import { useEditor } from './EditorContext'
 
 export default function PropertyPanel() {
   const selectedWallId = useCadStore((s) => s.selectedWallId)
@@ -10,7 +9,6 @@ export default function PropertyPanel() {
   const selectedCableId = useCadStore((s) => s.selectedCableId)
   const selectedDimensionId = useCadStore((s) => s.selectedDimensionId)
   const currentTool = useCadStore((s) => s.currentTool)
-  const { engineRef } = useEditor()
 
   const hasSelection =
     selectedWallId ||

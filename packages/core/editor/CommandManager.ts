@@ -2,7 +2,7 @@ import { Plan } from '../model/Plan';
 import { Wall, WallArc, DEFAULT_WALL_THICKNESS, updateWallArcEndpoints } from '../model/Wall';
 import { Opening, OpeningType } from '../model/Opening';
 import { Device, DeviceType } from '../model/Device';
-import { Cable, CableType, DEFAULT_CABLE } from '../model/Cable';
+import { CableType, DEFAULT_CABLE } from '../model/Cable';
 import { Dimension } from '../model/Dimension';
 import { Vector2 } from '../geometry/Vector2';
 
@@ -165,7 +165,7 @@ export class MoveWallEndpointsCommand implements Command {
 /** Команда разбиения стены в заданной точке. */
 export class SplitWallCommand implements Command {
   private newWallIds: [string, string] = ['', ''];
-  private originalWallData: any = null;
+  private originalWallData: Wall | null = null;
   private originalDeviceTs = new Map<string, number>();
 
   constructor(
@@ -205,7 +205,7 @@ export class SplitWallCommand implements Command {
       a: new Vector2(w.a.x, w.a.y),
       b: new Vector2(w.b.x, w.b.y),
       thickness: w.thickness,
-      openings: w.openings.map((o: any) => ({ ...o })),
+      openings: w.openings.map((o) => ({ ...o })),
     };
     if (w.arc) {
       restored.arc = {
@@ -233,7 +233,7 @@ export class SplitWallCommand implements Command {
 /** Команда объединения двух коллинеарных стен. */
 export class MergeWallsCommand implements Command {
   private mergedWallId = '';
-  private originalWallsData: any[] = [];
+  private originalWallsData: Wall[] = [];
   private originalDeviceTs = new Map<string, { wallId: string; t: number }>();
 
   constructor(
@@ -273,7 +273,7 @@ export class MergeWallsCommand implements Command {
         a: new Vector2(w.a.x, w.a.y),
         b: new Vector2(w.b.x, w.b.y),
         thickness: w.thickness,
-        openings: w.openings.map((o: any) => ({ ...o })),
+        openings: w.openings.map((o) => ({ ...o })),
       };
       if (w.arc) {
         restored.arc = {

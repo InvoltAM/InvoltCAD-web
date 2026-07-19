@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/projects/access'
 import { prisma } from '@/lib/prisma'
-import { serializePlan, deserializePlan } from '@/lib/projects/serializer'
-import { Plan } from '@core/model/Plan'
 
 // GET /api/projects — список проектов пользователя
 export async function GET() {
