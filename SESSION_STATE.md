@@ -1,7 +1,7 @@
 # Состояние проекта InvoltCAD-web
 
-> **Обновлено:** 2026-07-18  
-> **Статус:** базовая платформа готова к развитию, MCP сервера подключены
+> **Обновлено:** 2026-07-19  
+> **Статус:** production-ready платформа, все этапы мини-плана завершены
 
 ## Что реализовано
 
@@ -12,23 +12,28 @@
 - Zustand для state management
 - Docker + GitHub Actions CI/CD
 - Vitest + Testing Library (12 тестов)
+- Playwright E2E (10 тестов)
+- Sentry мониторинг
 
 ### Редактор
 - Полностью перенесён из InvoltCAD в `packages/core/`
 - React-обёртка: `PlanEditor`, `Toolbar`, `PropertyPanel`, `LayersPanel`, `SpecPanel`, `ValidationPanel`, `MobileMenu`, `ProjectsPanel`
 - Zustand store `cadStore` (адаптация EditorState)
 - Тема (light/dark) через `next-themes` + `ThemeManager`
+- Детальный `PropertyPanel` (стены, проёмы, устройства, кабели, размеры)
 
 ### Облачные проекты
 - API: CRUD, дублирование, сериализация Plan
 - Синхронизация с IndexedDB (офлайн-кэш)
 - Автосохранение (debounce 2 сек)
 - `ProjectsPanel` с поиском, созданием, удалением, дублированием
+- Импорт JSON и DXF
 
 ### Совместный доступ
 - API: приглашение, изменение роли, удаление участников
 - `ShareDialog` с выбором роли (просмотр/редактирование)
 - Права доступа: owner / editor / viewer
+- Real-time синхронизация (polling)
 
 ### Платежи
 - YooKassa интеграция (checkout, webhook, fulfillment)
@@ -41,6 +46,20 @@
 - Покупка за кредиты (комиссия 20%)
 - Кабинет продавца (`/seller/dashboard`)
 
+### Инженерные фичи
+- Кабельный журнал + расчёт нагрузок по СП 256 (`CableJournalPanel`)
+- Автотрассировка кабелей (A* + NavGrid)
+- Однолинейная схема (ОЛС) с автогенерацией из плана (`OlsPanel`)
+- Визуализация щита (DIN-рейки, автокомпоновка) (`PanelEditor`)
+- Расчёт заземления, молниезащиты, селективности
+- Шаблоны проектов (1/2-комнатные квартиры)
+- AI-автопроектирование (rule-based)
+
+### Экспорт/Импорт
+- Экспорт PNG, PDF, XLSX, SVG
+- Компоновка листов ГОСТ
+- Импорт JSON и DXF
+
 ### MCP сервера
 - **playwright** — E2E тестирование, автоматизация браузера (`@playwright/mcp`)
 - **context7** — документация библиотек (`@upstash/context7-mcp`)
@@ -50,38 +69,32 @@
 - **eslint** — проверка кода на правильность (`@eslint/mcp`)
 - **semgrep** — статический анализ безопасности (`mcp-server-semgrep`)
 
+### Production
+- `docker-compose.prod.yml` — production Docker
+- `vercel.json` — конфигурация Vercel
+- Health check API (`/api/health`)
+- CI/CD для production (deploy to Vercel)
+- `DEPLOY_PRODUCTION.md` — инструкция по деплою
+
 ## Что дальше
 
-### Приоритет 1 — Исправление уязвимостей
-1. **npm audit fix** — автоматическое исправление части уязвимостей.
-2. **Обновить `@modelcontextprotocol/sdk`** до ≥1.24.0 (DNS rebinding protection).
-3. **Обновить `mcp-server-docker`** до версии с фиксом.
-4. **Проверить `nodemailer`** — обновить или заменить.
-5. **Обновить `@hono/node-server`** до ≥1.19.13 (middleware bypass).
-
-### Приоритет 2 — Доводка платформы
-1. Детальные свойства в `PropertyPanel` (стены, проёмы, устройства, кабели, размеры)
-2. Экспорт PNG/PDF из редактора
-3. Импорт JSON
-4. Real-time синхронизация совместного доступа (WebSocket/polling)
-5. Sentry мониторинг
-6. E2E-тесты (Playwright)
-
-### Приоритет 3 — Перенос фич из InvoltCAD
-1. Кабельный журнал + расчёт нагрузок + автоподбор ПУЭ
-2. Автотрассировка кабелей (A* + NavGrid)
-3. Однолинейная схема (ОЛС)
-4. Визуализация щита (DIN-рейки)
-5. DXF импорт, XLSX/SVG/PDF экспорт, компоновка листов ГОСТ
-6. Расчёт заземления, молниезащиты, селективности
-7. Шаблоны проектов (расширенные)
-8. AI-автопроектирование (rule-based)
-
-### Приоритет 4 — Деплой
-1. Создать production БД (Supabase/Neon/Railway)
-2. Настроить Vercel деплой
+### Приоритет 1 — Production deployment
+1. Настроить production БД (Supabase/Neon/Railway) по инструкции в `DEPLOY_PRODUCTION.md`
+2. Настроить Vercel и переменные окружения
 3. Настроить домен и SSL
 4. Настроить мониторинг (Sentry, Uptime Robot)
+
+### Приоритет 2 — Развитие платформы
+1. Real-time синхронизация через WebSocket (вместо polling)
+2. AI-ассистент с LLM (вместо rule-based)
+3. 3D-визуализация плана
+4. Мобильное приложение (React Native / PWA)
+
+### Приоритет 3 — Доводка текущих фич
+1. Улучшить PropertyPanel (добавить валидацию, подсказки)
+2. Улучшить автотрассировку (учёт кабель-каналов, лотков)
+3. Улучшить ОЛС (ручное редактирование, undo/redo)
+4. Улучшить визуализацию щита (drag-and-drop устройств)
 
 ## Ключевые файлы
 
@@ -93,6 +106,9 @@
 - `src/lib/prisma.ts` — Prisma client
 - `prisma/schema.prisma` — схема БД
 - `.github/workflows/ci.yml` — CI/CD
+- `vercel.json` — конфигурация Vercel
+- `docker-compose.prod.yml` — production Docker
+- `DEPLOY_PRODUCTION.md` — инструкция по production деплою
 
 ## Связанные проекты
 
