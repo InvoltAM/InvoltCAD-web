@@ -9,6 +9,7 @@ import { Quadtree, buildWallQuadtree } from '../geometry/Quadtree';
 
 import { validatePlan, ValidationResult } from '../rules/PlanValidator';
 import { projectPointToSegment } from '../geometry/Geometry';
+import { routeCable } from '../cables/cableRouting';
 
 interface PlanJSON {
   walls?: Array<{
@@ -368,7 +369,19 @@ export class Plan {
 
     const fromPos = this.deviceWorldPosition(from);
     const toPos = this.deviceWorldPosition(to);
-    const route = Plan.computeManhattanRoute(fromPos, toPos);
+
+    // Пытаемся использовать автотрассировку A*
+    let route: Vector2[] | null = null;
+    try {
+      route = routeCable(this, fromPos, toPos);
+    } catch {
+      // Fallback на Manhattan-маршрутизацию
+    }
+
+    if (!route) {
+      route = Plan.computeManhattanRoute(fromPos, toPos);
+    }
+
     const length = Plan.routeLength(route);
     const spareLength = computeCableSpareLength(length);
     const totalLength = length + spareLength;
