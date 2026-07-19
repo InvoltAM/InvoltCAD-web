@@ -22,6 +22,7 @@ import SpecPanel from './SpecPanel'
 import ValidationPanel from './ValidationPanel'
 import MobileMenu from './MobileMenu'
 import ProjectsPanel from './ProjectsPanel'
+import CableJournalPanel from './CableJournalPanel'
 
 export default function PlanEditor() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -139,6 +140,7 @@ export default function PlanEditor() {
         <ValidationPanel />
         <MobileMenu />
         <ProjectsPanel />
+        <CableJournalPanel />
       </div>
     </EditorProvider>
   )
