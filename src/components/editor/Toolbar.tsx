@@ -91,8 +91,44 @@ export default function Toolbar() {
   }
 
   const handleImport = () => {
-    // TODO: импорт JSON
-    alert('Импорт JSON (в разработке)')
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json,application/json'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+      try {
+        const text = await file.text()
+        const data = JSON.parse(text)
+        // Импортируем план через сервер (создаём новый проект)
+        const engine = engineRef.current
+        if (!engine) return
+        // Создаём новый проект с импортированными данными
+        const res = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: file.name.replace(/\.json$/i, '') }),
+        })
+        if (!res.ok) throw new Error('Ошибка создания проекта')
+        const project = await res.json()
+        // Сохраняем план в проект
+        await fetch(`/api/projects/${project.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan: data }),
+        })
+        // Открываем проект
+        await projectSync.loadProject(project.id)
+        engine.plan = (await projectSync.loadProject(project.id)).plan
+        engine.notifyChanged()
+        engine.requestRender()
+        alert('Проект импортирован')
+      } catch (err) {
+        console.error('Ошибка импорта:', err)
+        alert('Ошибка импорта JSON')
+      }
+    }
+    input.click()
   }
 
   const handleClear = () => {
