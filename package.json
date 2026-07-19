@@ -21,7 +21,7 @@
     "next": "16.2.10",
     "next-auth": "^4.24.14",
     "next-themes": "^0.4.6",
-    "nodemailer": "^7.0.13",
+    "nodemailer": "^9.0.3",
     "pg": "^8.22.0",
     "prisma": "^7.8.0",
     "react": "19.2.4",
@@ -32,6 +32,7 @@
   "devDependencies": {
     "@ahmetkca/mcp-server-postgres": "^1.2.0",
     "@playwright/test": "^1.61.1",
+    "@prisma/dev": "^0.24.14",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
