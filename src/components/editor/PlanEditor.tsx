@@ -14,6 +14,7 @@ import { ThemeManager } from '@core/editor/ThemeManager'
 import { useCadStore } from '@/stores/cadStore'
 import { EditorProvider } from './EditorContext'
 import { projectSync } from '@/lib/projects/sync'
+import { realtimeSync } from '@/lib/projects/realtime'
 import Toolbar from './Toolbar'
 import PropertyPanel from './PropertyPanel'
 import LayersPanel from './LayersPanel'
@@ -83,8 +84,33 @@ export default function PlanEditor() {
     return () => {
       engine.destroy()
       engineRef.current = null
+      realtimeSync.stop()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Real-time синхронизация совместного доступа
+  useEffect(() => {
+    const projectId = projectSync.getCurrentProjectId()
+    if (!projectId) return
+
+    realtimeSync.start({
+      projectId,
+      onUpdate: (plan) => {
+        const engine = engineRef.current
+        if (!engine) return
+        engine.plan = plan
+        engine.notifyChanged()
+        engine.requestRender()
+      },
+      onError: (error) => {
+        console.error('Ошибка real-time синхронизации:', error)
+      },
+    })
+
+    return () => {
+      realtimeSync.stop()
+    }
   }, [])
 
   // Переключение инструмента
