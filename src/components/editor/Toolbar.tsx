@@ -5,6 +5,8 @@ import { useEditor } from './EditorContext'
 import type { ToolName } from '@core/tools/ToolManager'
 import { Vector2 } from '@core/geometry/Vector2'
 import { projectSync } from '@/lib/projects/sync'
+import { PngExporter } from '@core/io/PngExporter'
+import { PrintExporter } from '@core/io/PrintExporter'
 
 const tools: Array<{ name: ToolName; label: string; icon: string }> = [
   { name: 'wall', label: 'Стена', icon: '▬' },
@@ -75,13 +77,17 @@ export default function Toolbar() {
   }
 
   const handleExportPng = () => {
-    // TODO: экспорт PNG
-    alert('Экспорт PNG (в разработке)')
+    const engine = engineRef.current
+    if (!engine) return
+    const exporter = new PngExporter(engine.plan, engine.editorState, themeManagerRef.current!)
+    exporter.export({ filename: 'involtcad-plan.png', title: 'План помещения' })
   }
 
   const handlePrint = () => {
-    // TODO: печать / PDF
-    alert('Печать / PDF (в разработке)')
+    const engine = engineRef.current
+    if (!engine) return
+    const exporter = new PrintExporter(engine.plan, engine.editorState, themeManagerRef.current!)
+    exporter.print({ title: 'План помещения' })
   }
 
   const handleImport = () => {
