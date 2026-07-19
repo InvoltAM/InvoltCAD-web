@@ -83,6 +83,20 @@ export default function Toolbar() {
     exporter.export({ filename: 'involtcad-plan.png', title: 'План помещения' })
   }
 
+  const handleExportXlsx = async () => {
+    const engine = engineRef.current
+    if (!engine) return
+    const { exportToXlsx } = await import('@core/io/XlsxExporter')
+    await exportToXlsx(engine.plan, 'involtcad-spec.xlsx')
+  }
+
+  const handleExportSvg = async () => {
+    const engine = engineRef.current
+    if (!engine) return
+    const { exportToSvg } = await import('@core/io/SvgExporter')
+    exportToSvg(engine.plan, 'involtcad-plan.svg')
+  }
+
   const handlePrint = () => {
     const engine = engineRef.current
     if (!engine) return
@@ -235,6 +249,20 @@ export default function Toolbar() {
             title="Экспорт PNG"
           >
             <span className="text-lg">📷</span>
+          </button>
+          <button
+            onClick={handleExportXlsx}
+            className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600"
+            title="Экспорт XLSX"
+          >
+            <span className="text-lg">📊</span>
+          </button>
+          <button
+            onClick={handleExportSvg}
+            className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600"
+            title="Экспорт SVG"
+          >
+            <span className="text-lg">🎨</span>
           </button>
           <button
             onClick={handlePrint}
