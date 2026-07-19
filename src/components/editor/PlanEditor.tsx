@@ -24,6 +24,7 @@ import MobileMenu from './MobileMenu'
 import ProjectsPanel from './ProjectsPanel'
 import CableJournalPanel from './CableJournalPanel'
 import OlsPanel from './OlsPanel'
+import PanelEditor from './PanelEditor'
 
 export default function PlanEditor() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -143,6 +144,7 @@ export default function PlanEditor() {
         <ProjectsPanel />
         <CableJournalPanel />
         <OlsPanel />
+        <PanelEditor />
       </div>
     </EditorProvider>
   )
