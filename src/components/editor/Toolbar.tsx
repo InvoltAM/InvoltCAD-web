@@ -93,39 +93,50 @@ export default function Toolbar() {
   const handleImport = () => {
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = '.json,application/json'
+    input.accept = '.json,application/json,.dxf'
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
       try {
         const text = await file.text()
-        const data = JSON.parse(text)
-        // Импортируем план через сервер (создаём новый проект)
         const engine = engineRef.current
         if (!engine) return
-        // Создаём новый проект с импортированными данными
-        const res = await fetch('/api/projects', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: file.name.replace(/\.json$/i, '') }),
-        })
-        if (!res.ok) throw new Error('Ошибка создания проекта')
-        const project = await res.json()
-        // Сохраняем план в проект
-        await fetch(`/api/projects/${project.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ plan: data }),
-        })
-        // Открываем проект
-        await projectSync.loadProject(project.id)
-        engine.plan = (await projectSync.loadProject(project.id)).plan
-        engine.notifyChanged()
-        engine.requestRender()
-        alert('Проект импортирован')
+
+        if (file.name.toLowerCase().endsWith('.dxf')) {
+          // Импорт DXF
+          const { importDxf } = await import('@core/io/DxfImporter')
+          const plan = importDxf(text)
+          engine.plan = plan
+          engine.notifyChanged()
+          engine.requestRender()
+          alert('DXF импортирован')
+        } else {
+          // Импорт JSON
+          const data = JSON.parse(text)
+          // Создаём новый проект с импортированными данными
+          const res = await fetch('/api/projects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: file.name.replace(/\.json$/i, '') }),
+          })
+          if (!res.ok) throw new Error('Ошибка создания проекта')
+          const project = await res.json()
+          // Сохраняем план в проект
+          await fetch(`/api/projects/${project.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plan: data }),
+          })
+          // Открываем проект
+          await projectSync.loadProject(project.id)
+          engine.plan = (await projectSync.loadProject(project.id)).plan
+          engine.notifyChanged()
+          engine.requestRender()
+          alert('Проект импортирован')
+        }
       } catch (err) {
         console.error('Ошибка импорта:', err)
-        alert('Ошибка импорта JSON')
+        alert('Ошибка импорта файла')
       }
     }
     input.click()
