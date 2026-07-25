@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { createRoot, Root } from 'react-dom/client'
 import { CanvasEngine } from '@core/engine/CanvasEngine'
 import { Plan } from '@core/model/Plan'
 import { WallTool } from '@core/tools/WallTool'
@@ -35,6 +36,9 @@ export default function PlanEditor() {
   const themeManagerRef = useRef<ThemeManager | null>(null)
   const panelManagerRef = useRef<PanelManager | null>(null)
   const sheetsBarRef = useRef<SheetsBar | null>(null)
+  const propertyRootRef = useRef<Root | null>(null)
+  const layersRootRef = useRef<Root | null>(null)
+  const specRootRef = useRef<Root | null>(null)
 
   const currentTool = useCadStore((s) => s.currentTool)
   const theme = useCadStore((s) => s.theme)
@@ -104,9 +108,21 @@ export default function PlanEditor() {
       ], app)
 
       sheetsBarRef.current = new SheetsBar(plan, engine, app)
+
+      // Рендерим React-компоненты внутри плавающих панелей
+      propertyRootRef.current = createRoot(propertyBody)
+      layersRootRef.current = createRoot(layersBody)
+      specRootRef.current = createRoot(specBody)
+
+      propertyRootRef.current.render(<PropertyPanel />)
+      layersRootRef.current.render(<LayersPanel />)
+      specRootRef.current.render(<SpecPanel />)
     }
 
     return () => {
+      propertyRootRef.current?.unmount()
+      layersRootRef.current?.unmount()
+      specRootRef.current?.unmount()
       engine.destroy()
       engineRef.current = null
       panelManagerRef.current = null
@@ -160,9 +176,6 @@ export default function PlanEditor() {
           className="block h-full w-full touch-none"
         />
         <Toolbar />
-        <PropertyPanel />
-        <LayersPanel />
-        <SpecPanel />
         <ValidationPanel />
         <MobileMenu />
         <ProjectsPanel />
