@@ -38,6 +38,15 @@ npm run test:watch   # run tests in watch mode
 - `src/lib/auth.ts` — NextAuth configuration
 - `src/lib/prisma.ts` — Prisma client singleton
 
+## UI и команды (перенесено из experiment/t-junction-rooms)
+
+- `packages/core/snap/SnapEngine.ts` — объектная привязка (endpoint, midpoint, center, intersection, extension, wall-line, tracking, grid), липкая привязка (до двух точек), направляющие лучи, привязка к центру комнаты.
+- `packages/core/tools/SelectTool.ts` — базовый инструмент «Выбор», перемещение устройства drag'ом вдоль стены, перетаскивание подписей устройств, редактирование вершин комнат.
+- `packages/core/tools/DeviceTool.ts` — свободное размещение светильников (потолок, центр комнаты), примагничивание к стене, определение стороны.
+- `src/components/editor/PanelManager.ts` — плавающие панели (drag за заголовок, сворачивание, закрытие, магнитное прилипание).
+- `src/components/editor/SheetsBar.ts` — панель листов проекта (переключение, добавление, переименование, перетаскивание, удаление).
+- `src/components/editor/icons.ts` — иконки для панелей и инструментов.
+
 ## Code Style
 
 - Prefer minimal, typed changes.
