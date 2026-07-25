@@ -604,6 +604,11 @@ export class Plan {
 
   /** Мировая позиция устройства (центр). */
   deviceWorldPosition(device: Device): Vector2 {
+    // Свободно размещённое устройство (светильник на потолке)
+    if (device.position) {
+      return new Vector2(device.position.x, device.position.y);
+    }
+
     const wall = this.findWall(device.wallId);
     if (!wall) return new Vector2(0, 0);
     const len = wallLength(wall);

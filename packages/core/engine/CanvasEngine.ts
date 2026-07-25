@@ -71,7 +71,7 @@ export class CanvasEngine {
     this.resize();
 
     this.snapEngine = new SnapEngine(plan, this.camera);
-    this.ghostRenderer = new GhostRenderer(this.camera, this.themeManager);
+    this.ghostRenderer = new GhostRenderer(this.camera);
     this.gridRenderer = new GridRenderer(this.camera, this.themeManager);
     this.wallRenderer = new WallRenderer(plan, this.camera, this.editorState, this.themeManager);
     this.openingRenderer = new OpeningRenderer(plan, this.camera, this.themeManager);
