@@ -144,14 +144,21 @@ export class GhostRenderer {
     type: string,
     width: number,
     height: number,
+    side = 1,
+    angle = 0,
   ): void {
+    ctx.save();
+    ctx.translate(pos.x, pos.y);
+    ctx.rotate(angle);
+    ctx.scale(side, 1);
     ctx.strokeStyle = this.themeManager.getColor('ghostWall');
     ctx.fillStyle = this.themeManager.getColor('deviceIconBg');
     ctx.lineWidth = 1 / this.camera.scale;
     ctx.beginPath();
-    ctx.rect(pos.x - width / 2, pos.y - height / 2, width, height);
+    ctx.rect(-width / 2, -height / 2, width, height);
     ctx.fill();
     ctx.stroke();
+    ctx.restore();
   }
 
   /**
