@@ -5,21 +5,18 @@ import { EditorState } from '../editor/EditorState';
 import { wallDirection } from '../model/Wall';
 import { Vector2 } from '../geometry/Vector2';
 import { findDeviceCatalogItem } from '../model/Device';
-import { ThemeManager, ThemeColorKey } from '../editor/ThemeManager';
+import { ThemeManager } from '../editor/ThemeManager';
 
-/** Базовый экранный размер условных обозначений (px). */
-const BASE_DEVICE_SCREEN_SIZE = 80;
-
-function categoryToColorKey(category: string): ThemeColorKey {
-  switch (category) {
-    case 'socket': return 'deviceSocket';
-    case 'switch': return 'deviceSwitch';
-    case 'panel': return 'devicePanel';
-    case 'breaker': return 'deviceBreaker';
-    case 'light': return 'deviceLight';
-    default: return 'deviceDefault';
-  }
-}
+const COLORS: Record<string, string> = {
+  socket: '#2563eb',
+  'socket-uz': '#2563eb',
+  'socket-usb': '#2563eb',
+  switch: '#7c3aed',
+  'switch-2': '#7c3aed',
+  panel: '#dc2626',
+  breaker: '#f59e0b',
+  light: '#10b981',
+};
 
 export class DeviceRenderer {
   private selectedDeviceId: string | null = null;
@@ -28,7 +25,7 @@ export class DeviceRenderer {
     private plan: Plan,
     private camera: Camera,
     private editorState: EditorState,
-    private themeManager: ThemeManager,
+    private themeManager?: ThemeManager,
   ) {}
 
   setSelectedDevice(id: string | null): void {
@@ -38,7 +35,7 @@ export class DeviceRenderer {
   private isDeviceVisible(
     device: Device,
     surfacePos: Vector2,
-    sizePx: number,
+    sizeWorld: number,
     rect: { min: Vector2; max: Vector2 },
   ): boolean {
     const wall = this.plan.findWall(device.wallId);
@@ -46,10 +43,9 @@ export class DeviceRenderer {
     if (wall) {
       const dir = wallDirection(wall);
       const n = dir.perpendicular();
-      const halfWorld = (sizePx / 2) / this.camera.scale;
-      iconPos = surfacePos.add(n.scale(halfWorld * device.side));
+      iconPos = surfacePos.add(n.scale((sizeWorld / 2) * device.side));
     }
-    const halfWorld = (sizePx / 2 + 10) / this.camera.scale;
+    const halfWorld = sizeWorld / 2 + 10;
     const min = iconPos.sub(new Vector2(halfWorld, halfWorld));
     const max = iconPos.add(new Vector2(halfWorld, halfWorld));
     return !(max.x < rect.min.x || min.x > rect.max.x || max.y < rect.min.y || min.y > rect.max.y);
@@ -64,50 +60,111 @@ export class DeviceRenderer {
     for (const device of this.plan.devices) {
       const item = findDeviceCatalogItem(device.type);
       const baseSizeMm = item ? Math.max(item.width, item.height) : 600;
-      const sizePx = (baseSizeMm / 10) * iconScale * (BASE_DEVICE_SCREEN_SIZE / 60);
-
-      const surfacePos = this.plan.deviceWorldPosition(device);
-      if (!this.isDeviceVisible(device, surfacePos, sizePx, rect)) continue;
-      const sizeWorld = sizePx / this.camera.scale;
+      // Мировой размер в мм: условные обозначения масштабируются вместе с планом
+      const sizeWorld = baseSizeMm * iconScale;
       const half = sizeWorld / 2;
 
+      const surfacePos = this.plan.deviceWorldPosition(device);
+      if (!this.isDeviceVisible(device, surfacePos, sizeWorld, rect)) continue;
+
+      // Центр иконки — снаружи стены, чтобы не перекрываться ею
       const wall = this.plan.findWall(device.wallId);
       let iconPos = surfacePos;
+      let angle = 0;
+      let normal = new Vector2(0, 1);
       if (wall) {
         const dir = wallDirection(wall);
         const n = dir.perpendicular();
+        normal = n;
         iconPos = surfacePos.add(n.scale(half * device.side));
+        // Поворот значка по углу стены (нормализован, чтобы символ не был перевёрнут)
+        angle = Math.atan2(dir.y, dir.x);
+        if (angle > Math.PI / 2) angle -= Math.PI;
+        else if (angle <= -Math.PI / 2) angle += Math.PI;
       }
+      angle += device.rotation ?? 0;
 
-      const colorKey = categoryToColorKey(item?.category ?? device.type);
-      const color = this.themeManager.getColor(colorKey);
+      const color = COLORS[item?.category ?? device.type] ?? '#2563eb';
       const selected = this.selectedDeviceId === device.id;
 
       ctx.save();
       ctx.translate(iconPos.x, iconPos.y);
-      ctx.fillStyle = this.themeManager.getColor('deviceIconBg');
-      ctx.strokeStyle = selected ? this.themeManager.getColor('selected') : color;
+      ctx.rotate(angle);
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = selected ? '#ff8c00' : color;
       ctx.lineWidth = selected ? 3 / this.camera.scale : 2 / this.camera.scale;
       ctx.beginPath();
       ctx.rect(-half, -half, sizeWorld, sizeWorld);
       ctx.fill();
       ctx.stroke();
 
+      // Иконка устройства
       ctx.fillStyle = color;
       ctx.font = `${sizeWorld * 0.55}px ui-sans-serif, system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(DEVICE_LABELS[device.type], 0, 0);
+      ctx.restore();
 
-      if (device.name) {
-        ctx.fillStyle = this.themeManager.getColor('deviceText');
+      // Имя устройства (атрибут блока) — горизонтально, можно перетаскивать
+      const label = this.getNameLabelBounds(device);
+      if (label) {
+        ctx.save();
+        if (selected) {
+          // Рамка-подсказка, что подпись можно перетаскивать
+          ctx.strokeStyle = '#ff8c00';
+          ctx.lineWidth = 1 / this.camera.scale;
+          ctx.setLineDash([6 / this.camera.scale, 4 / this.camera.scale]);
+          ctx.strokeRect(
+            label.center.x - label.halfW,
+            label.center.y - label.halfH,
+            label.halfW * 2,
+            label.halfH * 2,
+          );
+          ctx.setLineDash([]);
+        }
+        ctx.fillStyle = '#111827';
         ctx.font = `${sizeWorld * 0.3}px ui-sans-serif, system-ui, sans-serif`;
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        ctx.fillText(device.name, 0, half + 4 / this.camera.scale);
+        ctx.textBaseline = 'middle';
+        ctx.fillText(device.name, label.center.x, label.center.y);
+        ctx.restore();
       }
-
-      ctx.restore();
     }
+  }
+
+  /**
+   * Границы подписи устройства в мировых координатах
+   * (позиция по умолчанию + nameOffset). Используется для hit-test.
+   */
+  getNameLabelBounds(device: Device): { center: Vector2; halfW: number; halfH: number } | null {
+    if (!device.name) return null;
+    const iconScale = this.editorState.get('deviceIconScale') ?? 1;
+    const item = findDeviceCatalogItem(device.type);
+    const baseSizeMm = item ? Math.max(item.width, item.height) : 600;
+    const sizeWorld = baseSizeMm * iconScale;
+    const half = sizeWorld / 2;
+
+    const surfacePos = this.plan.deviceWorldPosition(device);
+    const wall = this.plan.findWall(device.wallId);
+    let iconPos = surfacePos;
+    let normal = new Vector2(0, 1);
+    if (wall) {
+      const dir = wallDirection(wall);
+      const n = dir.perpendicular();
+      normal = n;
+      iconPos = surfacePos.add(n.scale(half * device.side));
+    }
+
+    const nameDist = (half + sizeWorld * 0.25) * device.side;
+    let center = iconPos.add(normal.scale(nameDist));
+    if (device.nameOffset) {
+      center = center.add(new Vector2(device.nameOffset.x, device.nameOffset.y));
+    }
+
+    const fontSize = sizeWorld * 0.3;
+    const halfW = (device.name.length * fontSize * 0.55) / 2 + fontSize * 0.3;
+    const halfH = fontSize * 0.7;
+    return { center, halfW, halfH };
   }
 }

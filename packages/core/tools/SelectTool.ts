@@ -16,6 +16,9 @@ import {
   MoveWallEndpointsCommand,
   SplitWallCommand,
   MergeWallsCommand,
+  MoveDeviceNameCommand,
+  MoveDeviceCommand,
+  MoveFreeDeviceCommand,
 } from '../editor/CommandManager';
 
 const ROOM_VERTEX_SCREEN_THRESHOLD = 8; // px
@@ -26,6 +29,21 @@ interface DragRoomVertex {
   vertexIndex: number;
   startWorld: Vector2;
   targets: Array<{ wall: Wall; endpoint: 'a' | 'b'; original: Vector2 }>;
+}
+
+interface DragDeviceName {
+  device: import('../model/Device.js').Device;
+  startWorld: Vector2;
+  originalOffset: { x: number; y: number } | undefined;
+}
+
+interface DragDevice {
+  device: import('../model/Device.js').Device;
+  wall: Wall | null; // null — свободно размещённое устройство (светильник)
+  startT: number;
+  startWorld: Vector2;
+  originalPos: { x: number; y: number } | null;
+  moved: boolean;
 }
 
 /**
@@ -39,6 +57,8 @@ export class SelectTool implements Tool {
   private dragOpening: { opening: Opening; wall: Wall; startT: number } | null = null;
   private dragRoomVertex: DragRoomVertex | null = null;
   private activeRoomVertex: DragRoomVertex | null = null;
+  private dragDeviceName: DragDeviceName | null = null;
+  private dragDevice: DragDevice | null = null;
 
   constructor(
     private canvas: CanvasEngine,
@@ -51,6 +71,7 @@ export class SelectTool implements Tool {
   }
 
   onPointerDown(e: InputEvent): void {
+    const hitDeviceName = this.hitTestDeviceName(e.screenPoint);
     const hitDevice = this.hitTestDevice(e.screenPoint);
     const hitCable = this.hitTestCable(e.screenPoint);
     const hitDimension = this.hitTestDimension(e.screenPoint);
@@ -58,9 +79,29 @@ export class SelectTool implements Tool {
     const hitWall = this.hitTestWall(e.screenPoint);
     const hitRoomVertex = this.hitTestRoomVertex(e.screenPoint);
 
-    if (hitDevice) {
+    if (hitDeviceName) {
+      // Подпись устройства: выделяем устройство и начинаем перетаскивание подписи
+      this.clearSelection();
+      this.canvas.setSelectedDevice(hitDeviceName.id);
+      this.dragDeviceName = {
+        device: hitDeviceName,
+        startWorld: this.canvas.camera.screenToWorld(e.screenPoint),
+        originalOffset: hitDeviceName.nameOffset ? { ...hitDeviceName.nameOffset } : undefined,
+      };
+      this.dragOpening = null;
+    } else if (hitDevice) {
       this.clearSelection();
       this.canvas.setSelectedDevice(hitDevice.id);
+      // Начинаем drag устройства: смещение применится, если мышь сдвинется
+      const wall = this.plan.findWall(hitDevice.wallId) ?? null;
+      this.dragDevice = {
+        device: hitDevice,
+        wall,
+        startT: hitDevice.t,
+        startWorld: this.canvas.camera.screenToWorld(e.screenPoint),
+        originalPos: hitDevice.position ? { ...hitDevice.position } : null,
+        moved: false,
+      };
       this.dragOpening = null;
     } else if (hitCable) {
       this.clearSelection();
@@ -106,7 +147,57 @@ export class SelectTool implements Tool {
   }
 
   onPointerMove(e: InputEvent): void {
-    if (this.dragOpening) {
+    if (this.dragDevice) {
+      const { device, wall } = this.dragDevice;
+      // Привязка работает и при перетаскивании: позиция идёт через snap
+      const snap = this.snapEngine.snap(e.screenPoint);
+      const world = snap.point;
+      this.canvas.setSnap(snap);
+      this.canvas.setGhost(ctx => {
+        this.canvas.ghostRenderer.drawSnapMarker(ctx, snap);
+      });
+      if (this.dragDevice.originalPos) {
+        // Свободно размещённое устройство — центр значка привязывается к snap-точке
+        device.position = { x: world.x, y: world.y };
+        this.dragDevice.moved = true;
+        this.plan.recalcCableRoutes();
+        this.canvas.notifyChanged();
+      } else if (wall) {
+        const len = wallLength(wall);
+        if (len > 0) {
+          const proj = projectPointToSegment(world, wall.a, wall.b);
+          let t = proj.t;
+          // Отступы от концов стены и от проёмов (как в Plan.addDevice)
+          const item = findDeviceCatalogItem(device.type);
+          const half = (item ? Math.max(item.width, item.height) : 600) / 2;
+          const minT = (half + 20) / len;
+          const maxT = 1 - (half + 20) / len;
+          t = Math.max(minT, Math.min(maxT, t));
+          for (const opening of wall.openings) {
+            const oHalf = opening.width / 2 + half + 10;
+            if (Math.abs(t - opening.t) * len < oHalf) {
+              t = t < opening.t ? opening.t - oHalf / len : opening.t + oHalf / len;
+              t = Math.max(minT, Math.min(maxT, t));
+            }
+          }
+          if (t !== device.t) {
+            device.t = t;
+            this.dragDevice.moved = true;
+            this.plan.recalcCableRoutes();
+            this.canvas.notifyChanged();
+          }
+        }
+      }
+    } else if (this.dragDeviceName) {
+      const world = this.canvas.camera.screenToWorld(e.screenPoint);
+      const delta = world.sub(this.dragDeviceName.startWorld);
+      const orig = this.dragDeviceName.originalOffset ?? { x: 0, y: 0 };
+      this.dragDeviceName.device.nameOffset = {
+        x: orig.x + delta.x,
+        y: orig.y + delta.y,
+      };
+      this.canvas.notifyChanged();
+    } else if (this.dragOpening) {
       const { opening, wall } = this.dragOpening;
       const world = this.canvas.camera.screenToWorld(e.screenPoint);
       const proj = projectPointToSegment(world, wall.a, wall.b);
@@ -133,6 +224,37 @@ export class SelectTool implements Tool {
   }
 
   onPointerUp(e: InputEvent): void {
+    if (this.dragDevice) {
+      const { device, startT, originalPos, moved } = this.dragDevice;
+      if (moved) {
+        if (originalPos && device.position) {
+          this.canvas.commandManager.execute(
+            new MoveFreeDeviceCommand(this.plan, device.id, originalPos, { ...device.position }),
+          );
+        } else {
+          this.canvas.commandManager.execute(
+            new MoveDeviceCommand(this.plan, device.id, startT, device.t),
+          );
+        }
+      }
+      this.dragDevice = null;
+      this.canvas.setGhost(null);
+      this.canvas.setSnap(null);
+      this.snapEngine.clearTracking();
+      this.canvas.notifyChanged();
+      return;
+    }
+    if (this.dragDeviceName) {
+      const { device, originalOffset } = this.dragDeviceName;
+      const newOffset = device.nameOffset ? { ...device.nameOffset } : undefined;
+      // Команда фиксирует старое/новое смещение для undo
+      this.canvas.commandManager.execute(
+        new MoveDeviceNameCommand(this.plan, device.id, originalOffset, newOffset),
+      );
+      this.dragDeviceName = null;
+      this.canvas.notifyChanged();
+      return;
+    }
     if (this.dragRoomVertex) {
       const world = this.canvas.camera.screenToWorld(e.screenPoint);
       const delta = world.sub(this.dragRoomVertex.startWorld);
@@ -222,20 +344,38 @@ export class SelectTool implements Tool {
     this.activeRoomVertex = null;
   }
 
-  private hitTestDevice(screenPoint: Vector2): import('../model/Device').Device | null {
+  /** Hit-test подписи (атрибута) устройства — для перетаскивания. */
+  private hitTestDeviceName(screenPoint: Vector2): import('../model/Device.js').Device | null {
+    const world = this.canvas.camera.screenToWorld(screenPoint);
+    const marginWorld = 4 / this.canvas.camera.scale; // ~4px запас
+    for (const device of this.plan.devices) {
+      const bounds = this.canvas.deviceRenderer.getNameLabelBounds(device);
+      if (!bounds) continue;
+      if (
+        Math.abs(world.x - bounds.center.x) <= bounds.halfW + marginWorld &&
+        Math.abs(world.y - bounds.center.y) <= bounds.halfH + marginWorld
+      ) {
+        return device;
+      }
+    }
+    return null;
+  }
+
+  private hitTestDevice(screenPoint: Vector2): import('../model/Device.js').Device | null {
     const iconScale = this.canvas.editorState.get('deviceIconScale') ?? 1;
     for (const device of this.plan.devices) {
       const item = findDeviceCatalogItem(device.type);
       const baseSizeMm = item ? Math.max(item.width, item.height) : 600;
-      const sizePx = (baseSizeMm / 10) * iconScale * (80 / 60) + 4;
-      const halfScreen = sizePx / 2 + 4; // небольшой запас
+      // Мировой размер в мм (совпадает с DeviceRenderer)
+      const sizeWorld = baseSizeMm * iconScale;
+      const halfWorld = sizeWorld / 2;
+      const halfScreen = halfWorld * this.canvas.camera.scale + 4; // небольшой запас
       const surfacePos = this.plan.deviceWorldPosition(device);
       const wall = this.plan.findWall(device.wallId);
       let iconPos = surfacePos;
       if (wall) {
         const dir = wallDirection(wall);
         const n = dir.perpendicular();
-        const halfWorld = (sizePx / 2) / this.canvas.camera.scale;
         iconPos = surfacePos.add(n.scale(halfWorld * device.side));
       }
       const pos = this.canvas.camera.worldToScreen(iconPos);
@@ -249,7 +389,7 @@ export class SelectTool implements Tool {
     return null;
   }
 
-  private hitTestDimension(screenPoint: Vector2): import('../model/Dimension').Dimension | null {
+  private hitTestDimension(screenPoint: Vector2): import('../model/Dimension.js').Dimension | null {
     const world = this.canvas.camera.screenToWorld(screenPoint);
     const thresholdMm = 10 / this.canvas.camera.scale;
 
@@ -262,7 +402,7 @@ export class SelectTool implements Tool {
     return null;
   }
 
-  private hitTestCable(screenPoint: Vector2): import('../model/Cable').Cable | null {
+  private hitTestCable(screenPoint: Vector2): import('../model/Cable.js').Cable | null {
     const world = this.canvas.camera.screenToWorld(screenPoint);
     const thresholdMm = 10 / this.canvas.camera.scale;
 

@@ -2,7 +2,7 @@ import { Plan } from '../model/Plan';
 import { Wall, WallArc, DEFAULT_WALL_THICKNESS, updateWallArcEndpoints } from '../model/Wall';
 import { Opening, OpeningType } from '../model/Opening';
 import { Device, DeviceType } from '../model/Device';
-import { CableType, DEFAULT_CABLE } from '../model/Cable';
+import { Cable, CableType, DEFAULT_CABLE } from '../model/Cable';
 import { Dimension } from '../model/Dimension';
 import { Vector2 } from '../geometry/Vector2';
 
@@ -56,6 +56,12 @@ export class CommandManager {
 
   canRedo(): boolean {
     return this.index < this.history.length - 1;
+  }
+
+  /** Сбросить историю undo/redo (например, при переключении листа). */
+  clear(): void {
+    this.history = [];
+    this.index = -1;
   }
 }
 
@@ -165,7 +171,7 @@ export class MoveWallEndpointsCommand implements Command {
 /** Команда разбиения стены в заданной точке. */
 export class SplitWallCommand implements Command {
   private newWallIds: [string, string] = ['', ''];
-  private originalWallData: Wall | null = null;
+  private originalWallData: any = null;
   private originalDeviceTs = new Map<string, number>();
 
   constructor(
@@ -205,7 +211,7 @@ export class SplitWallCommand implements Command {
       a: new Vector2(w.a.x, w.a.y),
       b: new Vector2(w.b.x, w.b.y),
       thickness: w.thickness,
-      openings: w.openings.map((o) => ({ ...o })),
+      openings: w.openings.map((o: any) => ({ ...o })),
     };
     if (w.arc) {
       restored.arc = {
@@ -233,7 +239,7 @@ export class SplitWallCommand implements Command {
 /** Команда объединения двух коллинеарных стен. */
 export class MergeWallsCommand implements Command {
   private mergedWallId = '';
-  private originalWallsData: Wall[] = [];
+  private originalWallsData: any[] = [];
   private originalDeviceTs = new Map<string, { wallId: string; t: number }>();
 
   constructor(
@@ -273,7 +279,7 @@ export class MergeWallsCommand implements Command {
         a: new Vector2(w.a.x, w.a.y),
         b: new Vector2(w.b.x, w.b.y),
         thickness: w.thickness,
-        openings: w.openings.map((o) => ({ ...o })),
+        openings: w.openings.map((o: any) => ({ ...o })),
       };
       if (w.arc) {
         restored.arc = {
@@ -386,16 +392,63 @@ export class AddDeviceCommand implements Command {
     private t: number,
     private offset: number,
     private side: 1 | -1 = 1,
-    private height?: number,
   ) {}
 
   execute(): void {
-    const device = this.plan.addDevice(this.wallId, this.type, this.t, this.offset, this.side, undefined, this.height);
+    const device = this.plan.addDevice(this.wallId, this.type, this.t, this.offset, this.side);
     if (device) this.deviceId = device.id;
   }
 
   undo(): void {
     this.plan.removeDevice(this.deviceId);
+  }
+}
+
+/** Команда добавления свободно размещённого устройства (светильник на потолке). */
+export class AddFreeDeviceCommand implements Command {
+  private deviceId = '';
+
+  constructor(
+    private plan: Plan,
+    private type: DeviceType,
+    private position: Vector2,
+  ) {}
+
+  execute(): void {
+    const device = this.plan.addFreeDevice(this.type, this.position);
+    if (device) {
+      this.deviceId = device.id;
+    }
+  }
+
+  undo(): void {
+    this.plan.removeDevice(this.deviceId);
+  }
+}
+
+/** Команда перемещения свободно размещённого устройства. */
+export class MoveFreeDeviceCommand implements Command {
+  constructor(
+    private plan: Plan,
+    private deviceId: string,
+    private oldPos: { x: number; y: number },
+    private newPos: { x: number; y: number },
+  ) {}
+
+  execute(): void {
+    const device = this.plan.findDevice(this.deviceId);
+    if (device) {
+      device.position = { ...this.newPos };
+      this.plan.recalcCableRoutes();
+    }
+  }
+
+  undo(): void {
+    const device = this.plan.findDevice(this.deviceId);
+    if (device) {
+      device.position = { ...this.oldPos };
+      this.plan.recalcCableRoutes();
+    }
   }
 }
 
@@ -484,5 +537,78 @@ export class AddCableCommand implements Command {
 
   undo(): void {
     this.plan.removeCable(this.cableId);
+  }
+}
+
+/** Команда импорта набора стен (например, из DXF) — откатывается целиком. */
+export class ImportWallsCommand implements Command {
+  private wallIds: string[] = [];
+
+  constructor(
+    private plan: Plan,
+    private segments: Array<{ a: Vector2; b: Vector2 }>,
+    private thickness = DEFAULT_WALL_THICKNESS,
+  ) {}
+
+  execute(): void {
+    this.wallIds = this.segments.map(
+      s => this.plan.addWall(s.a, s.b, this.thickness).id,
+    );
+  }
+
+  undo(): void {
+    for (const id of this.wallIds) {
+      this.plan.removeWall(id);
+    }
+  }
+}
+
+/** Команда перемещения подписи (атрибута) устройства. */
+export class MoveDeviceNameCommand implements Command {
+  constructor(
+    private plan: Plan,
+    private deviceId: string,
+    private oldOffset: { x: number; y: number } | undefined,
+    private newOffset: { x: number; y: number } | undefined,
+  ) {}
+
+  execute(): void {
+    const device = this.plan.findDevice(this.deviceId);
+    if (device) {
+      device.nameOffset = this.newOffset ? { ...this.newOffset } : undefined;
+    }
+  }
+
+  undo(): void {
+    const device = this.plan.findDevice(this.deviceId);
+    if (device) {
+      device.nameOffset = this.oldOffset ? { ...this.oldOffset } : undefined;
+    }
+  }
+}
+
+/** Команда перемещения устройства вдоль стены. */
+export class MoveDeviceCommand implements Command {
+  constructor(
+    private plan: Plan,
+    private deviceId: string,
+    private oldT: number,
+    private newT: number,
+  ) {}
+
+  execute(): void {
+    const device = this.plan.findDevice(this.deviceId);
+    if (device) {
+      device.t = this.newT;
+      this.plan.recalcCableRoutes();
+    }
+  }
+
+  undo(): void {
+    const device = this.plan.findDevice(this.deviceId);
+    if (device) {
+      device.t = this.oldT;
+      this.plan.recalcCableRoutes();
+    }
   }
 }

@@ -25,11 +25,16 @@ import ProjectsPanel from './ProjectsPanel'
 import CableJournalPanel from './CableJournalPanel'
 import OlsPanel from './OlsPanel'
 import PanelEditor from './PanelEditor'
+import { PanelManager } from './PanelManager'
+import { SheetsBar } from './SheetsBar'
+import { icon } from './icons'
 
 export default function PlanEditor() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<CanvasEngine | null>(null)
   const themeManagerRef = useRef<ThemeManager | null>(null)
+  const panelManagerRef = useRef<PanelManager | null>(null)
+  const sheetsBarRef = useRef<SheetsBar | null>(null)
 
   const currentTool = useCadStore((s) => s.currentTool)
   const theme = useCadStore((s) => s.theme)
@@ -84,9 +89,28 @@ export default function PlanEditor() {
     // @ts-expect-error — добавляем глобальную переменную для отладки
     window.__engine = engine
 
+    // Инициализация плавающих панелей и листов
+    const app = document.getElementById('app')
+    if (app) {
+      // Создаём панели для PanelManager
+      const propertyBody = document.createElement('div')
+      const layersBody = document.createElement('div')
+      const specBody = document.createElement('div')
+
+      panelManagerRef.current = new PanelManager([
+        { id: 'properties', title: 'Свойства', icon: icon('properties'), body: propertyBody },
+        { id: 'layers', title: 'Слои', icon: icon('layers'), body: layersBody },
+        { id: 'spec', title: 'Спецификация', icon: icon('spec'), body: specBody },
+      ], app)
+
+      sheetsBarRef.current = new SheetsBar(plan, engine, app)
+    }
+
     return () => {
       engine.destroy()
       engineRef.current = null
+      panelManagerRef.current = null
+      sheetsBarRef.current = null
       realtimeSync.stop()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

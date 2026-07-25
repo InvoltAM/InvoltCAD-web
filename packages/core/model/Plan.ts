@@ -58,6 +58,8 @@ interface PlanJSON {
   }>;
 }
 
+import { Sheet, createDefaultSheets } from './Sheet';
+
 /**
  * Корневая модель плана помещения.
  * Все координаты в миллиметрах.
@@ -67,6 +69,8 @@ export class Plan {
   devices: Device[] = [];
   cables: Cable[] = [];
   dimensions: Dimension[] = [];
+  sheets: Sheet[] = createDefaultSheets();
+  activeSheetId: string = this.sheets[0]?.id ?? '';
 
   private wallQuadtree: Quadtree<Wall> | null = null;
   private cachedQuadtreeHash = '';
@@ -94,6 +98,45 @@ export class Plan {
       c => this.devices.some(d => d.id === c.fromDeviceId || d.id === c.toDeviceId),
     );
     this.invalidateRooms();
+  }
+
+  get activeSheet(): Sheet {
+    return this.sheets.find(s => s.id === this.activeSheetId) ?? this.sheets[0];
+  }
+
+  setActiveSheet(id: string): void {
+    if (this.sheets.some(s => s.id === id)) {
+      this.activeSheetId = id;
+    }
+  }
+
+  addSheet(name: string): Sheet {
+    const sheet: Sheet = {
+      id: crypto.randomUUID(),
+      name,
+      devices: [],
+      cables: [],
+      dimensions: [],
+    };
+    this.sheets.push(sheet);
+    return sheet;
+  }
+
+  removeSheet(id: string): void {
+    if (this.sheets.length <= 1) return;
+    this.sheets = this.sheets.filter(s => s.id !== id);
+    if (this.activeSheetId === id) {
+      this.activeSheetId = this.sheets[0]?.id ?? '';
+    }
+  }
+
+  moveSheet(draggedId: string, targetId: string): void {
+    const draggedIndex = this.sheets.findIndex(s => s.id === draggedId);
+    const targetIndex = this.sheets.findIndex(s => s.id === targetId);
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    const [dragged] = this.sheets.splice(draggedIndex, 1);
+    this.sheets.splice(targetIndex, 0, dragged);
   }
 
   /**
@@ -346,6 +389,28 @@ export class Plan {
     this.devices = this.devices.filter(d => d.id !== id);
     this.cables = this.cables.filter(c => c.fromDeviceId !== id && c.toDeviceId !== id);
     this.cachedValidation = null;
+  }
+
+  addFreeDevice(
+    type: DeviceType,
+    position: Vector2,
+    name?: string,
+  ): Device | null {
+    const device: Device = {
+      id: crypto.randomUUID(),
+      type,
+      name: name || this.generateDeviceName(type),
+      wallId: '',
+      t: 0,
+      offset: 0,
+      side: 1,
+      rotation: 0,
+      height: defaultDeviceHeight(type),
+      position: { x: position.x, y: position.y },
+    };
+    this.devices.push(device);
+    this.cachedValidation = null;
+    return device;
   }
 
   findDevice(id: string): Device | undefined {
