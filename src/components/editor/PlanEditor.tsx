@@ -41,7 +41,8 @@ export default function PlanEditor() {
     layers: HTMLElement | null
     spec: HTMLElement | null
     cableJournal: HTMLElement | null
-  }>({ property: null, layers: null, spec: null, cableJournal: null })
+    validation: HTMLElement | null
+  }>({ property: null, layers: null, spec: null, cableJournal: null, validation: null })
 
   const currentTool = useCadStore((s) => s.currentTool)
   const theme = useCadStore((s) => s.theme)
@@ -110,27 +111,40 @@ export default function PlanEditor() {
     // Инициализация плавающих панелей и листов
     const app = document.getElementById('app')
     if (app) {
-      // Создаём панели для PanelManager
+      // Сначала создаём панель листов, чтобы PanelManager мог избегать её области
+      sheetsBarRef.current = new SheetsBar(plan, engine, app)
+
+      // Создаём тела плавающих панелей
       const propertyBody = document.createElement('div')
       const layersBody = document.createElement('div')
       const specBody = document.createElement('div')
       const cableJournalBody = document.createElement('div')
+      const validationBody = document.createElement('div')
 
-      panelManagerRef.current = new PanelManager([
-        { id: 'properties', title: 'Свойства', icon: icon('properties'), body: propertyBody },
-        { id: 'layers', title: 'Слои', icon: icon('layers'), body: layersBody },
-        { id: 'spec', title: 'Спецификация', icon: icon('spec'), body: specBody },
-        { id: 'cableJournal', title: 'Кабельный журнал', icon: icon('cable'), body: cableJournalBody },
-      ], app)
-
-      sheetsBarRef.current = new SheetsBar(plan, engine, app)
+      panelManagerRef.current = new PanelManager(
+        [
+          { id: 'properties', title: 'Свойства', icon: icon('properties'), body: propertyBody },
+          { id: 'layers', title: 'Слои', icon: icon('layers'), body: layersBody },
+          { id: 'spec', title: 'Спецификация', icon: icon('spec'), body: specBody },
+          { id: 'cableJournal', title: 'Кабельный журнал', icon: icon('cable'), body: cableJournalBody },
+          { id: 'validation', title: 'Проверка', icon: icon('properties'), body: validationBody },
+        ],
+        app,
+        sheetsBarRef.current.element
+      )
 
       // Рендерим React-компоненты внутри плавающих панелей через порталы
-      setPanelBodies({ property: propertyBody, layers: layersBody, spec: specBody, cableJournal: cableJournalBody })
+      setPanelBodies({
+        property: propertyBody,
+        layers: layersBody,
+        spec: specBody,
+        cableJournal: cableJournalBody,
+        validation: validationBody,
+      })
     }
 
     return () => {
-      setPanelBodies({ property: null, layers: null, spec: null, cableJournal: null })
+      setPanelBodies({ property: null, layers: null, spec: null, cableJournal: null, validation: null })
       engine.destroy()
       engineRef.current = null
       panelManagerRef.current = null
@@ -184,7 +198,6 @@ export default function PlanEditor() {
           className="block h-full w-full touch-none"
         />
         <Toolbar />
-        <ValidationPanel />
         <MobileMenu />
         <ProjectsPanel />
         <OlsPanel />
@@ -193,6 +206,7 @@ export default function PlanEditor() {
         {panelBodies.layers && createPortal(<LayersPanel />, panelBodies.layers)}
         {panelBodies.spec && createPortal(<SpecPanel />, panelBodies.spec)}
         {panelBodies.cableJournal && createPortal(<CableJournalPanel />, panelBodies.cableJournal)}
+        {panelBodies.validation && createPortal(<ValidationPanel />, panelBodies.validation)}
       </div>
     </EditorProvider>
   )

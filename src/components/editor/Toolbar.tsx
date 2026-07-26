@@ -76,6 +76,10 @@ export default function Toolbar() {
     setPanelEditorOpen(!panelEditorOpen)
   }
 
+  const handleToggleValidation = () => {
+    panelManagerRef.current?.toggle('validation')
+  }
+
   const handlePanelMenuItemClick = (id: string) => {
     panelManagerRef.current?.toggle(id)
     setPanelMenuOpen(false)
@@ -284,6 +288,17 @@ export default function Toolbar() {
             title="Визуализация щита"
           >
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('panel') }} />
+          </button>
+          <button
+            onClick={handleToggleValidation}
+            className={`flex flex-col items-center justify-center rounded-lg border p-2 text-xs ${
+              panelManagerRef.current?.isVisible('validation')
+                ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600'
+            }`}
+            title="Проверка"
+          >
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('validation') }} />
           </button>
           <button
             onClick={handleToggleTheme}

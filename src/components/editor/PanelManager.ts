@@ -18,6 +18,7 @@ const STORAGE_LAYOUT = 'involtcad-panels-layout';
 const SNAP_THRESHOLD = 12;
 const PANEL_WIDTH = 280;
 const BASE_Z = 100;
+const AVOID_MARGIN = 8;
 
 /**
  * Отдельная плавающая панель: drag за заголовок, сворачивание, закрытие,
@@ -180,7 +181,11 @@ export class PanelManager {
   private panels: Panel[] = [];
   private zCounter = BASE_Z;
 
-  constructor(configs: PanelConfig[], private parent: HTMLElement) {
+  constructor(
+    configs: PanelConfig[],
+    private parent: HTMLElement,
+    private avoidElement?: HTMLElement,
+  ) {
     const saved = this.loadLayout();
     configs.forEach((config, i) => {
       const panel = new Panel(config, this);
@@ -194,13 +199,37 @@ export class PanelManager {
     window.addEventListener('resize', () => this.clampAllToViewport());
   }
 
+  /** Прямоугольник панели листов — плавающие панели не должны его пересекать. */
+  private avoidRect(): DOMRect | null {
+    return this.avoidElement?.getBoundingClientRect() ?? null;
+  }
+
+  /** Сдвигает Y вниз, если панель пересекает защищённую область (панель листов). */
+  private avoidSheetsBar(x: number, y: number, w: number, h: number): number {
+    const avoid = this.avoidRect();
+    if (!avoid || avoid.width === 0 || avoid.height === 0) return y;
+    const margin = AVOID_MARGIN;
+    const panelRight = x + w;
+    const panelBottom = y + h;
+    const avoidRight = avoid.right + margin;
+    const avoidBottom = avoid.bottom + margin;
+    const intersectsX = x < avoidRight && panelRight > avoid.left - margin;
+    const intersectsY = y < avoidBottom && panelBottom > avoid.top - margin;
+    if (intersectsX && intersectsY) {
+      return avoidBottom;
+    }
+    return y;
+  }
+
   /** Раскладка по умолчанию: столбик у правого края, ниже панели листов. */
   private defaultState(index: number): PanelState {
+    const avoid = this.avoidRect();
+    const top = avoid ? avoid.bottom + AVOID_MARGIN : 60;
     const headerH = 33;
     const bodyH = 260;
     return {
       x: window.innerWidth - PANEL_WIDTH - 16,
-      y: 60 + index * (headerH + bodyH + 12),
+      y: top + index * (headerH + bodyH + 12),
       collapsed: index > 0,
       closed: false,
     };
@@ -227,8 +256,9 @@ export class PanelManager {
   private clampAllToViewport(): void {
     for (const panel of this.panels) {
       const rect = panel.element.getBoundingClientRect();
-      const x = Math.max(0, Math.min(window.innerWidth - rect.width, rect.left));
-      const y = Math.max(0, Math.min(window.innerHeight - 40, rect.top));
+      let x = Math.max(0, Math.min(window.innerWidth - rect.width, rect.left));
+      let y = Math.max(0, Math.min(window.innerHeight - 40, rect.top));
+      y = this.avoidSheetsBar(x, y, rect.width, rect.height);
       panel.setPosition(x, y);
     }
     this.saveLayout();
@@ -280,7 +310,8 @@ export class PanelManager {
       }
     }
 
-    return { x: bestX ?? x, y: bestY ?? y };
+    const snappedY = this.avoidSheetsBar(bestX ?? x, bestY ?? y, w, h);
+    return { x: bestX ?? x, y: snappedY };
   }
 
   bringToFront(id: string): void {
