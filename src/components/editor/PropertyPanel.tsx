@@ -49,34 +49,22 @@ export default function PropertyPanel() {
     currentTool === 'device' ||
     currentTool === 'cable'
 
-  if (!hasSelection && !hasToolSettings) {
-    return (
-      <div className="absolute right-3 top-3 z-20 hidden w-48 rounded-lg border border-gray-200 bg-white p-3 shadow-md dark:border-gray-700 dark:bg-gray-800 md:block">
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          Выберите объект или инструмент
-        </div>
-      </div>
-    )
-  }
-
   const wall = selectedWallId && plan ? plan.findWall(selectedWallId) : null
   const opening = selectedOpeningId && plan ? plan.findOpening(selectedOpeningId) : null
   const device = selectedDeviceId && plan ? plan.findDevice(selectedDeviceId) : null
   const cable = selectedCableId && plan ? plan.findCable(selectedCableId) : null
   const dimension = selectedDimensionId && plan ? plan.dimensions.find(d => d.id === selectedDimensionId) : null
 
-  return (
-    <div className="absolute right-3 top-3 z-20 hidden w-48 rounded-lg border border-gray-200 bg-white p-3 shadow-md dark:border-gray-700 dark:bg-gray-800 md:block">
-      <div className="mb-2 flex items-center justify-between">
-        <span className="font-semibold text-gray-900 dark:text-white">Свойства</span>
-        <button
-          onClick={() => useCadStore.getState().clearSelection()}
-          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-        >
-          ×
-        </button>
+  if (!hasSelection && !hasToolSettings) {
+    return (
+      <div className="text-sm text-gray-500 dark:text-gray-400">
+        Выберите объект или инструмент
       </div>
+    )
+  }
 
+  return (
+    <>
       {wall && <WallProperties wall={wall} plan={plan!} />}
       {opening && <OpeningProperties opening={opening.opening} />}
       {device && <DeviceProperties device={device} plan={plan!} />}
@@ -88,7 +76,7 @@ export default function PropertyPanel() {
       {!hasSelection && currentTool === 'window' && <WindowToolSettings />}
       {!hasSelection && currentTool === 'device' && <DeviceToolSettings />}
       {!hasSelection && currentTool === 'cable' && <CableToolSettings />}
-    </div>
+    </>
   )
 }
 

@@ -18,13 +18,8 @@ export default function SpecPanel() {
 
   if (!plan) {
     return (
-      <div className="absolute right-[390px] top-3 z-20 hidden w-48 rounded-lg border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800 md:block">
-        <div className="border-b border-gray-200 px-3 py-2 text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-white">
-          Спецификация
-        </div>
-        <div className="p-3 text-sm text-gray-500 dark:text-gray-400">
-          Нет данных
-        </div>
+      <div className="text-sm text-gray-500 dark:text-gray-400">
+        Нет данных
       </div>
     )
   }
@@ -35,11 +30,7 @@ export default function SpecPanel() {
   const rooms = plan.getRooms()
 
   return (
-    <div className="absolute right-[390px] top-3 z-20 hidden w-48 rounded-lg border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800 md:block">
-      <div className="border-b border-gray-200 px-3 py-2 text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-white">
-        Спецификация
-      </div>
-      <div className="p-3 text-sm">
+    <div className="space-y-2 text-sm">
         {walls.length > 0 && (
           <div className="mb-2">
             <div className="font-medium text-gray-900 dark:text-white">Стены</div>
@@ -75,6 +66,5 @@ export default function SpecPanel() {
           Экспорт CSV
         </button>
       </div>
-    </div>
   )
 }
