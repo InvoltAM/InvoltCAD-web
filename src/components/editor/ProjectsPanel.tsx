@@ -90,7 +90,7 @@ export default function ProjectsPanel() {
       {/* Projects button */}
       <button
         onClick={handleOpenPanel}
-        className="absolute left-20 top-3 z-40 rounded-lg border border-gray-200 bg-white p-2 shadow-md dark:border-gray-700 dark:bg-gray-800 md:left-3"
+        className="absolute left-20 top-3 z-20 rounded-lg border border-gray-200 bg-white p-2 shadow-md dark:border-gray-700 dark:bg-gray-800 md:left-20"
         title="Проекты"
       >
         📁

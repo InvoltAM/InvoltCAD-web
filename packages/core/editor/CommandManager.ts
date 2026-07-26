@@ -587,19 +587,28 @@ export class MoveDeviceNameCommand implements Command {
   }
 }
 
-/** Команда перемещения устройства вдоль стены. */
+/** Команда перемещения устройства вдоль стены или на другую стену. */
 export class MoveDeviceCommand implements Command {
   constructor(
     private plan: Plan,
     private deviceId: string,
+    private oldWallId: string,
     private oldT: number,
+    private oldSide: 1 | -1,
+    private oldPosition: { x: number; y: number } | undefined,
+    private newWallId: string,
     private newT: number,
+    private newSide: 1 | -1,
+    private newPosition: { x: number; y: number } | undefined,
   ) {}
 
   execute(): void {
     const device = this.plan.findDevice(this.deviceId);
     if (device) {
+      device.wallId = this.newWallId;
       device.t = this.newT;
+      device.side = this.newSide;
+      device.position = this.newPosition ? { ...this.newPosition } : undefined;
       this.plan.recalcCableRoutes();
     }
   }
@@ -607,7 +616,10 @@ export class MoveDeviceCommand implements Command {
   undo(): void {
     const device = this.plan.findDevice(this.deviceId);
     if (device) {
+      device.wallId = this.oldWallId;
       device.t = this.oldT;
+      device.side = this.oldSide;
+      device.position = this.oldPosition ? { ...this.oldPosition } : undefined;
       this.plan.recalcCableRoutes();
     }
   }

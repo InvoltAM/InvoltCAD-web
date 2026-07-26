@@ -76,25 +76,16 @@ function createAuth() {
 }
 
 // Singleton для NextAuth
+type AuthInstance = ReturnType<typeof createAuth>
 const globalForAuth = globalThis as unknown as {
-  auth: ReturnType<typeof createAuth> | undefined
+  __authInstance?: AuthInstance
 }
 
-export function getAuth() {
-  if (!globalForAuth.auth || typeof globalForAuth.auth.auth !== 'function') {
-    globalForAuth.auth = createAuth()
+export function getAuth(): AuthInstance {
+  if (!globalForAuth.__authInstance) {
+    globalForAuth.__authInstance = createAuth()
   }
-  return globalForAuth.auth
+  return globalForAuth.__authInstance
 }
 
-export const auth: ReturnType<typeof createAuth>['auth'] = async (...args: unknown[]) => {
-  return getAuth().auth(...args)
-}
-
-export const signIn: ReturnType<typeof createAuth>['signIn'] = async (...args: unknown[]) => {
-  return getAuth().signIn(...args)
-}
-
-export const signOut: ReturnType<typeof createAuth>['signOut'] = async (...args: unknown[]) => {
-  return getAuth().signOut(...args)
-}
+export const { auth, signIn, signOut, handlers } = getAuth()

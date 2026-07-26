@@ -156,36 +156,56 @@ export class SelectTool implements Tool {
       this.canvas.setGhost(ctx => {
         this.canvas.ghostRenderer.drawSnapMarker(ctx, snap);
       });
+
       if (this.dragDevice.originalPos) {
         // Свободно размещённое устройство — центр значка привязывается к snap-точке
         device.position = { x: world.x, y: world.y };
+        device.wallId = '';
+        device.t = 0;
         this.dragDevice.moved = true;
         this.plan.recalcCableRoutes();
         this.canvas.notifyChanged();
-      } else if (wall) {
-        const len = wallLength(wall);
-        if (len > 0) {
-          const proj = projectPointToSegment(world, wall.a, wall.b);
-          let t = proj.t;
-          // Отступы от концов стены и от проёмов (как в Plan.addDevice)
-          const item = findDeviceCatalogItem(device.type);
-          const half = (item ? Math.max(item.width, item.height) : 600) / 2;
-          const minT = (half + 20) / len;
-          const maxT = 1 - (half + 20) / len;
-          t = Math.max(minT, Math.min(maxT, t));
-          for (const opening of wall.openings) {
-            const oHalf = opening.width / 2 + half + 10;
-            if (Math.abs(t - opening.t) * len < oHalf) {
-              t = t < opening.t ? opening.t - oHalf / len : opening.t + oHalf / len;
-              t = Math.max(minT, Math.min(maxT, t));
-            }
+      } else {
+        // Перетаскивание вдоль стены или перенос на ближайшую стену.
+        // Сначала ищем стену в радиусе 60 px от курсора (больше, чем при размещении).
+        const nearest = this.findNearestWallWithin(e.screenPoint, 60);
+        const targetWall = nearest?.wall ?? wall;
+        if (!targetWall) return;
+
+        const proj = projectPointToSegment(world, targetWall.a, targetWall.b);
+        const len = wallLength(targetWall);
+        if (len === 0) return;
+        let t = proj.t;
+
+        // Отступы от концов стены и от проёмов
+        const item = findDeviceCatalogItem(device.type);
+        const half = (item ? Math.max(item.width, item.height) : 600) / 2;
+        const minT = (half + 20) / len;
+        const maxT = 1 - (half + 20) / len;
+        t = Math.max(minT, Math.min(maxT, t));
+        for (const opening of targetWall.openings) {
+          const oHalf = opening.width / 2 + half + 10;
+          if (Math.abs(t - opening.t) * len < oHalf) {
+            t = t < opening.t ? opening.t - oHalf / len : opening.t + oHalf / len;
+            t = Math.max(minT, Math.min(maxT, t));
           }
-          if (t !== device.t) {
-            device.t = t;
-            this.dragDevice.moved = true;
-            this.plan.recalcCableRoutes();
-            this.canvas.notifyChanged();
-          }
+        }
+
+        // Сторона относительно стены
+        const dir = wallDirection(targetWall);
+        const n = dir.perpendicular();
+        const centerOnWall = targetWall.a.add(dir.scale(t * len));
+        const cursorDir = world.sub(centerOnWall);
+        const side: 1 | -1 = cursorDir.dot(n) >= 0 ? 1 : -1;
+
+        if (device.wallId !== targetWall.id || device.t !== t || device.side !== side) {
+          device.wallId = targetWall.id;
+          device.t = t;
+          device.side = side;
+          this.dragDevice.wall = targetWall;
+          this.dragDevice.moved = true;
+          this.plan.recalcCableRoutes();
+          this.canvas.notifyChanged();
         }
       }
     } else if (this.dragDeviceName) {
@@ -225,7 +245,7 @@ export class SelectTool implements Tool {
 
   onPointerUp(e: InputEvent): void {
     if (this.dragDevice) {
-      const { device, startT, originalPos, moved } = this.dragDevice;
+      const { device, wall, startT, originalPos, moved } = this.dragDevice;
       if (moved) {
         if (originalPos && device.position) {
           this.canvas.commandManager.execute(
@@ -233,7 +253,18 @@ export class SelectTool implements Tool {
           );
         } else {
           this.canvas.commandManager.execute(
-            new MoveDeviceCommand(this.plan, device.id, startT, device.t),
+            new MoveDeviceCommand(
+              this.plan,
+              device.id,
+              wall?.id ?? '',
+              startT,
+              device.side,
+              originalPos ?? undefined,
+              device.wallId,
+              device.t,
+              device.side,
+              device.position,
+            ),
           );
         }
       }
@@ -425,6 +456,28 @@ export class SelectTool implements Tool {
     t = Math.max(0, Math.min(1, t));
     const point = a.add(v.scale(t));
     return { point, t, dist: p.distanceTo(point) };
+  }
+
+  /** Ищет ближайшую стену к курсору в пределах thresholdPx (экранных пикселей). */
+  private findNearestWallWithin(screenPoint: Vector2, thresholdPx: number): { wall: Wall; t: number } | null {
+    const world = this.canvas.camera.screenToWorld(screenPoint);
+    const tree = this.plan.getWallQuadtree();
+    const thresholdWorld = thresholdPx / this.canvas.camera.scale;
+    const candidates = tree.query({
+      min: new Vector2(world.x - thresholdWorld, world.y - thresholdWorld),
+      max: new Vector2(world.x + thresholdWorld, world.y + thresholdWorld),
+    });
+
+    let best: { wall: Wall; t: number; distPx: number } | null = null;
+    for (const wall of candidates) {
+      const proj = projectPointToSegment(world, wall.a, wall.b);
+      const screenProj = this.canvas.camera.worldToScreen(proj.point);
+      const distPx = screenProj.distanceTo(screenPoint);
+      if (distPx < thresholdPx && (!best || distPx < best.distPx)) {
+        best = { wall, t: proj.t, distPx };
+      }
+    }
+    return best;
   }
 
   private hitTestWall(screenPoint: Vector2): Wall | null {
