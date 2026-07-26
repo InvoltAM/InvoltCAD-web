@@ -164,9 +164,11 @@ export class OpeningRenderer {
 
     ctx.lineWidth = 1 / this.camera.scale;
     ctx.beginPath();
-    const startAngle = wallAngle;
-    const endAngle = wallAngle + openDir * Math.PI / 2;
-    ctx.arc(hinge.x, hinge.y, opening.width, startAngle, endAngle, openDir < 0);
+    const baseAngle = wallAngle + (hingeSide === 'right' ? Math.PI : 0);
+    let sweep = leafAngle - baseAngle;
+    while (sweep > Math.PI) sweep -= 2 * Math.PI;
+    while (sweep <= -Math.PI) sweep += 2 * Math.PI;
+    ctx.arc(hinge.x, hinge.y, opening.width, baseAngle, baseAngle + sweep, sweep < 0);
     ctx.stroke();
   }
 
@@ -190,16 +192,6 @@ export class OpeningRenderer {
       ctx.moveTo(p1.x, p1.y);
       ctx.lineTo(p2.x, p2.y);
     }
-    ctx.stroke();
-
-    ctx.lineWidth = 1 / this.camera.scale;
-    ctx.beginPath();
-    const sillOffset = thickness / 2 + 30;
-    const sillCenter = center.add(n.scale(sillOffset));
-    const s1 = sillCenter.add(dir.scale(-half - 20));
-    const s2 = sillCenter.add(dir.scale(half + 20));
-    ctx.moveTo(s1.x, s1.y);
-    ctx.lineTo(s2.x, s2.y);
     ctx.stroke();
   }
 }

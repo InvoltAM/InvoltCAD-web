@@ -19,31 +19,12 @@ export interface Device {
   offset: number;   // расстояние от поверхности стены, мм (>=0)
   side: 1 | -1;     // сторона относительно направления стены
   rotation: number; // угол поворота в радианах
-  height?: number;  // высота установки от пола, мм
+  /** @deprecated Высота установки от пола, мм — оставлено для совместимости сериализации БД. */
+  height?: number;
   /** Смещение подписи (атрибута) от позиции по умолчанию, мировые мм. */
   nameOffset?: { x: number; y: number };
   /** Абсолютная позиция для свободно размещённых устройств (напр. светильник на потолке), мировые мм. */
   position?: { x: number; y: number };
-}
-
-/** Стандартная высота установки устройства от пола, мм. */
-export function defaultDeviceHeight(type: DeviceType): number {
-  switch (type) {
-    case 'socket':
-    case 'socket-uz':
-    case 'socket-usb':
-      return 300;
-    case 'switch':
-    case 'switch-2':
-      return 900;
-    case 'panel':
-    case 'breaker':
-      return 1500;
-    case 'light':
-      return 2500;
-    default:
-      return 300;
-  }
 }
 
 function buildDeviceMap<T>(getter: (item: import('../catalogs/DeviceCatalog').DeviceCatalogItem) => T): Record<DeviceType, T> {

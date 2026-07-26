@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { createRoot, Root } from 'react-dom/client'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { CanvasEngine } from '@core/engine/CanvasEngine'
 import { Plan } from '@core/model/Plan'
 import { WallTool } from '@core/tools/WallTool'
@@ -36,9 +36,11 @@ export default function PlanEditor() {
   const themeManagerRef = useRef<ThemeManager | null>(null)
   const panelManagerRef = useRef<PanelManager | null>(null)
   const sheetsBarRef = useRef<SheetsBar | null>(null)
-  const propertyRootRef = useRef<Root | null>(null)
-  const layersRootRef = useRef<Root | null>(null)
-  const specRootRef = useRef<Root | null>(null)
+  const [panelBodies, setPanelBodies] = useState<{
+    property: HTMLElement | null
+    layers: HTMLElement | null
+    spec: HTMLElement | null
+  }>({ property: null, layers: null, spec: null })
 
   const currentTool = useCadStore((s) => s.currentTool)
   const theme = useCadStore((s) => s.theme)
@@ -54,6 +56,9 @@ export default function PlanEditor() {
 
     const engine = new CanvasEngine(canvas, plan, themeManager)
     engineRef.current = engine
+
+    // Синхронизируем начальное состояние cadStore -> EditorState
+    engine.editorState.set('orthoMode', useCadStore.getState().orthoMode)
 
     // Регистрация инструментов
     const wallTool = new WallTool(engine, plan, engine.snapEngine)
@@ -82,8 +87,16 @@ export default function PlanEditor() {
 
     // Подписка на изменения плана для валидации и автосохранения
     engine.onChange = () => {
-      const validation = plan.validate()
-      useCadStore.getState().setValidationIssues(validation.issues)
+      const rooms = plan.getRooms()
+      const issues: import('@core/rules/ValidationTypes').ValidationIssue[] = rooms.length === 0
+        ? [{
+            id: 'plan-no-rooms',
+            type: 'plan',
+            severity: 'error',
+            message: 'План не содержит замкнутых комнат. Проверьте, что стены образуют замкнутые контуры.',
+          }]
+        : []
+      useCadStore.getState().setValidationIssues(issues)
       projectSync.scheduleSave(plan)
     }
 
@@ -109,20 +122,12 @@ export default function PlanEditor() {
 
       sheetsBarRef.current = new SheetsBar(plan, engine, app)
 
-      // Рендерим React-компоненты внутри плавающих панелей
-      propertyRootRef.current = createRoot(propertyBody)
-      layersRootRef.current = createRoot(layersBody)
-      specRootRef.current = createRoot(specBody)
-
-      propertyRootRef.current.render(<PropertyPanel />)
-      layersRootRef.current.render(<LayersPanel />)
-      specRootRef.current.render(<SpecPanel />)
+      // Рендерим React-компоненты внутри плавающих панелей через порталы
+      setPanelBodies({ property: propertyBody, layers: layersBody, spec: specBody })
     }
 
     return () => {
-      propertyRootRef.current?.unmount()
-      layersRootRef.current?.unmount()
-      specRootRef.current?.unmount()
+      setPanelBodies({ property: null, layers: null, spec: null })
       engine.destroy()
       engineRef.current = null
       panelManagerRef.current = null
@@ -169,7 +174,7 @@ export default function PlanEditor() {
   }, [theme])
 
   return (
-    <EditorProvider engineRef={engineRef} themeManagerRef={themeManagerRef}>
+    <EditorProvider engineRef={engineRef} themeManagerRef={themeManagerRef} panelManagerRef={panelManagerRef}>
       <div className="relative h-full w-full">
         <canvas
           ref={canvasRef}
@@ -182,6 +187,9 @@ export default function PlanEditor() {
         <CableJournalPanel />
         <OlsPanel />
         <PanelEditor />
+        {panelBodies.property && createPortal(<PropertyPanel />, panelBodies.property)}
+        {panelBodies.layers && createPortal(<LayersPanel />, panelBodies.layers)}
+        {panelBodies.spec && createPortal(<SpecPanel />, panelBodies.spec)}
       </div>
     </EditorProvider>
   )

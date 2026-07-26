@@ -81,7 +81,7 @@ const globalForAuth = globalThis as unknown as {
 }
 
 export function getAuth() {
-  if (!globalForAuth.auth) {
+  if (!globalForAuth.auth || typeof globalForAuth.auth.auth !== 'function') {
     globalForAuth.auth = createAuth()
   }
   return globalForAuth.auth

@@ -38,6 +38,7 @@ export class WallTool implements Tool {
     this.state = 'idle';
     this.canvas.setGhost(null);
     this.canvas.hideMagnifier();
+    this.snapEngine.clearTracking();
     this.canvas.requestRender();
   }
 
@@ -61,7 +62,7 @@ export class WallTool implements Tool {
     }
     if (this.state === 'drawing') {
       const snap = this.snapEngine.snap(e.screenPoint, { noGrid: false });
-      this.end = snap.point;
+      this.end = this.applyOrtho(e, snap.point);
       this.lastSnap = snap;
       this.updateGhost();
     } else {
@@ -77,7 +78,7 @@ export class WallTool implements Tool {
     }
     if (this.state === 'drawing') {
       const snap = this.snapEngine.snap(e.screenPoint);
-      this.end = snap.point;
+      this.end = this.applyOrtho(e, snap.point);
       this.lastSnap = snap;
 
       const len = this.start.distanceTo(this.end);
@@ -99,10 +100,25 @@ export class WallTool implements Tool {
       this.state = 'idle';
       this.canvas.setGhost(null);
       this.canvas.hideMagnifier();
+      this.snapEngine.clearTracking();
       this.canvas.requestRender();
       return true;
     }
     return false;
+  }
+
+  /**
+   * Орто-режим: при зажатом Shift или включённом переключателе «Орто»
+   * проецирует конечную точку на доминантную ось относительно начала стены.
+   */
+  private applyOrtho(e: InputEvent, point: Vector2): Vector2 {
+    if (!e.shiftKey && !this.canvas.editorState.get('orthoMode')) return point;
+    const dx = point.x - this.start.x;
+    const dy = point.y - this.start.y;
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      return new Vector2(point.x, this.start.y);
+    }
+    return new Vector2(this.start.x, point.y);
   }
 
   private updateGhost(): void {
@@ -110,6 +126,18 @@ export class WallTool implements Tool {
       if (this.state === 'drawing') {
         const thickness = this.canvas.editorState.get('wallThickness') || DEFAULT_WALL_THICKNESS;
         this.canvas.ghostRenderer.drawWallGhost(ctx, this.start, this.end, thickness);
+
+        // Направляющие лучи из стартовой точки
+        const dir = this.end.sub(this.start);
+        if (dir.length() > 1e-9) {
+          const n = dir.perpendicular();
+          this.canvas.ghostRenderer.drawGuideRays(ctx, this.start, [
+            dir,
+            dir.scale(-1),
+            n,
+            n.scale(-1),
+          ]);
+        }
       }
       this.canvas.ghostRenderer.drawSnapMarker(ctx, this.lastSnap);
     });

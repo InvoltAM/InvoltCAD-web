@@ -7,10 +7,11 @@ import { useEditor } from './EditorContext'
 import { Plan } from '@core/model/Plan'
 import { Wall, wallHasArc, createWallArcFromChord } from '@core/model/Wall'
 import { Opening } from '@core/model/Opening'
-import { Device, defaultDeviceHeight, DEVICE_SIZE } from '@core/model/Device'
+import { Device, DEVICE_SIZE } from '@core/model/Device'
 import { Cable } from '@core/model/Cable'
 import { Dimension } from '@core/model/Dimension'
 import { UpdateWallArcCommand } from '@core/editor/CommandManager'
+import { DEVICE_CATALOG, DEVICE_CATEGORIES } from '@core/catalogs/DeviceCatalog'
 
 const WALL_THICKNESS_PRESETS = [100, 150, 200, 250, 300, 400]
 const DOOR_WIDTH_PRESETS = [700, 800, 900, 1000]
@@ -328,11 +329,6 @@ function DeviceProperties({ device, plan }: { device: Device; plan: Plan }) {
     engineRef.current?.notifyChanged()
   }
 
-  const handleHeightChange = (height: number) => {
-    device.height = height
-    engineRef.current?.notifyChanged()
-  }
-
   const handleTypeChange = (type: string) => {
     device.type = type as Device['type']
     engineRef.current?.notifyChanged()
@@ -346,6 +342,7 @@ function DeviceProperties({ device, plan }: { device: Device; plan: Plan }) {
   const wall = plan.findWall(device.wallId)
   const wallLen = wall ? wall.a.distanceTo(wall.b) : 0
   const distanceMm = Math.round(device.t * wallLen)
+  const isFree = !!device.position
 
   const handleDistanceChange = (distance: number) => {
     if (wall && wallLen > 0) {
@@ -369,59 +366,50 @@ function DeviceProperties({ device, plan }: { device: Device; plan: Plan }) {
         />
       </div>
 
-      <div>
-        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Смещение от стены, мм</label>
-        <div className="mb-1 flex flex-wrap gap-1">
-          {DEVICE_OFFSET_PRESETS.map((off) => (
-            <button
-              key={off}
-              onClick={() => handleOffsetChange(off)}
-              className={`rounded border px-2 py-1 text-xs ${
-                Math.abs(device.offset - off) < 5
-                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                  : 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700'
-              }`}
-            >
-              {off}
-            </button>
-          ))}
-        </div>
-        <input
-          type="number"
-          value={Math.round(device.offset)}
-          onChange={(e) => {
-            const v = parseInt(e.target.value, 10)
-            if (v >= 0) handleOffsetChange(v)
-          }}
-          className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-        />
-      </div>
+      {!isFree && (
+        <>
+          <div>
+            <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Смещение от стены, мм</label>
+            <div className="mb-1 flex flex-wrap gap-1">
+              {DEVICE_OFFSET_PRESETS.map((off) => (
+                <button
+                  key={off}
+                  onClick={() => handleOffsetChange(off)}
+                  className={`rounded border px-2 py-1 text-xs ${
+                    Math.abs(device.offset - off) < 5
+                      ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                      : 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {off}
+                </button>
+              ))}
+            </div>
+            <input
+              type="number"
+              value={Math.round(device.offset)}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10)
+                if (v >= 0) handleOffsetChange(v)
+              }}
+              className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            />
+          </div>
 
-      <div>
-        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Высота установки, мм</label>
-        <input
-          type="number"
-          value={Math.round(device.height ?? defaultDeviceHeight(device.type))}
-          onChange={(e) => {
-            const v = parseInt(e.target.value, 10)
-            if (!isNaN(v) && v >= 0) handleHeightChange(v)
-          }}
-          className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-        />
-      </div>
-
-      <div>
-        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Расстояние от начала стены, мм</label>
-        <input
-          type="number"
-          value={distanceMm}
-          onChange={(e) => {
-            const v = parseInt(e.target.value, 10)
-            if (!isNaN(v)) handleDistanceChange(v)
-          }}
-          className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-        />
-      </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Расстояние от начала стены, мм</label>
+            <input
+              type="number"
+              value={distanceMm}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10)
+                if (!isNaN(v)) handleDistanceChange(v)
+              }}
+              className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            />
+          </div>
+        </>
+      )}
 
       <div>
         <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Тип устройства</label>
@@ -430,35 +418,38 @@ function DeviceProperties({ device, plan }: { device: Device; plan: Plan }) {
           onChange={(e) => handleTypeChange(e.target.value)}
           className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
         >
-          <option value="socket">Розетка</option>
-          <option value="socket-uz">Розетка с заземлением</option>
-          <option value="socket-usb">Розетка USB</option>
-          <option value="switch">Выключатель</option>
-          <option value="switch-2">Двойной выключатель</option>
-          <option value="panel">Щит</option>
-          <option value="breaker">Автомат</option>
-          <option value="light">Светильник</option>
+          {Object.entries(DEVICE_CATEGORIES).map(([category, label]) => (
+            <optgroup key={category} label={label}>
+              {DEVICE_CATALOG.filter((item) => item.category === category).map((item) => (
+                <option key={item.type} value={item.type}>
+                  {item.label}
+                </option>
+              ))}
+            </optgroup>
+          ))}
         </select>
       </div>
 
-      <div>
-        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Сторона стены</label>
-        <div className="flex gap-1">
-          {([1, -1] as const).map((side) => (
-            <button
-              key={side}
-              onClick={() => handleSideChange(side)}
-              className={`flex-1 rounded border px-2 py-1 text-xs ${
-                device.side === side
-                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                  : 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700'
-              }`}
-            >
-              {side === 1 ? 'Сторона A' : 'Сторона B'}
-            </button>
-          ))}
+      {!isFree && (
+        <div>
+          <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Сторона стены</label>
+          <div className="flex gap-1">
+            {([1, -1] as const).map((side) => (
+              <button
+                key={side}
+                onClick={() => handleSideChange(side)}
+                className={`flex-1 rounded border px-2 py-1 text-xs ${
+                  device.side === side
+                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                    : 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700'
+                }`}
+              >
+                {side === 1 ? 'Сторона A' : 'Сторона B'}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -522,6 +513,12 @@ function DimensionProperties({ dimension }: { dimension: Dimension }) {
     engineRef.current?.notifyChanged()
   }
 
+  const updatePoint = (point: 'a' | 'b', axis: 'x' | 'y', value: number) => {
+    dimension[point][axis] = value
+    dimension.length = dimension.a.distanceTo(dimension.b)
+    engineRef.current?.notifyChanged()
+  }
+
   return (
     <div className="space-y-3">
       <div>
@@ -539,6 +536,42 @@ function DimensionProperties({ dimension }: { dimension: Dimension }) {
         <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">
           Длина: {Math.round(dimension.length)} мм
         </label>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Точка A</label>
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            type="number"
+            value={Math.round(dimension.a.x)}
+            onChange={(e) => updatePoint('a', 'x', parseFloat(e.target.value))}
+            className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          />
+          <input
+            type="number"
+            value={Math.round(dimension.a.y)}
+            onChange={(e) => updatePoint('a', 'y', parseFloat(e.target.value))}
+            className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Точка B</label>
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            type="number"
+            value={Math.round(dimension.b.x)}
+            onChange={(e) => updatePoint('b', 'x', parseFloat(e.target.value))}
+            className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          />
+          <input
+            type="number"
+            value={Math.round(dimension.b.y)}
+            onChange={(e) => updatePoint('b', 'y', parseFloat(e.target.value))}
+            className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          />
+        </div>
       </div>
     </div>
   )
@@ -674,14 +707,15 @@ function DeviceToolSettings() {
           onChange={(e) => setSelectedDeviceType(e.target.value as Device['type'])}
           className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
         >
-          <option value="socket">Розетка</option>
-          <option value="socket-uz">Розетка с заземлением</option>
-          <option value="socket-usb">Розетка USB</option>
-          <option value="switch">Выключатель</option>
-          <option value="switch-2">Двойной выключатель</option>
-          <option value="panel">Щит</option>
-          <option value="breaker">Автомат</option>
-          <option value="light">Светильник</option>
+          {Object.entries(DEVICE_CATEGORIES).map(([category, label]) => (
+            <optgroup key={category} label={label}>
+              {DEVICE_CATALOG.filter((item) => item.category === category).map((item) => (
+                <option key={item.type} value={item.type}>
+                  {item.label}
+                </option>
+              ))}
+            </optgroup>
+          ))}
         </select>
       </div>
 

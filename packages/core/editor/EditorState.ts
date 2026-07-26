@@ -45,6 +45,7 @@ export interface EditorStateData {
   theme: ThemeName;
   uiScale: number;
   compactPanels: boolean;
+  orthoMode: boolean;
 }
 
 type Listener<T> = (value: T) => void;
@@ -78,6 +79,7 @@ export class EditorState {
     theme: 'light',
     uiScale: 1,
     compactPanels: false,
+    orthoMode: false,
   };
 
   private listeners: {

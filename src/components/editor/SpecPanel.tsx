@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useEditor } from './EditorContext'
 import { Plan } from '@core/model/Plan'
+import { Storage } from '@core/io/Storage'
 
 export default function SpecPanel() {
   const { engineRef } = useEditor()
@@ -67,7 +68,10 @@ export default function SpecPanel() {
             </div>
           </div>
         )}
-        <button className="mt-2 w-full rounded border border-orange-500 bg-orange-50 px-2 py-1 text-xs text-orange-700 hover:bg-orange-100 dark:bg-orange-900/20 dark:text-orange-300">
+        <button
+          onClick={() => new Storage().exportSpecToCSV(plan)}
+          className="mt-2 w-full rounded border border-orange-500 bg-orange-50 px-2 py-1 text-xs text-orange-700 hover:bg-orange-100 dark:bg-orange-900/20 dark:text-orange-300"
+        >
           Экспорт CSV
         </button>
       </div>

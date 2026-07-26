@@ -36,6 +36,19 @@
   }
 }
 
+[data-theme='dark'] {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --panel-bg: #252525;
+  --panel-header-bg: #2a2a2a;
+  --border: #3a3a3a;
+  --text: #e0e0e0;
+  --text-secondary: #aaa;
+  --text-muted: #888;
+  --hover-bg: #333333;
+  --shadow: rgba(0,0,0,0.3);
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -253,4 +266,75 @@ body {
   .float-panel {
     width: min(280px, calc(100vw - 24px));
   }
+}
+
+/* UI-иконки */
+.ui-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.ui-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Меню повторного открытия панелей */
+.panels-menu {
+  position: fixed;
+  min-width: 180px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  z-index: 300;
+  overflow: hidden;
+}
+
+.panels-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.panels-menu-item .ui-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  color: var(--text-secondary);
+}
+
+.panels-menu-item:not(.visible) {
+  color: var(--text-muted);
+}
+
+.panels-menu-item:hover {
+  background: var(--hover-bg);
+}
+
+.panels-menu-check {
+  margin-left: auto;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Защита от случайного удаления листа */
+.sheet-tab-close.armed {
+  background: #dc2626;
+  color: #fff;
+  font-weight: 700;
 }

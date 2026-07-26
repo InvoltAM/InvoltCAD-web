@@ -1,62 +1,13 @@
 import { Vector2 } from '../geometry/Vector2';
 import { Wall, DEFAULT_WALL_THICKNESS, wallLength, wallDirection } from './Wall';
 import { Opening, OpeningType, DEFAULT_DOOR_WIDTH, DEFAULT_WINDOW_WIDTH } from './Opening';
-import { Device, DeviceType, DEVICE_SIZE, DEFAULT_DEVICE_NAMES, defaultDeviceHeight } from './Device';
-import { Cable, CableType, DEFAULT_CABLE, computeCableSpareLength } from './Cable';
+import { Device, DeviceType, DEVICE_SIZE, DEFAULT_DEVICE_NAMES } from './Device';
+import { Cable, CableType, DEFAULT_CABLE } from './Cable';
 import { Dimension, createDimension } from './Dimension';
 import { detectRooms, Room } from '../geometry/RoomDetector';
 import { Quadtree, buildWallQuadtree } from '../geometry/Quadtree';
 
-import { validatePlan, ValidationResult } from '../rules/PlanValidator';
 import { projectPointToSegment } from '../geometry/Geometry';
-import { routeCable } from '../cables/cableRouting';
-
-interface PlanJSON {
-  walls?: Array<{
-    id?: string;
-    a?: { x?: number; y?: number };
-    b?: { x?: number; y?: number };
-    thickness?: number;
-    openings?: Array<{
-      id?: string;
-      type?: OpeningType;
-      wallId?: string;
-      t?: number;
-      width?: number;
-      swingSide?: 'left' | 'right';
-      openDir?: 1 | -1;
-    }>;
-  }>;
-  devices?: Array<{
-    id?: string;
-    type?: DeviceType;
-    name?: string;
-    wallId?: string;
-    t?: number;
-    offset?: number;
-    side?: 1 | -1;
-    rotation?: number;
-    height?: number;
-  }>;
-  cables?: Array<{
-    id?: string;
-    fromDeviceId?: string;
-    toDeviceId?: string;
-    type?: CableType;
-    crossSection?: number;
-    length?: number;
-    spareLength?: number;
-    totalLength?: number;
-    route?: Array<{ x?: number; y?: number }>;
-  }>;
-  dimensions?: Array<{
-    id?: string;
-    a?: { x?: number; y?: number };
-    b?: { x?: number; y?: number };
-    length?: number;
-    text?: string;
-  }>;
-}
 
 import { Sheet, createDefaultSheets } from './Sheet';
 
@@ -66,16 +17,44 @@ import { Sheet, createDefaultSheets } from './Sheet';
  */
 export class Plan {
   walls: Wall[] = [];
-  devices: Device[] = [];
-  cables: Cable[] = [];
-  dimensions: Dimension[] = [];
   sheets: Sheet[] = createDefaultSheets();
-  activeSheetId: string = this.sheets[0]?.id ?? '';
+  activeSheetId: string = '';
 
   private wallQuadtree: Quadtree<Wall> | null = null;
   private cachedQuadtreeHash = '';
   private cachedRooms: Room[] | null = null;
-  private cachedValidation: import('../rules/PlanValidator').ValidationResult | null = null;
+
+  /** Активный лист (по умолчанию — первый). */
+  get activeSheet(): Sheet {
+    if (!this.activeSheetId || !this.sheets.some(s => s.id === this.activeSheetId)) {
+      this.activeSheetId = this.sheets[0]?.id ?? '';
+    }
+    return this.sheets.find(s => s.id === this.activeSheetId) as Sheet;
+  }
+
+  /** Устройства активного листа (живая ссылка на массив). */
+  get devices(): Device[] {
+    return this.activeSheet.devices;
+  }
+  set devices(value: Device[]) {
+    this.activeSheet.devices = value;
+  }
+
+  /** Кабели активного листа. */
+  get cables(): Cable[] {
+    return this.activeSheet.cables;
+  }
+  set cables(value: Cable[]) {
+    this.activeSheet.cables = value;
+  }
+
+  /** Размеры активного листа. */
+  get dimensions(): Dimension[] {
+    return this.activeSheet.dimensions;
+  }
+  set dimensions(value: Dimension[]) {
+    this.activeSheet.dimensions = value;
+  }
 
   addWall(a: Vector2, b: Vector2, thickness = DEFAULT_WALL_THICKNESS): Wall {
     const wall: Wall = {
@@ -100,10 +79,6 @@ export class Plan {
     this.invalidateRooms();
   }
 
-  get activeSheet(): Sheet {
-    return this.sheets.find(s => s.id === this.activeSheetId) ?? this.sheets[0];
-  }
-
   setActiveSheet(id: string): void {
     if (this.sheets.some(s => s.id === id)) {
       this.activeSheetId = id;
@@ -119,14 +94,17 @@ export class Plan {
       dimensions: [],
     };
     this.sheets.push(sheet);
+    this.activeSheetId = sheet.id;
     return sheet;
   }
 
   removeSheet(id: string): void {
     if (this.sheets.length <= 1) return;
-    this.sheets = this.sheets.filter(s => s.id !== id);
+    const idx = this.sheets.findIndex(s => s.id === id);
+    if (idx === -1) return;
+    this.sheets.splice(idx, 1);
     if (this.activeSheetId === id) {
-      this.activeSheetId = this.sheets[0]?.id ?? '';
+      this.activeSheetId = this.sheets[Math.min(idx, this.sheets.length - 1)].id;
     }
   }
 
@@ -313,7 +291,7 @@ export class Plan {
       openDir: type === 'door' ? 1 : undefined,
     };
     wall.openings.push(opening);
-    this.cachedValidation = null;
+
     return opening;
   }
 
@@ -322,7 +300,7 @@ export class Plan {
       const idx = wall.openings.findIndex(o => o.id === id);
       if (idx !== -1) {
         wall.openings.splice(idx, 1);
-        this.cachedValidation = null;
+    
         return;
       }
     }
@@ -343,7 +321,6 @@ export class Plan {
     offset = 0,
     side: 1 | -1 = 1,
     name?: string,
-    height?: number,
   ): Device | null {
     const wall = this.findWall(wallId);
     if (!wall) return null;
@@ -378,17 +355,15 @@ export class Plan {
       offset,
       side,
       rotation: 0,
-      height: height ?? defaultDeviceHeight(type),
     };
     this.devices.push(device);
-    this.cachedValidation = null;
     return device;
   }
 
   removeDevice(id: string): void {
     this.devices = this.devices.filter(d => d.id !== id);
     this.cables = this.cables.filter(c => c.fromDeviceId !== id && c.toDeviceId !== id);
-    this.cachedValidation = null;
+
   }
 
   addFreeDevice(
@@ -405,11 +380,10 @@ export class Plan {
       offset: 0,
       side: 1,
       rotation: 0,
-      height: defaultDeviceHeight(type),
       position: { x: position.x, y: position.y },
     };
     this.devices.push(device);
-    this.cachedValidation = null;
+
     return device;
   }
 
@@ -434,22 +408,8 @@ export class Plan {
 
     const fromPos = this.deviceWorldPosition(from);
     const toPos = this.deviceWorldPosition(to);
-
-    // Пытаемся использовать автотрассировку A*
-    let route: Vector2[] | null = null;
-    try {
-      route = routeCable(this, fromPos, toPos);
-    } catch {
-      // Fallback на Manhattan-маршрутизацию
-    }
-
-    if (!route) {
-      route = Plan.computeManhattanRoute(fromPos, toPos);
-    }
-
+    const route = Plan.computeManhattanRoute(fromPos, toPos);
     const length = Plan.routeLength(route);
-    const spareLength = computeCableSpareLength(length);
-    const totalLength = length + spareLength;
 
     const cable: Cable = {
       id: crypto.randomUUID(),
@@ -458,12 +418,10 @@ export class Plan {
       type,
       crossSection,
       length,
-      spareLength,
-      totalLength,
       route,
     };
     this.cables.push(cable);
-    this.cachedValidation = null;
+
     return cable;
   }
 
@@ -492,19 +450,19 @@ export class Plan {
 
   removeCable(id: string): void {
     this.cables = this.cables.filter(c => c.id !== id);
-    this.cachedValidation = null;
+
   }
 
   addDimension(a: Vector2, b: Vector2): Dimension {
     const dim = createDimension(a, b);
     this.dimensions.push(dim);
-    this.cachedValidation = null;
+
     return dim;
   }
 
   removeDimension(id: string): void {
     this.dimensions = this.dimensions.filter(d => d.id !== id);
-    this.cachedValidation = null;
+
   }
 
   /** Найти замкнутые комнаты по стенам (с кэшированием). */
@@ -514,17 +472,9 @@ export class Plan {
     return this.cachedRooms;
   }
 
-  /** Сбросить кэш комнат и валидации (вызывать при изменении стен). */
+  /** Сбросить кэш комнат (вызывать при изменении стен). */
   invalidateRooms(): void {
     this.cachedRooms = null;
-    this.cachedValidation = null;
-  }
-
-  /** Запустить валидацию плана (с кэшированием). */
-  validate(): ValidationResult {
-    if (this.cachedValidation) return this.cachedValidation;
-    this.cachedValidation = validatePlan(this);
-    return this.cachedValidation;
   }
 
   /** Получить пространственный индекс стен (ленивое построение). */
@@ -547,10 +497,8 @@ export class Plan {
       const toPos = this.deviceWorldPosition(to);
       cable.route = Plan.computeManhattanRoute(fromPos, toPos);
       cable.length = Plan.routeLength(cable.route);
-      cable.spareLength = computeCableSpareLength(cable.length);
-      cable.totalLength = cable.length + cable.spareLength;
     }
-    this.cachedValidation = null;
+
   }
 
   /** Возвращает ограничивающий прямоугольник плана с заданным отступом (мм). */
@@ -622,6 +570,35 @@ export class Plan {
   }
 
   toJSON(): object {
+    const devicesToJSON = (devices: Device[]) => devices.map(d => ({
+      id: d.id,
+      type: d.type,
+      name: d.name,
+      wallId: d.wallId,
+      t: d.t,
+      offset: d.offset,
+      side: d.side ?? 1,
+      rotation: d.rotation,
+      nameOffset: d.nameOffset ? { x: d.nameOffset.x, y: d.nameOffset.y } : undefined,
+      position: d.position ? { x: d.position.x, y: d.position.y } : undefined,
+    }));
+    const cablesToJSON = (cables: Cable[]) => cables.map(c => ({
+      id: c.id,
+      fromDeviceId: c.fromDeviceId,
+      toDeviceId: c.toDeviceId,
+      type: c.type,
+      crossSection: c.crossSection,
+      length: c.length,
+      route: c.route.map(p => ({ x: p.x, y: p.y })),
+    }));
+    const dimensionsToJSON = (dimensions: Dimension[]) => dimensions.map(d => ({
+      id: d.id,
+      a: { x: d.a.x, y: d.a.y },
+      b: { x: d.b.x, y: d.b.y },
+      length: d.length,
+      text: d.text,
+    }));
+
     return {
       walls: this.walls.map(w => ({
         id: w.id,
@@ -638,39 +615,19 @@ export class Plan {
           openDir: o.openDir,
         })),
       })),
-      devices: this.devices.map(d => ({
-        id: d.id,
-        type: d.type,
-        name: d.name,
-        wallId: d.wallId,
-        t: d.t,
-        offset: d.offset,
-        side: d.side ?? 1,
-        rotation: d.rotation,
-        height: d.height ?? defaultDeviceHeight(d.type),
+      sheets: this.sheets.map(s => ({
+        id: s.id,
+        name: s.name,
+        devices: devicesToJSON(s.devices),
+        cables: cablesToJSON(s.cables),
+        dimensions: dimensionsToJSON(s.dimensions),
       })),
-      cables: this.cables.map(c => ({
-        id: c.id,
-        fromDeviceId: c.fromDeviceId,
-        toDeviceId: c.toDeviceId,
-        type: c.type,
-        crossSection: c.crossSection,
-        length: c.length,
-        spareLength: c.spareLength,
-        totalLength: c.totalLength,
-        route: c.route.map(p => ({ x: p.x, y: p.y })),
-      })),
-      dimensions: this.dimensions.map(d => ({
-        id: d.id,
-        a: { x: d.a.x, y: d.a.y },
-        b: { x: d.b.x, y: d.b.y },
-        length: d.length,
-        text: d.text,
-      })),
+      activeSheetId: this.activeSheetId || this.sheets[0]?.id,
     };
   }
 
-  static fromJSON(data: PlanJSON): Plan {
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  static fromJSON(data: any): Plan {
     const plan = new Plan();
     if (!data) return plan;
 
@@ -685,7 +642,7 @@ export class Plan {
       for (const o of w.openings ?? []) {
         wall.openings.push({
           id: o.id || crypto.randomUUID(),
-          type: o.type || 'door',
+          type: o.type,
           wallId: o.wallId || wall.id,
           t: o.t ?? 0.5,
           width: o.width ?? (o.type === 'door' ? DEFAULT_DOOR_WIDTH : DEFAULT_WINDOW_WIDTH),
@@ -696,53 +653,74 @@ export class Plan {
       plan.walls.push(wall);
     }
 
-    for (const d of data.devices ?? []) {
-      plan.devices.push({
-        id: d.id || crypto.randomUUID(),
-        type: d.type || 'socket',
-        name: d.name || DEFAULT_DEVICE_NAMES[(d.type || 'socket') as DeviceType],
-        wallId: d.wallId || '',
-        t: d.t ?? 0.5,
-        offset: d.offset ?? 0,
-        side: (d.side ?? 1) as 1 | -1,
-        rotation: d.rotation ?? 0,
-        height: d.height ?? defaultDeviceHeight(d.type || 'socket'),
-      });
-    }
+    const devicesFromJSON = (list: any[]): Device[] => (list ?? []).map(d => ({
+      id: d.id || crypto.randomUUID(),
+      type: d.type || 'socket',
+      name: d.name || DEFAULT_DEVICE_NAMES[(d.type || 'socket') as DeviceType],
+      wallId: d.wallId,
+      t: d.t ?? 0.5,
+      offset: d.offset ?? 0,
+      side: (d.side ?? 1) as 1 | -1,
+      rotation: d.rotation ?? 0,
+      nameOffset: d.nameOffset ? { x: d.nameOffset.x ?? 0, y: d.nameOffset.y ?? 0 } : undefined,
+      position: d.position ? { x: d.position.x ?? 0, y: d.position.y ?? 0 } : undefined,
+    }));
 
-    for (const c of data.cables ?? []) {
-      const from = plan.devices.find(d => d.id === c.fromDeviceId);
-      const to = plan.devices.find(d => d.id === c.toDeviceId);
+    const cablesFromJSON = (list: any[], devices: Device[]): Cable[] => (list ?? []).map(c => {
+      const from = devices.find(d => d.id === c.fromDeviceId);
+      const to = devices.find(d => d.id === c.toDeviceId);
       const fromPos = from ? plan.deviceWorldPosition(from) : new Vector2(0, 0);
       const toPos = to ? plan.deviceWorldPosition(to) : new Vector2(0, 0);
       const route = (c.route as Array<{x: number; y: number}> | undefined)?.map(p => new Vector2(p.x, p.y))
         ?? Plan.computeManhattanRoute(fromPos, toPos);
-
-      plan.cables.push({
+      return {
         id: c.id || crypto.randomUUID(),
-        fromDeviceId: c.fromDeviceId || '',
-        toDeviceId: c.toDeviceId || '',
+        fromDeviceId: c.fromDeviceId,
+        toDeviceId: c.toDeviceId,
         type: c.type || DEFAULT_CABLE.type,
         crossSection: c.crossSection ?? DEFAULT_CABLE.crossSection,
         length: c.length ?? Plan.routeLength(route),
-        spareLength: c.spareLength ?? computeCableSpareLength(c.length ?? Plan.routeLength(route)),
-        totalLength: c.totalLength ?? (c.length ?? Plan.routeLength(route)) + computeCableSpareLength(c.length ?? Plan.routeLength(route)),
         route,
-      });
-    }
+      };
+    });
 
-    for (const d of data.dimensions ?? []) {
+    const dimensionsFromJSON = (list: any[]): Dimension[] => (list ?? []).map(d => {
       const a = new Vector2(d.a?.x ?? 0, d.a?.y ?? 0);
       const b = new Vector2(d.b?.x ?? 0, d.b?.y ?? 0);
-      plan.dimensions.push({
+      return {
         id: d.id || crypto.randomUUID(),
         a,
         b,
         length: d.length ?? a.distanceTo(b),
         text: d.text,
+      };
+    });
+
+    if (Array.isArray(data.sheets) && data.sheets.length > 0) {
+      // Новый формат: листы с собственными устройствами/кабелями/размерами
+      plan.sheets = data.sheets.map((s: any) => {
+        const devices = devicesFromJSON(s.devices);
+        return {
+          id: s.id || crypto.randomUUID(),
+          name: s.name || 'Лист',
+          devices,
+          cables: cablesFromJSON(s.cables, devices),
+          dimensions: dimensionsFromJSON(s.dimensions),
+        };
       });
+      plan.activeSheetId = data.sheets.some((s: any) => s.id === data.activeSheetId)
+        ? data.activeSheetId
+        : plan.sheets[0].id;
+    } else {
+      // Старый формат: всё содержимое — в лист «Розетки»
+      const first = plan.sheets[0];
+      first.devices = devicesFromJSON(data.devices);
+      first.cables = cablesFromJSON(data.cables, first.devices);
+      first.dimensions = dimensionsFromJSON(data.dimensions);
+      plan.activeSheetId = first.id;
     }
 
     return plan;
   }
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 }

@@ -72,6 +72,20 @@ export class DoorTool implements Tool {
           this.canvas.ghostRenderer.drawOpeningGhost(
             ctx, wall.a, wall.b, this.preview.t, this.getWidth(), this.preview.thickness,
           );
+
+          // Направляющие лучи из точки вставки
+          const len = wall.b.sub(wall.a).length();
+          if (len > 1e-9) {
+            const dir = wall.b.sub(wall.a).normalized();
+            const n = dir.perpendicular();
+            const point = wall.a.add(dir.scale(this.preview.t * len));
+            this.canvas.ghostRenderer.drawGuideRays(ctx, point, [
+              dir,
+              dir.scale(-1),
+              n,
+              n.scale(-1),
+            ]);
+          }
         }
       }
       if (this.canvas.snap) {

@@ -1,11 +1,7 @@
 import { Camera } from '../engine/Camera';
 import { Vector2 } from '../geometry/Vector2';
 import { SnapResult } from '../snap/SnapEngine';
-
-const SNAP_MARKER = '#ff8c00';
-const GHOST_WALL = 'rgba(58,58,58,0.5)';
-const GHOST_OPENING = 'rgba(255,140,0,0.4)';
-const TEXT_BG = 'rgba(255,255,255,0.8)';
+import { ThemeManager, ThemeColorKey } from '../editor/ThemeManager';
 
 /**
  * Слой предпросмотра: рисуемая стена, маркер snap, подсветка стены,
@@ -15,7 +11,55 @@ export class GhostRenderer {
   private magnifier: HTMLCanvasElement | null = null;
   private magnifierCtx: CanvasRenderingContext2D | null = null;
 
-  constructor(private camera: Camera) {}
+  constructor(private camera: Camera, private themeManager?: ThemeManager) {}
+
+  private getColor(key: ThemeColorKey): string {
+    if (this.themeManager) return this.themeManager.getColor(key);
+    const fallback: Record<ThemeColorKey, string> = {
+      canvasBg: '#f4f2ee',
+      gridMinor: 'rgba(0,0,0,0.06)',
+      gridMajor: 'rgba(0,0,0,0.12)',
+      wall: '#3a3a3a',
+      wallStroke: 'rgba(0,0,0,0.15)',
+      wallShadow: 'rgba(0,0,0,0.12)',
+      openingBg: '#f4f2ee',
+      openingStroke: '#3a3a3a',
+      openingShadow: 'rgba(0,0,0,0.08)',
+      openingSelectedFill: 'rgba(255, 140, 0, 0.15)',
+      roomFill: 'rgba(200, 210, 200, 0.35)',
+      roomStroke: 'rgba(100, 120, 100, 0.4)',
+      roomText: '#3a3a3a',
+      roomHandleFill: '#ff8c00',
+      roomHandleStroke: '#ffffff',
+      cablePower: '#ef4444',
+      cableLighting: '#f59e0b',
+      cableLowCurrent: '#10b981',
+      deviceSocket: '#2563eb',
+      deviceSwitch: '#7c3aed',
+      devicePanel: '#dc2626',
+      deviceBreaker: '#f59e0b',
+      deviceLight: '#10b981',
+      deviceDefault: '#2563eb',
+      deviceText: '#111827',
+      deviceIconBg: '#ffffff',
+      dimension: '#1a1a1a',
+      dimensionSelected: '#2563eb',
+      dimensionTextBg: 'rgba(255,255,255,0.85)',
+      text: '#1a1a1a',
+      textBg: 'rgba(255,255,255,0.8)',
+      ghostWall: 'rgba(58,58,58,0.5)',
+      ghostOpening: 'rgba(255,140,0,0.4)',
+      ghostSnap: '#ff8c00',
+      ghostSnapText: '#1a1a1a',
+      accent: '#ff8c00',
+      selected: '#ff8c00',
+      selectionFill: 'rgba(255, 140, 0, 0.15)',
+      validationError: '#dc2626',
+      validationWarning: '#eab308',
+      validationInfo: '#3b82f6',
+    };
+    return fallback[key];
+  }
 
   /**
    * Рисует "резиновую" стену от start до end.
@@ -38,7 +82,7 @@ export class GhostRenderer {
     const p3 = end.sub(n.scale(h));
     const p4 = start.sub(n.scale(h));
 
-    ctx.fillStyle = GHOST_WALL;
+    ctx.fillStyle = this.getColor('ghostWall');
     ctx.beginPath();
     ctx.moveTo(p1.x, p1.y);
     ctx.lineTo(p2.x, p2.y);
@@ -71,7 +115,7 @@ export class GhostRenderer {
     const half = openingWidth / 2;
     const h = wallThickness / 2 + 2 / this.camera.scale;
 
-    ctx.fillStyle = GHOST_OPENING;
+    ctx.fillStyle = this.getColor('ghostOpening');
     ctx.beginPath();
     const c1 = center.add(d.scale(-half)).add(n.scale(h));
     const c2 = center.add(d.scale(half)).add(n.scale(h));
@@ -95,7 +139,7 @@ export class GhostRenderer {
     directions: Vector2[],
     options: { color?: string; dash?: number[]; length?: number; lineWidth?: number } = {},
   ): void {
-    const color = options.color ?? 'rgba(0, 0, 0, 0.35)';
+    const color = options.color ?? this.getColor('text');
     const dash = options.dash ?? [6 / this.camera.scale, 4 / this.camera.scale];
     const length = options.length ?? 10000;
     const lineWidth = options.lineWidth ?? 1 / this.camera.scale;
@@ -142,13 +186,13 @@ export class GhostRenderer {
           const n = d.perpendicular();
           dirs.push(d, d.scale(-1), n, n.scale(-1));
         }
-        this.drawGuideRays(ctx, guide.point, dirs, { color: 'rgba(255, 140, 0, 0.45)' });
+        this.drawGuideRays(ctx, guide.point, dirs, { color: this.getColor('accent') });
       }
     }
 
     // При tracking — маленький маркер на текущей точке курсора
     if (snap.guides && !snap.guides.some(g => g.point.equals(snap.point))) {
-      ctx.strokeStyle = SNAP_MARKER;
+      ctx.strokeStyle = this.getColor('accent');
       ctx.lineWidth = 1.5 / this.camera.scale;
       ctx.beginPath();
       ctx.arc(snap.point.x, snap.point.y, r * 0.5, 0, Math.PI * 2);
@@ -163,8 +207,8 @@ export class GhostRenderer {
     type: SnapResult['type'],
     r: number,
   ): void {
-    ctx.strokeStyle = SNAP_MARKER;
-    ctx.fillStyle = SNAP_MARKER;
+    ctx.strokeStyle = this.getColor('accent');
+    ctx.fillStyle = this.getColor('accent');
     ctx.lineWidth = 1.5 / this.camera.scale;
 
     ctx.beginPath();
@@ -228,12 +272,12 @@ export class GhostRenderer {
     const w = metrics.width + padding * 2;
     const h = (16 / this.camera.scale) + padding * 2;
 
-    ctx.fillStyle = TEXT_BG;
+    ctx.fillStyle = this.getColor('textBg');
     ctx.beginPath();
     ctx.roundRect?.(pos.x - w / 2, pos.y - h / 2, w, h, 4 / this.camera.scale);
     ctx.fill();
 
-    ctx.fillStyle = '#1a1a1a';
+    ctx.fillStyle = this.getColor('text');
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, pos.x, pos.y);
@@ -252,8 +296,8 @@ export class GhostRenderer {
     ctx.save();
     ctx.translate(pos.x, pos.y);
     ctx.rotate(angle);
-    ctx.strokeStyle = 'rgba(58,58,58,0.6)';
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.strokeStyle = this.getColor('ghostWall');
+    ctx.fillStyle = this.getColor('deviceIconBg');
     ctx.lineWidth = 1 / this.camera.scale;
     ctx.beginPath();
     ctx.rect(-width / 2, -height / 2, width, height);
@@ -301,7 +345,7 @@ export class GhostRenderer {
     );
 
     // Крестик в центре
-    ctx.strokeStyle = '#ff8c00';
+    ctx.strokeStyle = this.getColor('accent');
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(radius - 8, radius);
@@ -313,7 +357,7 @@ export class GhostRenderer {
     ctx.restore();
 
     // Обводка лупы
-    ctx.strokeStyle = '#1a1a1a';
+    ctx.strokeStyle = this.getColor('text');
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(radius, radius, radius, 0, Math.PI * 2);

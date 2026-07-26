@@ -1,5 +1,5 @@
 import { Plan } from '../model/Plan';
-import { Device, DeviceType, defaultDeviceHeight } from '../model/Device';
+import { Device, DeviceType } from '../model/Device';
 import { Room } from '../geometry/RoomDetector';
 import { Vector2 } from '../geometry/Vector2';
 import { pointInPolygon } from '../geometry/Geometry';
@@ -63,35 +63,10 @@ function findDeviceRoom(plan: Plan, device: Device, rooms: Room[]): number | nul
   return null;
 }
 
-interface ExpectedHeight {
-  expected: number;
-  tolerance: number;
-}
-
-function expectedHeight(type: DeviceType): ExpectedHeight {
-  switch (type) {
-    case 'socket':
-    case 'socket-uz':
-    case 'socket-usb':
-      return { expected: 300, tolerance: 50 };
-    case 'switch':
-    case 'switch-2':
-      return { expected: 900, tolerance: 50 };
-    case 'panel':
-    case 'breaker':
-      return { expected: 1500, tolerance: 100 };
-    case 'light':
-      return { expected: 2500, tolerance: 100 };
-    default:
-      return { expected: defaultDeviceHeight(type), tolerance: 50 };
-  }
-}
-
 /**
  * Проверяет расстановку устройств.
  * - Минимальное количество розеток в комнате.
  * - Расстояние от углов и дверей.
- * - Высота установки.
  */
 export function validateDevices(plan: Plan, rooms: Room[]): ValidationResult {
   const result: ValidationResult = { issues: [], errors: 0, warnings: 0, infos: 0 };
@@ -160,32 +135,6 @@ export function validateDevices(plan: Plan, rooms: Room[]): ValidationResult {
         type: 'device',
         severity: 'warning',
         message: `Устройство "${device.name}" слишком близко к двери (${Math.round(doorDist)} мм)`,
-        objectId: device.id,
-        position: pos,
-      });
-    }
-
-    // Высота установки
-    const height = device.height ?? defaultDeviceHeight(device.type);
-    const { expected, tolerance } = expectedHeight(device.type);
-    if (Math.abs(height - expected) > tolerance) {
-      addIssue(result, {
-        id: nextIssueId(),
-        type: 'device',
-        severity: 'warning',
-        message: `Устройство "${device.name}": высота ${height} мм отличается от рекомендуемой ${expected} ± ${tolerance} мм`,
-        objectId: device.id,
-        position: pos,
-      });
-    }
-
-    // Розетки в потенциально влажных зонах (простая эвристика: низкая высота)
-    if (isSocket(device.type) && height < 1100) {
-      addIssue(result, {
-        id: nextIssueId(),
-        type: 'device',
-        severity: 'info',
-        message: `Розетка "${device.name}" установлена на высоте ${height} мм. Для влажных помещений рекомендуется ≥ 1100 мм с УЗО.`,
         objectId: device.id,
         position: pos,
       });

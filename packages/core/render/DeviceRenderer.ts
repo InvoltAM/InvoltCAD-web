@@ -5,17 +5,14 @@ import { EditorState } from '../editor/EditorState';
 import { wallDirection } from '../model/Wall';
 import { Vector2 } from '../geometry/Vector2';
 import { findDeviceCatalogItem } from '../model/Device';
-import { ThemeManager } from '../editor/ThemeManager';
+import { ThemeManager, ThemeColorKey } from '../editor/ThemeManager';
 
-const COLORS: Record<string, string> = {
-  socket: '#2563eb',
-  'socket-uz': '#2563eb',
-  'socket-usb': '#2563eb',
-  switch: '#7c3aed',
-  'switch-2': '#7c3aed',
-  panel: '#dc2626',
-  breaker: '#f59e0b',
-  light: '#10b981',
+const CATEGORY_THEME_KEY: Record<string, ThemeColorKey> = {
+  socket: 'deviceSocket',
+  switch: 'deviceSwitch',
+  panel: 'devicePanel',
+  breaker: 'deviceBreaker',
+  light: 'deviceLight',
 };
 
 export class DeviceRenderer {
@@ -30,6 +27,22 @@ export class DeviceRenderer {
 
   setSelectedDevice(id: string | null): void {
     this.selectedDeviceId = id;
+  }
+
+  private getColor(category: string): string {
+    return this.themeManager?.getColor(CATEGORY_THEME_KEY[category] ?? 'deviceDefault') ?? '#2563eb';
+  }
+
+  private get selectedColor(): string {
+    return this.themeManager?.getColor('selected') ?? '#ff8c00';
+  }
+
+  private get iconBg(): string {
+    return this.themeManager?.getColor('deviceIconBg') ?? '#ffffff';
+  }
+
+  private get textColor(): string {
+    return this.themeManager?.getColor('deviceText') ?? '#111827';
   }
 
   private isDeviceVisible(
@@ -84,14 +97,14 @@ export class DeviceRenderer {
       }
       angle += device.rotation ?? 0;
 
-      const color = COLORS[item?.category ?? device.type] ?? '#2563eb';
+      const color = this.getColor(item?.category ?? device.type);
       const selected = this.selectedDeviceId === device.id;
 
       ctx.save();
       ctx.translate(iconPos.x, iconPos.y);
       ctx.rotate(angle);
-      ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = selected ? '#ff8c00' : color;
+      ctx.fillStyle = this.iconBg;
+      ctx.strokeStyle = selected ? this.selectedColor : color;
       ctx.lineWidth = selected ? 3 / this.camera.scale : 2 / this.camera.scale;
       ctx.beginPath();
       ctx.rect(-half, -half, sizeWorld, sizeWorld);
@@ -112,7 +125,7 @@ export class DeviceRenderer {
         ctx.save();
         if (selected) {
           // Рамка-подсказка, что подпись можно перетаскивать
-          ctx.strokeStyle = '#ff8c00';
+          ctx.strokeStyle = this.selectedColor;
           ctx.lineWidth = 1 / this.camera.scale;
           ctx.setLineDash([6 / this.camera.scale, 4 / this.camera.scale]);
           ctx.strokeRect(
@@ -123,7 +136,7 @@ export class DeviceRenderer {
           );
           ctx.setLineDash([]);
         }
-        ctx.fillStyle = '#111827';
+        ctx.fillStyle = this.textColor;
         ctx.font = `${sizeWorld * 0.3}px ui-sans-serif, system-ui, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';

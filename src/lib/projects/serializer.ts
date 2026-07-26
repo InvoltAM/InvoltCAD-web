@@ -110,7 +110,6 @@ export function serializePlan(plan: Plan): SerializedPlan {
     t: device.t,
     side: device.side,
     offset: device.offset,
-    height: device.height,
     rotation: device.rotation,
   }))
 
@@ -195,7 +194,6 @@ export function deserializePlan(data: SerializedPlan): Plan {
       side: d.side as 1 | -1,
       offset: d.offset,
       rotation: d.rotation,
-      height: d.height,
     }
     plan.devices.push(device)
   }

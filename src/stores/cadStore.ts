@@ -45,6 +45,7 @@ interface CadStoreState {
   theme: ThemeName
   uiScale: number
   compactPanels: boolean
+  orthoMode: boolean
 
   setTool: (tool: ToolName) => void
   setSelectedWall: (id: string | null) => void
@@ -69,6 +70,7 @@ interface CadStoreState {
   setTheme: (theme: ThemeName) => void
   setUiScale: (scale: number) => void
   setCompactPanels: (compact: boolean) => void
+  setOrthoMode: (orthoMode: boolean) => void
   clearSelection: () => void
 }
 
@@ -104,6 +106,7 @@ export const useCadStore = create<CadStoreState>((set) => ({
   theme: 'light',
   uiScale: 1,
   compactPanels: false,
+  orthoMode: false,
 
   setTool: (tool) => set({ currentTool: tool }),
   setSelectedWall: (id) => set({ selectedWallId: id }),
@@ -128,6 +131,7 @@ export const useCadStore = create<CadStoreState>((set) => ({
   setTheme: (theme) => set({ theme }),
   setUiScale: (uiScale) => set({ uiScale }),
   setCompactPanels: (compactPanels) => set({ compactPanels }),
+  setOrthoMode: (orthoMode) => set({ orthoMode }),
   clearSelection: () =>
     set({
       selectedWallId: null,

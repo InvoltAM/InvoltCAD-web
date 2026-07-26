@@ -353,10 +353,10 @@ export class Storage {
     // Оборудование поштучно
     if (plan.devices.length > 0) {
       rows.push(['ОБОРУДОВАНИЕ']);
-      rows.push(['№', 'Тип', 'Имя', 'Высота, мм']);
+      rows.push(['№', 'Тип', 'Имя']);
       plan.devices.forEach((d, i) => {
         const name = DEFAULT_DEVICE_NAMES[d.type] ?? d.type;
-        rows.push([String(i + 1), name, d.name || name, String(d.height ?? '')]);
+        rows.push([String(i + 1), name, d.name || name]);
       });
       rows.push([]);
     }
@@ -401,13 +401,10 @@ export class Storage {
     }
 
     // Проверка плана
-    const validation = plan.validate();
-    if (validation.issues.length > 0) {
+    if (rooms.length === 0) {
       rows.push(['ПРОВЕРКА']);
-      rows.push(['Уровень', 'Количество']);
-      rows.push(['Ошибки', String(validation.errors)]);
-      rows.push(['Предупреждения', String(validation.warnings)]);
-      rows.push(['Замечания', String(validation.infos)]);
+      rows.push(['Ошибки', '1']);
+      rows.push(['', 'План не содержит замкнутых комнат. Проверьте, что стены образуют замкнутые контуры.']);
     }
 
     const csv = rows.map(r => r.map(escapeCSV).join(';')).join('\n');

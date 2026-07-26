@@ -85,7 +85,6 @@ describe('Сериализатор Plan', () => {
       side: 1,
       offset: 0,
       rotation: 0,
-      height: 300,
     }
     plan.devices.push(device)
 

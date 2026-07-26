@@ -128,7 +128,7 @@ export class WallRenderer {
     ctx.beginPath();
     for (const joint of joints) {
       const size = joint.radius * 2;
-      this.addAxisAlignedSquarePath(ctx, joint.point, size, offset.x, offset.y);
+      this.addOrientedSquarePath(ctx, joint, size, offset.x, offset.y);
     }
     ctx.fill();
 
@@ -147,7 +147,7 @@ export class WallRenderer {
     ctx.beginPath();
     for (const joint of joints) {
       const size = joint.radius * 2;
-      this.addAxisAlignedSquarePath(ctx, joint.point, size, 0, 0);
+      this.addOrientedSquarePath(ctx, joint, size, 0, 0);
     }
     ctx.fill();
 
@@ -270,21 +270,42 @@ export class WallRenderer {
     ctx.closePath();
   }
 
-  private addAxisAlignedSquarePath(
+  private addOrientedSquarePath(
     ctx: CanvasRenderingContext2D,
-    center: Vector2,
+    joint: Joint,
     size: number,
     offsetX: number,
     offsetY: number,
   ): void {
     if (size <= 0) return;
     const h = size / 2;
-    const x = center.x + offsetX;
-    const y = center.y + offsetY;
-    ctx.moveTo(x - h, y - h);
-    ctx.lineTo(x + h, y - h);
-    ctx.lineTo(x + h, y + h);
-    ctx.lineTo(x - h, y + h);
+
+    // Угол поворота по направлению первой стены в узле.
+    // Если стен нет — рисуем ось-ориентированный квадрат.
+    let angle = 0;
+    if (joint.walls.length > 0) {
+      const wall = joint.walls[0];
+      const dir = wall.b.sub(wall.a).normalized();
+      angle = Math.atan2(dir.y, dir.x);
+    }
+
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const cx = joint.point.x + offsetX;
+    const cy = joint.point.y + offsetY;
+
+    const corners = [
+      [-h, -h],
+      [h, -h],
+      [h, h],
+      [-h, h],
+    ];
+
+    ctx.moveTo(cx + corners[0][0] * cos - corners[0][1] * sin, cy + corners[0][0] * sin + corners[0][1] * cos);
+    for (let i = 1; i < corners.length; i++) {
+      const [x, y] = corners[i];
+      ctx.lineTo(cx + x * cos - y * sin, cy + x * sin + y * cos);
+    }
     ctx.closePath();
   }
 
