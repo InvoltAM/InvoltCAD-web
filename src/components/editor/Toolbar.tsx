@@ -32,6 +32,10 @@ export default function Toolbar() {
   const setCompactPanels = useCadStore((s) => s.setCompactPanels)
   const orthoMode = useCadStore((s) => s.orthoMode)
   const setOrthoMode = useCadStore((s) => s.setOrthoMode)
+  const olsOpen = useCadStore((s) => s.olsOpen)
+  const setOlsOpen = useCadStore((s) => s.setOlsOpen)
+  const panelEditorOpen = useCadStore((s) => s.panelEditorOpen)
+  const setPanelEditorOpen = useCadStore((s) => s.setPanelEditorOpen)
   const { engineRef, themeManagerRef, panelManagerRef } = useEditor()
 
   const [panelMenuOpen, setPanelMenuOpen] = useState(false)
@@ -58,6 +62,18 @@ export default function Toolbar() {
       setPanelMenuPos({ x: rect.right + 8, y: rect.top })
     }
     setPanelMenuOpen((prev) => !prev)
+  }
+
+  const handleToggleCableJournal = () => {
+    panelManagerRef.current?.toggle('cableJournal')
+  }
+
+  const handleToggleOls = () => {
+    setOlsOpen(!olsOpen)
+  }
+
+  const handleTogglePanelEditor = () => {
+    setPanelEditorOpen(!panelEditorOpen)
   }
 
   const handlePanelMenuItemClick = (id: string) => {
@@ -235,6 +251,39 @@ export default function Toolbar() {
             title="Панели"
           >
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('menu') }} />
+          </button>
+          <button
+            onClick={handleToggleCableJournal}
+            className={`flex flex-col items-center justify-center rounded-lg border p-2 text-xs ${
+              panelManagerRef.current?.isVisible('cableJournal')
+                ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600'
+            }`}
+            title="Кабельный журнал"
+          >
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('cable') }} />
+          </button>
+          <button
+            onClick={handleToggleOls}
+            className={`flex flex-col items-center justify-center rounded-lg border p-2 text-xs ${
+              olsOpen
+                ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600'
+            }`}
+            title="Однолинейная схема"
+          >
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('ols') }} />
+          </button>
+          <button
+            onClick={handleTogglePanelEditor}
+            className={`flex flex-col items-center justify-center rounded-lg border p-2 text-xs ${
+              panelEditorOpen
+                ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600'
+            }`}
+            title="Визуализация щита"
+          >
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('panel') }} />
           </button>
           <button
             onClick={handleToggleTheme}

@@ -40,7 +40,8 @@ export default function PlanEditor() {
     property: HTMLElement | null
     layers: HTMLElement | null
     spec: HTMLElement | null
-  }>({ property: null, layers: null, spec: null })
+    cableJournal: HTMLElement | null
+  }>({ property: null, layers: null, spec: null, cableJournal: null })
 
   const currentTool = useCadStore((s) => s.currentTool)
   const theme = useCadStore((s) => s.theme)
@@ -113,21 +114,23 @@ export default function PlanEditor() {
       const propertyBody = document.createElement('div')
       const layersBody = document.createElement('div')
       const specBody = document.createElement('div')
+      const cableJournalBody = document.createElement('div')
 
       panelManagerRef.current = new PanelManager([
         { id: 'properties', title: 'Свойства', icon: icon('properties'), body: propertyBody },
         { id: 'layers', title: 'Слои', icon: icon('layers'), body: layersBody },
         { id: 'spec', title: 'Спецификация', icon: icon('spec'), body: specBody },
+        { id: 'cableJournal', title: 'Кабельный журнал', icon: icon('cable'), body: cableJournalBody },
       ], app)
 
       sheetsBarRef.current = new SheetsBar(plan, engine, app)
 
       // Рендерим React-компоненты внутри плавающих панелей через порталы
-      setPanelBodies({ property: propertyBody, layers: layersBody, spec: specBody })
+      setPanelBodies({ property: propertyBody, layers: layersBody, spec: specBody, cableJournal: cableJournalBody })
     }
 
     return () => {
-      setPanelBodies({ property: null, layers: null, spec: null })
+      setPanelBodies({ property: null, layers: null, spec: null, cableJournal: null })
       engine.destroy()
       engineRef.current = null
       panelManagerRef.current = null
@@ -184,12 +187,12 @@ export default function PlanEditor() {
         <ValidationPanel />
         <MobileMenu />
         <ProjectsPanel />
-        <CableJournalPanel />
         <OlsPanel />
         <PanelEditor />
         {panelBodies.property && createPortal(<PropertyPanel />, panelBodies.property)}
         {panelBodies.layers && createPortal(<LayersPanel />, panelBodies.layers)}
         {panelBodies.spec && createPortal(<SpecPanel />, panelBodies.spec)}
+        {panelBodies.cableJournal && createPortal(<CableJournalPanel />, panelBodies.cableJournal)}
       </div>
     </EditorProvider>
   )

@@ -2,7 +2,7 @@ export type IconName =
   | 'wall' | 'door' | 'window' | 'device' | 'cable' | 'dimension' | 'select' | 'hand'
   | 'properties' | 'layers' | 'spec' | 'menu' | 'collapseDown' | 'collapseUp'
   | 'undo' | 'redo' | 'zoomIn' | 'zoomOut' | 'save' | 'exportPng' | 'exportXlsx' | 'exportSvg' | 'print' | 'import' | 'clear'
-  | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact';
+  | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact' | 'ols' | 'panel';
 
 const wrap = (body: string): string =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
@@ -38,6 +38,8 @@ const ICONS: Record<IconName, string> = {
   ortho: wrap('<path d="M5 19V5h14M5 19h14"/>'),
   uiScale: wrap('<circle cx="12" cy="12" r="9"/><rect x="8" y="8" width="8" height="8" rx="1"/>'),
   compact: wrap('<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/>'),
+  ols: wrap('<path d="M4 6h16M4 12h10M4 18h6"/>'),
+  panel: wrap('<rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/>'),
 };
 
 export function icon(name: IconName): string {

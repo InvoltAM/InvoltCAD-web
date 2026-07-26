@@ -122,21 +122,14 @@ export default function CableJournalPanel() {
 
   if (!plan) {
     return (
-      <div className="absolute right-[390px] top-3 z-20 hidden w-64 rounded-lg border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800 md:block">
-        <div className="border-b border-gray-200 px-3 py-2 text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-white">
-          Кабельный журнал
-        </div>
-        <div className="p-3 text-sm text-gray-500 dark:text-gray-400">Нет данных</div>
+      <div className="space-y-2 text-sm text-gray-500 dark:text-gray-400">
+        Нет данных
       </div>
     )
   }
 
   return (
-    <div className="absolute right-[390px] top-3 z-20 hidden w-64 rounded-lg border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800 md:block">
-      <div className="border-b border-gray-200 px-3 py-2 text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-white">
-        Кабельный журнал
-      </div>
-
+    <>
       <div className="flex border-b border-gray-200 dark:border-gray-700">
         <button
           onClick={() => setActiveTab('cables')}
@@ -208,6 +201,6 @@ export default function CableJournalPanel() {
           </div>
         )}
       </div>
-    </div>
+    </>
   )
 }

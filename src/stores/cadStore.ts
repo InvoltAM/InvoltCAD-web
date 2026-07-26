@@ -46,6 +46,8 @@ interface CadStoreState {
   uiScale: number
   compactPanels: boolean
   orthoMode: boolean
+  olsOpen: boolean
+  panelEditorOpen: boolean
 
   setTool: (tool: ToolName) => void
   setSelectedWall: (id: string | null) => void
@@ -71,6 +73,8 @@ interface CadStoreState {
   setUiScale: (scale: number) => void
   setCompactPanels: (compact: boolean) => void
   setOrthoMode: (orthoMode: boolean) => void
+  setOlsOpen: (open: boolean) => void
+  setPanelEditorOpen: (open: boolean) => void
   clearSelection: () => void
 }
 
@@ -107,6 +111,8 @@ export const useCadStore = create<CadStoreState>((set) => ({
   uiScale: 1,
   compactPanels: false,
   orthoMode: false,
+  olsOpen: false,
+  panelEditorOpen: false,
 
   setTool: (tool) => set({ currentTool: tool }),
   setSelectedWall: (id) => set({ selectedWallId: id }),
@@ -132,6 +138,8 @@ export const useCadStore = create<CadStoreState>((set) => ({
   setUiScale: (uiScale) => set({ uiScale }),
   setCompactPanels: (compactPanels) => set({ compactPanels }),
   setOrthoMode: (orthoMode) => set({ orthoMode }),
+  setOlsOpen: (olsOpen) => set({ olsOpen }),
+  setPanelEditorOpen: (panelEditorOpen) => set({ panelEditorOpen }),
   clearSelection: () =>
     set({
       selectedWallId: null,

@@ -2,13 +2,15 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useEditor } from './EditorContext'
+import { useCadStore } from '@/stores/cadStore'
 import { Plan } from '@core/model/Plan'
 import { generatePanelDevices, layoutPanel } from '@core/panels/panelModel'
 
 export default function PanelEditor() {
   const { engineRef } = useEditor()
   const [plan, setPlan] = useState<Plan | null>(null)
-  const [open, setOpen] = useState(false)
+  const open = useCadStore((s) => s.panelEditorOpen)
+  const setOpen = useCadStore((s) => s.setPanelEditorOpen)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -26,19 +28,11 @@ export default function PanelEditor() {
   }, [plan])
 
   if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="absolute right-[640px] top-3 z-20 rounded-lg border border-gray-200 bg-white p-2 shadow-md dark:border-gray-700 dark:bg-gray-800 md:block"
-        title="Визуализация щита"
-      >
-        🔌
-      </button>
-    )
+    return null
   }
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/35" onClick={() => setOpen(false)}>
+    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/35" onClick={() => setOpen(false)}>
       <div
         className="h-[80vh] w-[90vw] max-w-4xl rounded-lg bg-white p-4 dark:bg-gray-800"
         onClick={(e) => e.stopPropagation()}
