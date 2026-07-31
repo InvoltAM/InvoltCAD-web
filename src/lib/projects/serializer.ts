@@ -38,6 +38,9 @@ export interface SerializedDevice {
   offset: number
   height?: number
   rotation: number
+  iconScale?: number
+  nameOffset?: { x: number; y: number }
+  position?: { x: number; y: number }
 }
 
 export interface SerializedCable {
@@ -111,6 +114,9 @@ export function serializePlan(plan: Plan): SerializedPlan {
     side: device.side,
     offset: device.offset,
     rotation: device.rotation,
+    iconScale: device.iconScale,
+    nameOffset: device.nameOffset,
+    position: device.position,
   }))
 
   const cables: SerializedCable[] = plan.cables.map((cable) => ({
@@ -194,6 +200,9 @@ export function deserializePlan(data: SerializedPlan): Plan {
       side: d.side as 1 | -1,
       offset: d.offset,
       rotation: d.rotation,
+      iconScale: d.iconScale,
+      nameOffset: d.nameOffset,
+      position: d.position,
     }
     plan.devices.push(device)
   }

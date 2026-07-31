@@ -3,7 +3,7 @@
 ## Текущий контекст
 
 Работа ведётся в репозитории **InvoltCAD-web**, ветка `main`.
-Последний коммит: `015aae2`.
+Последний коммит: `fix: per-device icon scale, persist nameOffset/position/iconScale`.
 
 ## Что сделано в этой сессии
 
@@ -46,8 +46,12 @@
 - Проверена старая версия (`experiment/t-junction-rooms` в `3. Project InvoltCAD`):
   - В свойствах устройства редактировались: имя, смещение от стены, расстояние от начала стены, тип, сторона, масштаб иконки.
 - Внесены правки в `InvoltCAD-web`:
-  - В `DeviceProperties` добавлен ползунок «Масштаб иконки» (глобальный `deviceIconScale`).
-  - Имя устройства уже присутствовало.
+  - В `DeviceProperties` редактируются: имя, смещение подписи (X/Y), смещение от стены, расстояние от начала стены, тип, сторона и **масштаб иконки**.
+  - Масштаб иконки теперь **свойство конкретного устройства** (`device.iconScale`), а не глобальный параметр.
+  - Новые устройства наследуют масштаб из глобального `deviceIconScale` инструмента, но далее его можно менять индивидуально.
+  - `DeviceRenderer`, хит-тест и drag в `SelectTool`, `Plan.addDevice` и `addFreeDevice` учитывают `iconScale` при отрисовке, выделении и отступах от проёмов/концов стены.
+  - В `Device` добавлены/сохраняются: `nameOffset`, `position`, `iconScale`.
+  - `Plan.toJSON/fromJSON`, сериализатор проектов (`src/lib/projects/serializer.ts`) и API `/api/projects/[id]` теперь сохраняют и восстанавливают `nameOffset`, `position`, `iconScale` в JSON-поле `properties` устройства БД.
   - Добавлена полная синхронизация `cadStore → EditorState` в `PlanEditor.tsx` для всех tool-related полей:
     `orthoMode`, `deviceIconScale`, `selectedDeviceType`, `wallThickness`, `doorWidth`, `windowWidth`, `defaultCableType`, `defaultCableSection`.
   - Теперь изменения в панелях свойств/настроек инструментов сразу видны инструментам и рендеру.
@@ -55,6 +59,7 @@
 ## Проверки
 
 - `npx tsc --noEmit` — чисто.
+- `npm test` — 12/12.
 - `npx playwright test e2e/editor.spec.ts` — 14/14.
 - Dev-сервер запущен на `http://localhost:3000/editor`.
 

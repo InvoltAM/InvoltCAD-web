@@ -71,15 +71,17 @@ export class DeviceTool implements Tool {
       const wall = this.plan.findWall(this.preview.wallId);
       if (wall) {
         const type = this.canvas.editorState.get('selectedDeviceType');
-        this.canvas.commandManager.execute(
-          new AddDeviceCommand(this.plan, wall.id, type, this.preview.t, 0, this.preview.side),
+        const iconScale = this.canvas.editorState.get('deviceIconScale') ?? 1;
+      this.canvas.commandManager.execute(
+          new AddDeviceCommand(this.plan, wall.id, type, this.preview.t, 0, this.preview.side, iconScale),
         );
         this.canvas.notifyChanged();
       }
     } else if (this.previewFree) {
       const type = this.canvas.editorState.get('selectedDeviceType');
+      const iconScale = this.canvas.editorState.get('deviceIconScale') ?? 1;
       this.canvas.commandManager.execute(
-        new AddFreeDeviceCommand(this.plan, type, this.previewFree.clone()),
+        new AddFreeDeviceCommand(this.plan, type, this.previewFree.clone(), iconScale),
       );
       this.canvas.notifyChanged();
     }

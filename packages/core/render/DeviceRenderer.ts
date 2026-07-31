@@ -1,6 +1,6 @@
 import { Camera } from '../engine/Camera';
 import { Plan } from '../model/Plan';
-import { Device, DEVICE_LABELS } from '../model/Device';
+import { Device, DEVICE_LABELS, getDeviceIconScale } from '../model/Device';
 import { EditorState } from '../editor/EditorState';
 import { wallDirection } from '../model/Wall';
 import { Vector2 } from '../geometry/Vector2';
@@ -67,14 +67,13 @@ export class DeviceRenderer {
   render(ctx: CanvasRenderingContext2D): void {
     if (!this.editorState.get('layers').devices) return;
 
-    const iconScale = this.editorState.get('deviceIconScale') ?? 1;
     const rect = this.camera.visibleRect(0.1);
 
     for (const device of this.plan.devices) {
       const item = findDeviceCatalogItem(device.type);
       const baseSizeMm = item ? Math.max(item.width, item.height) : 600;
       // Мировой размер в мм: условные обозначения масштабируются вместе с планом
-      const sizeWorld = baseSizeMm * iconScale;
+      const sizeWorld = baseSizeMm * getDeviceIconScale(device);
       const half = sizeWorld / 2;
 
       const surfacePos = this.plan.deviceWorldPosition(device);
@@ -152,10 +151,9 @@ export class DeviceRenderer {
    */
   getNameLabelBounds(device: Device): { center: Vector2; halfW: number; halfH: number } | null {
     if (!device.name) return null;
-    const iconScale = this.editorState.get('deviceIconScale') ?? 1;
     const item = findDeviceCatalogItem(device.type);
     const baseSizeMm = item ? Math.max(item.width, item.height) : 600;
-    const sizeWorld = baseSizeMm * iconScale;
+    const sizeWorld = baseSizeMm * getDeviceIconScale(device);
     const half = sizeWorld / 2;
 
     const surfacePos = this.plan.deviceWorldPosition(device);

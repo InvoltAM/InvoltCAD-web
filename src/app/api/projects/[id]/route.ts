@@ -55,17 +55,29 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         swingSide: o.swingSide as 'left' | 'right',
         openDir: o.openDir as 1 | -1,
       })),
-      devices: fullProject.devices.map((d) => ({
-        id: d.id,
-        deviceType: d.deviceType,
-        name: d.name,
-        wallId: d.wallId ?? '',
-        t: d.wallT ?? 0,
-        side: d.wallSide ?? 1,
-        offset: d.offset,
-        height: d.height ?? undefined,
-        rotation: d.rotation,
-      })),
+      devices: fullProject.devices.map((d) => {
+        const props = (d.properties as Record<string, unknown>) || {}
+        return {
+          id: d.id,
+          deviceType: d.deviceType,
+          name: d.name,
+          wallId: d.wallId ?? '',
+          t: d.wallT ?? 0,
+          side: d.wallSide ?? 1,
+          offset: d.offset,
+          height: d.height ?? undefined,
+          rotation: d.rotation,
+          iconScale: typeof props.iconScale === 'number' ? props.iconScale : undefined,
+          nameOffset:
+            props.nameOffset && typeof props.nameOffset === 'object'
+              ? { x: Number((props.nameOffset as { x?: unknown }).x ?? 0), y: Number((props.nameOffset as { y?: unknown }).y ?? 0) }
+              : undefined,
+          position:
+            props.position && typeof props.position === 'object'
+              ? { x: Number((props.position as { x?: unknown }).x ?? 0), y: Number((props.position as { y?: unknown }).y ?? 0) }
+              : undefined,
+        }
+      }),
       cables: fullProject.cables.map((c) => ({
         id: c.id,
         cableType: c.cableType,
@@ -173,7 +185,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
           offset: d.offset,
           height: d.height,
           rotation: d.rotation,
-          properties: {},
+          properties: {
+            iconScale: d.iconScale,
+            nameOffset: d.nameOffset,
+            position: d.position,
+          },
         },
       })
     }

@@ -321,6 +321,7 @@ export class Plan {
     offset = 0,
     side: 1 | -1 = 1,
     name?: string,
+    iconScale = 1,
   ): Device | null {
     const wall = this.findWall(wallId);
     if (!wall) return null;
@@ -328,9 +329,10 @@ export class Plan {
     const len = wallLength(wall);
     if (len === 0) return null;
 
-    // Отступ от концов стены и от проемов
+    // Отступ от концов стены и от проемов с учётом масштаба иконки
     const size = DEVICE_SIZE[type];
-    const half = Math.max(size.width, size.height) / 2;
+    const scale = iconScale ?? 1;
+    const half = (Math.max(size.width, size.height) * scale) / 2;
     const minT = (half + 20) / len;
     const maxT = 1 - (half + 20) / len;
     t = Math.max(minT, Math.min(maxT, t));
@@ -355,6 +357,7 @@ export class Plan {
       offset,
       side,
       rotation: 0,
+      iconScale: scale,
     };
     this.devices.push(device);
     return device;
@@ -370,6 +373,7 @@ export class Plan {
     type: DeviceType,
     position: Vector2,
     name?: string,
+    iconScale = 1,
   ): Device | null {
     const device: Device = {
       id: crypto.randomUUID(),
@@ -381,6 +385,7 @@ export class Plan {
       side: 1,
       rotation: 0,
       position: { x: position.x, y: position.y },
+      iconScale: iconScale ?? 1,
     };
     this.devices.push(device);
 
@@ -581,6 +586,7 @@ export class Plan {
       rotation: d.rotation,
       nameOffset: d.nameOffset ? { x: d.nameOffset.x, y: d.nameOffset.y } : undefined,
       position: d.position ? { x: d.position.x, y: d.position.y } : undefined,
+      iconScale: d.iconScale,
     }));
     const cablesToJSON = (cables: Cable[]) => cables.map(c => ({
       id: c.id,
@@ -664,6 +670,7 @@ export class Plan {
       rotation: d.rotation ?? 0,
       nameOffset: d.nameOffset ? { x: d.nameOffset.x ?? 0, y: d.nameOffset.y ?? 0 } : undefined,
       position: d.position ? { x: d.position.x ?? 0, y: d.position.y ?? 0 } : undefined,
+      iconScale: d.iconScale ?? undefined,
     }));
 
     const cablesFromJSON = (list: any[], devices: Device[]): Cable[] => (list ?? []).map(c => {

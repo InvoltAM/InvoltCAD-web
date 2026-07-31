@@ -392,10 +392,11 @@ export class AddDeviceCommand implements Command {
     private t: number,
     private offset: number,
     private side: 1 | -1 = 1,
+    private iconScale = 1,
   ) {}
 
   execute(): void {
-    const device = this.plan.addDevice(this.wallId, this.type, this.t, this.offset, this.side);
+    const device = this.plan.addDevice(this.wallId, this.type, this.t, this.offset, this.side, undefined, this.iconScale);
     if (device) this.deviceId = device.id;
   }
 
@@ -412,10 +413,11 @@ export class AddFreeDeviceCommand implements Command {
     private plan: Plan,
     private type: DeviceType,
     private position: Vector2,
+    private iconScale = 1,
   ) {}
 
   execute(): void {
-    const device = this.plan.addFreeDevice(this.type, this.position);
+    const device = this.plan.addFreeDevice(this.type, this.position, undefined, this.iconScale);
     if (device) {
       this.deviceId = device.id;
     }

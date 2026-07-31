@@ -3,7 +3,7 @@ import { InputEvent } from '../engine/InputManager';
 import { Plan } from '../model/Plan';
 import { Opening } from '../model/Opening';
 import { Wall, wallLength, wallDirection } from '../model/Wall';
-import { findDeviceCatalogItem } from '../model/Device';
+import { findDeviceCatalogItem, getDeviceIconScale } from '../model/Device';
 import { projectPointToSegment } from '../geometry/Geometry';
 import { SnapEngine } from '../snap/SnapEngine';
 import { CanvasEngine } from '../engine/CanvasEngine';
@@ -177,9 +177,10 @@ export class SelectTool implements Tool {
         if (len === 0) return;
         let t = proj.t;
 
-        // Отступы от концов стены и от проёмов
+        // Отступы от концов стены и от проёмов с учётом масштаба иконки
         const item = findDeviceCatalogItem(device.type);
-        const half = (item ? Math.max(item.width, item.height) : 600) / 2;
+        const scale = getDeviceIconScale(device);
+        const half = ((item ? Math.max(item.width, item.height) : 600) * scale) / 2;
         const minT = (half + 20) / len;
         const maxT = 1 - (half + 20) / len;
         t = Math.max(minT, Math.min(maxT, t));
@@ -393,12 +394,11 @@ export class SelectTool implements Tool {
   }
 
   private hitTestDevice(screenPoint: Vector2): import('../model/Device.js').Device | null {
-    const iconScale = this.canvas.editorState.get('deviceIconScale') ?? 1;
     for (const device of this.plan.devices) {
       const item = findDeviceCatalogItem(device.type);
       const baseSizeMm = item ? Math.max(item.width, item.height) : 600;
       // Мировой размер в мм (совпадает с DeviceRenderer)
-      const sizeWorld = baseSizeMm * iconScale;
+      const sizeWorld = baseSizeMm * getDeviceIconScale(device);
       const halfWorld = sizeWorld / 2;
       const halfScreen = halfWorld * this.canvas.camera.scale + 4; // небольшой запас
       const surfacePos = this.plan.deviceWorldPosition(device);

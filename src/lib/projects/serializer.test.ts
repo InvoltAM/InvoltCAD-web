@@ -85,16 +85,22 @@ describe('Сериализатор Plan', () => {
       side: 1,
       offset: 0,
       rotation: 0,
+      iconScale: 1.5,
+      nameOffset: { x: 10, y: -5 },
     }
     plan.devices.push(device)
 
     const serialized = serializePlan(plan)
     expect(serialized.devices).toHaveLength(1)
     expect(serialized.devices[0].id).toBe('device-1')
+    expect(serialized.devices[0].iconScale).toBe(1.5)
+    expect(serialized.devices[0].nameOffset).toEqual({ x: 10, y: -5 })
 
     const restored = deserializePlan(serialized)
     expect(restored.devices).toHaveLength(1)
     expect(restored.devices[0].id).toBe('device-1')
+    expect(restored.devices[0].iconScale).toBe(1.5)
+    expect(restored.devices[0].nameOffset).toEqual({ x: 10, y: -5 })
   })
 
   it('сериализует и десериализует кабель', () => {

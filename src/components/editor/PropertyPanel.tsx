@@ -306,8 +306,6 @@ function OpeningProperties({ opening }: { opening: Opening }) {
 
 function DeviceProperties({ device, plan }: { device: Device; plan: Plan }) {
   const { engineRef } = useEditor()
-  const deviceIconScale = useCadStore((s) => s.deviceIconScale)
-  const setDeviceIconScale = useCadStore((s) => s.setDeviceIconScale)
 
   const handleNameChange = (name: string) => {
     device.name = name
@@ -336,7 +334,8 @@ function DeviceProperties({ device, plan }: { device: Device; plan: Plan }) {
 
   const handleDistanceChange = (distance: number) => {
     if (wall && wallLen > 0) {
-      const size = Math.max(DEVICE_SIZE[device.type].width, DEVICE_SIZE[device.type].height)
+      const scale = device.iconScale ?? 1
+      const size = Math.max(DEVICE_SIZE[device.type].width, DEVICE_SIZE[device.type].height) * scale
       const minDist = size / 2 + 20
       const maxDist = wallLen - size / 2 - 20
       device.t = Math.max(minDist, Math.min(maxDist, distance)) / wallLen
@@ -357,6 +356,34 @@ function DeviceProperties({ device, plan }: { device: Device; plan: Plan }) {
       </div>
 
       <div>
+        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Смещение подписи, мм</label>
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            type="number"
+            value={Math.round(device.nameOffset?.x ?? 0)}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value)
+              device.nameOffset = { x: v, y: device.nameOffset?.y ?? 0 }
+              engineRef.current?.notifyChanged()
+            }}
+            className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            placeholder="X"
+          />
+          <input
+            type="number"
+            value={Math.round(device.nameOffset?.y ?? 0)}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value)
+              device.nameOffset = { x: device.nameOffset?.x ?? 0, y: v }
+              engineRef.current?.notifyChanged()
+            }}
+            className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            placeholder="Y"
+          />
+        </div>
+      </div>
+
+      <div>
         <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Масштаб иконки</label>
         <div className="flex items-center gap-2">
           <input
@@ -364,15 +391,15 @@ function DeviceProperties({ device, plan }: { device: Device; plan: Plan }) {
             min="0.5"
             max="3"
             step="0.1"
-            value={deviceIconScale}
+            value={device.iconScale ?? 1}
             onChange={(e) => {
-              setDeviceIconScale(parseFloat(e.target.value))
-              engineRef.current?.requestRender()
+              device.iconScale = parseFloat(e.target.value)
+              engineRef.current?.notifyChanged()
             }}
             className="flex-1"
           />
           <span className="w-10 text-right text-xs text-gray-600 dark:text-gray-400">
-            {deviceIconScale.toFixed(1)}×
+            {(device.iconScale ?? 1).toFixed(1)}×
           </span>
         </div>
       </div>

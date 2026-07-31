@@ -25,6 +25,8 @@ export interface Device {
   nameOffset?: { x: number; y: number };
   /** Абсолютная позиция для свободно размещённых устройств (напр. светильник на потолке), мировые мм. */
   position?: { x: number; y: number };
+  /** Масштаб иконки конкретного устройства (1 — размер по каталогу). */
+  iconScale?: number;
 }
 
 function buildDeviceMap<T>(getter: (item: import('../catalogs/DeviceCatalog').DeviceCatalogItem) => T): Record<DeviceType, T> {
@@ -46,5 +48,10 @@ export interface DeviceSize {
 
 /** Размеры устройств в миллиметрах (мировые координаты). */
 export const DEVICE_SIZE: Record<DeviceType, DeviceSize> = buildDeviceMap(item => ({ width: item.width, height: item.height }));
+
+/** Возвращает масштаб иконки устройства (1 по умолчанию). */
+export function getDeviceIconScale(device: Device): number {
+  return device.iconScale ?? 1;
+}
 
 export { findDeviceCatalogItem };
