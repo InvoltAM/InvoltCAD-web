@@ -3,7 +3,7 @@
 ## Текущий контекст
 
 Работа ведётся в репозитории **InvoltCAD-web**, ветка `main`.
-Последний коммит: `7f592c3`.
+Последний коммит: `015aae2`.
 
 ## Что сделано в этой сессии
 
@@ -41,6 +41,16 @@
   - при resize viewport все панели clamp'ятся с учётом `SheetsBar`.
 - `PlanEditor`: `SheetsBar` создаётся перед `PanelManager`, чтобы тот сразу знал область для избегания.
 - В `Toolbar` добавлена кнопка для показа/скрытия панели «Проверка»; добавлена иконка `validation`.
+
+### Свойства и атрибуты блоков
+- Проверена старая версия (`experiment/t-junction-rooms` в `3. Project InvoltCAD`):
+  - В свойствах устройства редактировались: имя, смещение от стены, расстояние от начала стены, тип, сторона, масштаб иконки.
+- Внесены правки в `InvoltCAD-web`:
+  - В `DeviceProperties` добавлен ползунок «Масштаб иконки» (глобальный `deviceIconScale`).
+  - Имя устройства уже присутствовало.
+  - Добавлена полная синхронизация `cadStore → EditorState` в `PlanEditor.tsx` для всех tool-related полей:
+    `orthoMode`, `deviceIconScale`, `selectedDeviceType`, `wallThickness`, `doorWidth`, `windowWidth`, `defaultCableType`, `defaultCableSection`.
+  - Теперь изменения в панелях свойств/настроек инструментов сразу видны инструментам и рендеру.
 
 ## Проверки
 

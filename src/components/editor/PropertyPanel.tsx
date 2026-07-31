@@ -306,6 +306,8 @@ function OpeningProperties({ opening }: { opening: Opening }) {
 
 function DeviceProperties({ device, plan }: { device: Device; plan: Plan }) {
   const { engineRef } = useEditor()
+  const deviceIconScale = useCadStore((s) => s.deviceIconScale)
+  const setDeviceIconScale = useCadStore((s) => s.setDeviceIconScale)
 
   const handleNameChange = (name: string) => {
     device.name = name
@@ -352,6 +354,27 @@ function DeviceProperties({ device, plan }: { device: Device; plan: Plan }) {
           onChange={(e) => handleNameChange(e.target.value)}
           className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
         />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Масштаб иконки</label>
+        <div className="flex items-center gap-2">
+          <input
+            type="range"
+            min="0.5"
+            max="3"
+            step="0.1"
+            value={deviceIconScale}
+            onChange={(e) => {
+              setDeviceIconScale(parseFloat(e.target.value))
+              engineRef.current?.requestRender()
+            }}
+            className="flex-1"
+          />
+          <span className="w-10 text-right text-xs text-gray-600 dark:text-gray-400">
+            {deviceIconScale.toFixed(1)}×
+          </span>
+        </div>
       </div>
 
       {!isFree && (

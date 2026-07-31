@@ -60,7 +60,37 @@ export default function PlanEditor() {
     engineRef.current = engine
 
     // Синхронизируем начальное состояние cadStore -> EditorState
-    engine.editorState.set('orthoMode', useCadStore.getState().orthoMode)
+    const initial = useCadStore.getState()
+    engine.editorState.set('orthoMode', initial.orthoMode)
+    engine.editorState.set('deviceIconScale', initial.deviceIconScale)
+    engine.editorState.set('selectedDeviceType', initial.selectedDeviceType)
+    engine.editorState.set('wallThickness', initial.wallThickness)
+    engine.editorState.set('doorWidth', initial.doorWidth)
+    engine.editorState.set('windowWidth', initial.windowWidth)
+    engine.editorState.set('defaultCableType', initial.defaultCableType)
+    engine.editorState.set('defaultCableSection', initial.defaultCableSection)
+
+    // Подписка на изменения cadStore, чтобы инструменты всегда видели актуальные значения
+    const syncKeys: Array<keyof typeof initial & string> = [
+      'orthoMode',
+      'deviceIconScale',
+      'selectedDeviceType',
+      'wallThickness',
+      'doorWidth',
+      'windowWidth',
+      'defaultCableType',
+      'defaultCableSection',
+    ]
+    const unsubscribe = useCadStore.subscribe((state, prevState) => {
+      for (const key of syncKeys) {
+        if (state[key as keyof typeof state] !== prevState[key as keyof typeof prevState]) {
+          engine.editorState.set(
+            key as Parameters<typeof engine.editorState.set>[0],
+            state[key as keyof typeof state] as never
+          )
+        }
+      }
+    })
 
     // Регистрация инструментов
     const wallTool = new WallTool(engine, plan, engine.snapEngine)
@@ -144,6 +174,7 @@ export default function PlanEditor() {
     }
 
     return () => {
+      unsubscribe()
       setPanelBodies({ property: null, layers: null, spec: null, cableJournal: null, validation: null })
       engine.destroy()
       engineRef.current = null
