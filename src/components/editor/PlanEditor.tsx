@@ -46,6 +46,12 @@ export default function PlanEditor() {
 
   const currentTool = useCadStore((s) => s.currentTool)
   const theme = useCadStore((s) => s.theme)
+  const selectedWallId = useCadStore((s) => s.selectedWallId)
+  const selectedOpeningId = useCadStore((s) => s.selectedOpeningId)
+  const selectedDeviceId = useCadStore((s) => s.selectedDeviceId)
+  const selectedCableId = useCadStore((s) => s.selectedCableId)
+  const selectedDimensionId = useCadStore((s) => s.selectedDimensionId)
+  const selectedRoomIndex = useCadStore((s) => s.selectedRoomIndex)
 
   // Инициализация движка
   useEffect(() => {
@@ -220,6 +226,33 @@ export default function PlanEditor() {
     document.documentElement.dataset.theme = theme
     engineRef.current?.requestRender()
   }, [theme])
+
+  // Синхронизация выделения cadStore -> engine
+  useEffect(() => {
+    const engine = engineRef.current
+    if (!engine) return
+    engine.setSelectedWall(selectedWallId)
+    engine.setSelectedOpening(selectedOpeningId)
+    engine.setSelectedDevice(selectedDeviceId)
+    engine.setSelectedCable(selectedCableId)
+    engine.setSelectedDimension(selectedDimensionId)
+    engine.setSelectedRoom(selectedRoomIndex)
+  }, [selectedWallId, selectedOpeningId, selectedDeviceId, selectedCableId, selectedDimensionId, selectedRoomIndex])
+
+  // Синхронизация выделения engine -> cadStore (чтобы панели реагировали на клики в canvas)
+  useEffect(() => {
+    const engine = engineRef.current
+    if (!engine) return
+    const subs = [
+      engine.editorState.subscribe('selectedWallId', (id) => useCadStore.getState().setSelectedWall(id)),
+      engine.editorState.subscribe('selectedOpeningId', (id) => useCadStore.getState().setSelectedOpening(id)),
+      engine.editorState.subscribe('selectedDeviceId', (id) => useCadStore.getState().setSelectedDevice(id)),
+      engine.editorState.subscribe('selectedCableId', (id) => useCadStore.getState().setSelectedCable(id)),
+      engine.editorState.subscribe('selectedDimensionId', (id) => useCadStore.getState().setSelectedDimension(id)),
+      engine.editorState.subscribe('selectedRoomIndex', (idx) => useCadStore.getState().setSelectedRoom(idx)),
+    ]
+    return () => subs.forEach((unsub) => unsub())
+  }, [])
 
   return (
     <EditorProvider engineRef={engineRef} themeManagerRef={themeManagerRef} panelManagerRef={panelManagerRef}>

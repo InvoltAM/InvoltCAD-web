@@ -3,7 +3,7 @@
 ## Текущий контекст
 
 Работа ведётся в репозитории **InvoltCAD-web**, ветка `main`.
-Последний коммит: `fix: per-device icon scale, persist nameOffset/position/iconScale`.
+Последний коммит: `fix: sync selection engine<->cadStore, combine global and per-device icon scale`.
 
 ## Что сделано в этой сессии
 
@@ -47,13 +47,13 @@
   - В свойствах устройства редактировались: имя, смещение от стены, расстояние от начала стены, тип, сторона, масштаб иконки.
 - Внесены правки в `InvoltCAD-web`:
   - В `DeviceProperties` редактируются: имя, смещение подписи (X/Y), смещение от стены, расстояние от начала стены, тип, сторона и **масштаб иконки**.
-  - Масштаб иконки теперь **свойство конкретного устройства** (`device.iconScale`), а не глобальный параметр.
-  - Новые устройства наследуют масштаб из глобального `deviceIconScale` инструмента, но далее его можно менять индивидуально.
-  - `DeviceRenderer`, хит-тест и drag в `SelectTool`, `Plan.addDevice` и `addFreeDevice` учитывают `iconScale` при отрисовке, выделении и отступах от проёмов/концов стены.
+  - Масштаб иконки — комбинация: глобальный `deviceIconScale` (слайдер в настройках инструмента) × персональный `device.iconScale` (слайдер в свойствах устройства). Это сохраняет работу общего масштаба и даёт индивидуальную подстройку каждого устройства.
+  - `DeviceRenderer`, хит-тест и drag в `SelectTool`, `Plan.addDevice` и `addFreeDevice` учитывают итоговый масштаб при отрисовке, выделении и отступах от проёмов/концов стены.
   - В `Device` добавлены/сохраняются: `nameOffset`, `position`, `iconScale`.
   - `Plan.toJSON/fromJSON`, сериализатор проектов (`src/lib/projects/serializer.ts`) и API `/api/projects/[id]` теперь сохраняют и восстанавливают `nameOffset`, `position`, `iconScale` в JSON-поле `properties` устройства БД.
   - Добавлена полная синхронизация `cadStore → EditorState` в `PlanEditor.tsx` для всех tool-related полей:
     `orthoMode`, `deviceIconScale`, `selectedDeviceType`, `wallThickness`, `doorWidth`, `windowWidth`, `defaultCableType`, `defaultCableSection`.
+  - Добавлена двусторонняя синхронизация выделения (`selectedWallId/opening/device/cable/dimension/room`) между `EditorState` и `cadStore`. Теперь клик по объекту в canvas сразу обновляет панель «Свойства».
   - Теперь изменения в панелях свойств/настроек инструментов сразу видны инструментам и рендеру.
 
 ## Проверки

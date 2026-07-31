@@ -306,6 +306,7 @@ function OpeningProperties({ opening }: { opening: Opening }) {
 
 function DeviceProperties({ device, plan }: { device: Device; plan: Plan }) {
   const { engineRef } = useEditor()
+  const deviceIconScale = useCadStore((s) => s.deviceIconScale)
 
   const handleNameChange = (name: string) => {
     device.name = name
@@ -334,7 +335,7 @@ function DeviceProperties({ device, plan }: { device: Device; plan: Plan }) {
 
   const handleDistanceChange = (distance: number) => {
     if (wall && wallLen > 0) {
-      const scale = device.iconScale ?? 1
+      const scale = deviceIconScale * (device.iconScale ?? 1)
       const size = Math.max(DEVICE_SIZE[device.type].width, DEVICE_SIZE[device.type].height) * scale
       const minDist = size / 2 + 20
       const maxDist = wallLen - size / 2 - 20

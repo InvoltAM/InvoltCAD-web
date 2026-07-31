@@ -178,8 +178,9 @@ export class SelectTool implements Tool {
         let t = proj.t;
 
         // Отступы от концов стены и от проёмов с учётом масштаба иконки
+        const globalIconScale = this.canvas.editorState.get('deviceIconScale') ?? 1;
         const item = findDeviceCatalogItem(device.type);
-        const scale = getDeviceIconScale(device);
+        const scale = globalIconScale * getDeviceIconScale(device);
         const half = ((item ? Math.max(item.width, item.height) : 600) * scale) / 2;
         const minT = (half + 20) / len;
         const maxT = 1 - (half + 20) / len;
@@ -394,11 +395,12 @@ export class SelectTool implements Tool {
   }
 
   private hitTestDevice(screenPoint: Vector2): import('../model/Device.js').Device | null {
+    const globalIconScale = this.canvas.editorState.get('deviceIconScale') ?? 1;
     for (const device of this.plan.devices) {
       const item = findDeviceCatalogItem(device.type);
       const baseSizeMm = item ? Math.max(item.width, item.height) : 600;
       // Мировой размер в мм (совпадает с DeviceRenderer)
-      const sizeWorld = baseSizeMm * getDeviceIconScale(device);
+      const sizeWorld = baseSizeMm * globalIconScale * getDeviceIconScale(device);
       const halfWorld = sizeWorld / 2;
       const halfScreen = halfWorld * this.canvas.camera.scale + 4; // небольшой запас
       const surfacePos = this.plan.deviceWorldPosition(device);
