@@ -17,7 +17,6 @@ interface PanelState {
 const STORAGE_LAYOUT = 'involtcad-panels-layout';
 const SNAP_THRESHOLD = 12;
 const PANEL_WIDTH = 280;
-const HEADER_HEIGHT = 33;
 const PANEL_GAP = 12;
 const BASE_Z = 100;
 const AVOID_MARGIN = 8;
@@ -158,7 +157,7 @@ class Panel {
   setCollapsed(collapsed: boolean): void {
     this.setCollapsedImpl(collapsed);
     if (this.manager.isLayoutReady()) {
-      this.manager.reflowColumn();
+      this.manager.reflowColumns();
     }
   }
 
@@ -166,7 +165,7 @@ class Panel {
     this.closed = closed;
     this.element.style.display = closed ? 'none' : '';
     if (this.manager.isLayoutReady()) {
-      this.manager.reflowColumn();
+      this.manager.reflowColumns();
     }
   }
 
@@ -223,7 +222,7 @@ export class PanelManager {
       requestAnimationFrame(() => {
         this.pendingReflow = false;
         if (this.layoutReady) {
-          this.reflowColumn();
+          this.reflowColumns();
         }
       });
     });
@@ -269,7 +268,61 @@ export class PanelManager {
 
     for (const panel of visible) {
       panel.setPosition(x, y);
-      y += (panel.collapsed ? HEADER_HEIGHT : panel.element.offsetHeight) + PANEL_GAP;
+      y += panel.element.offsetHeight + PANEL_GAP;
+    }
+
+    if (this.layoutReady) {
+      this.saveLayout();
+    }
+  }
+
+  /**
+   * Перестраивает каждую вертикальную колонку панелей: панели с близким X
+   * сохраняют своё горизонтальное положение, а по Y прилипают друг к другу
+   * (нижняя к нижней границе вышестоящей) без перекрытий.
+   */
+  reflowColumns(): void {
+    const visible = this.panels.filter((p) => !p.closed);
+    if (visible.length === 0) return;
+
+    // Группируем панели в вертикальные колонки по близости X
+    const columns: Panel[][] = [];
+    for (const panel of visible) {
+      const rect = panel.element.getBoundingClientRect();
+      let found = false;
+      for (const col of columns) {
+        const colLeft = col[0].element.getBoundingClientRect().left;
+        if (Math.abs(rect.left - colLeft) <= SNAP_THRESHOLD) {
+          col.push(panel);
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        columns.push([panel]);
+      }
+    }
+
+    for (const col of columns) {
+      col.sort((a, b) => a.element.getBoundingClientRect().top - b.element.getBoundingClientRect().top);
+
+      const firstRect = col[0].element.getBoundingClientRect();
+      let y = firstRect.top;
+
+      // Если колонка пересекает панель листов, начинаем ниже неё
+      const avoid = this.avoidRect();
+      if (avoid && avoid.width > 0 && avoid.height > 0) {
+        const overlapsSheets = firstRect.left < avoid.right + AVOID_MARGIN && firstRect.right > avoid.left - AVOID_MARGIN;
+        if (overlapsSheets) {
+          y = Math.max(y, avoid.bottom + AVOID_MARGIN);
+        }
+      }
+
+      for (const panel of col) {
+        const rect = panel.element.getBoundingClientRect();
+        panel.setPosition(rect.left, y);
+        y += panel.element.offsetHeight + PANEL_GAP;
+      }
     }
 
     if (this.layoutReady) {
@@ -281,7 +334,7 @@ export class PanelManager {
     return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
   }
 
-  /** Проверяет, перекрываются ли видимые панели, и при необходимости выстраивает их заново. */
+  /** Проверяет, перекрываются ли видимые панели, и при необходимости перестраивает их колонки. */
   private sanitizeLayout(): void {
     const rects = this.panels
       .filter(p => !p.closed)
@@ -289,7 +342,7 @@ export class PanelManager {
     for (let i = 0; i < rects.length; i++) {
       for (let j = i + 1; j < rects.length; j++) {
         if (PanelManager.rectsOverlap(rects[i], rects[j])) {
-          this.reflowColumn();
+          this.reflowColumns();
           return;
         }
       }
