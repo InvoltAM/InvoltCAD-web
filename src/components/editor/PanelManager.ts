@@ -17,6 +17,8 @@ interface PanelState {
 const STORAGE_LAYOUT = 'involtcad-panels-layout';
 const SNAP_THRESHOLD = 12;
 const PANEL_WIDTH = 280;
+const HEADER_HEIGHT = 33;
+const PANEL_GAP = 12;
 const BASE_Z = 100;
 const AVOID_MARGIN = 8;
 
@@ -187,6 +189,7 @@ export class PanelManager {
     private avoidElement?: HTMLElement,
   ) {
     const saved = this.loadLayout();
+    const hasSavedLayout = Object.keys(saved).length > 0;
     configs.forEach((config, i) => {
       const panel = new Panel(config, this);
       this.panels.push(panel);
@@ -196,7 +199,55 @@ export class PanelManager {
       panel.applyState(state);
       panel.element.style.zIndex = String(this.zCounter++);
     });
+
+    if (!hasSavedLayout) {
+      // При первом запуске выстраиваем панели компактно, без лишних зазоров
+      this.reflowColumn();
+    } else {
+      // Если сохранённая раскладка приводит к перекрытию — сбрасываем в аккуратный столбик
+      this.sanitizeLayout();
+    }
+
+    this.saveLayout();
+
     window.addEventListener('resize', () => this.clampAllToViewport());
+  }
+
+  /** Восстанавливает раскладку по умолчанию: вертикальный столбик у правого края. */
+  resetLayout(): void {
+    this.reflowColumn();
+    this.saveLayout();
+  }
+
+  /** Раскладывает видимые панели в столбик без перекрытий. */
+  private reflowColumn(): void {
+    const avoid = this.avoidRect();
+    let y = avoid ? avoid.bottom + AVOID_MARGIN : 60;
+    const x = window.innerWidth - PANEL_WIDTH - 16;
+    for (const panel of this.panels) {
+      if (panel.closed) continue;
+      panel.setPosition(x, y);
+      y += (panel.collapsed ? HEADER_HEIGHT : panel.element.offsetHeight) + PANEL_GAP;
+    }
+  }
+
+  private static rectsOverlap(a: DOMRect, b: DOMRect): boolean {
+    return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+  }
+
+  /** Проверяет, перекрываются ли видимые панели, и при необходимости выстраивает их заново. */
+  private sanitizeLayout(): void {
+    const rects = this.panels
+      .filter(p => !p.closed)
+      .map(p => p.element.getBoundingClientRect());
+    for (let i = 0; i < rects.length; i++) {
+      for (let j = i + 1; j < rects.length; j++) {
+        if (PanelManager.rectsOverlap(rects[i], rects[j])) {
+          this.reflowColumn();
+          return;
+        }
+      }
+    }
   }
 
   /** Прямоугольник панели листов — плавающие панели не должны его пересекать. */

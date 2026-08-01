@@ -432,6 +432,17 @@ export default function Toolbar() {
               <span className="panels-menu-check">{item.visible ? '✓' : ''}</span>
             </button>
           ))}
+          <button
+            key="reset"
+            className="panels-menu-item"
+            onClick={() => {
+              panelManagerRef.current?.resetLayout()
+              setPanelMenuOpen(false)
+            }}
+          >
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('reset') }} />
+            <span>Упорядочить панели</span>
+          </button>
         </div>
       )}
 
