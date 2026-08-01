@@ -98,3 +98,40 @@
 1. Продолжить доработку UI/UX редактора по мини-плану пользователя.
 2. Проверить интеграцию облачных проектов и совместного доступа.
 3. При необходимости — донастроить MCP-серверы (`playwright`, `eslint`, `semgrep`).
+
+## Как продолжить разработку на другом ПК
+
+```bash
+# 1. Клонировать репозиторий
+git clone https://github.com/InvoltAM/InvoltCAD-web.git
+cd InvoltCAD-web
+
+# 2. Установить зависимости
+npm install
+
+# 3. Настроить окружение
+cp .env.example .env
+# Заполнить: DATABASE_URL, NEXTAUTH_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+# SMTP_* (для входа по email), YOOKASSA_* (для платежей)
+
+# 4. Prisma
+npx prisma generate
+npx prisma migrate dev
+
+# 5. Запуск
+npm run dev
+# http://localhost:3002/editor
+```
+
+### Проверки перед правками
+
+```bash
+npx tsc --noEmit   # TypeScript
+npm test           # unit-тесты
+npx playwright test e2e/editor.spec.ts  # E2E
+```
+
+### Важные моменты
+- Dev-сервер работает на **3002**, потому что Windows/Hyper-V занимает порт 3000.
+- Раскладка плавающих панелей хранится в `localStorage` (`involtcad-panels-layout`). При проблемах с позициями можно нажать в редакторе: **Панели → Упорядочить панели** или удалить ключ из `localStorage`.
+- Последнее состояние сессии и следующие шаги описаны в этом файле (`docs/SESSION_STATE.md`).
