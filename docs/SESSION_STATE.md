@@ -3,7 +3,7 @@
 ## Текущий контекст
 
 Работа ведётся в репозитории **InvoltCAD-web**, ветка `main`.
-Последний коммит: `fix: compact panel layout, prevent overlapping panels, add reset layout menu`.
+Последний коммит: `chore: use port 3002 for dev and playwright due to port 3000 reserved`.
 
 ## Что сделано в этой сессии
 
@@ -42,7 +42,11 @@
 - `PlanEditor`: `SheetsBar` создаётся перед `PanelManager`, чтобы тот сразу знал область для избегания.
 - В `Toolbar` добавлена кнопка для показа/скрытия панели «Проверка»; добавлена иконка `validation`.
 
-### Исправление перекрытия / "задвоения" плавающих панелей
+### Порт разработки
+- Порт 3000 оказался зарезервирован системой (Windows/Hyper-V) — Next.js не мог на нём запуститься и писал `Port 3000 is in use by an unknown process`.
+- Перевёл dev-сервер и Playwright на порт **3002**:
+  - `package.json`: `dev` и `start` теперь используют `-p 3002`.
+  - `playwright.config.ts`: `baseURL` и `webServer` на `http://localhost:3002`, добавлен `timeout: 120000` и `navigationTimeout: 60000`.
 - `src/components/editor/PanelManager.ts`:
   - Добавлен `reflowColumn()` — раскладывает видимые панели в компактный вертикальный столбик у правого края с учётом реальных размеров.
   - Добавлен `sanitizeLayout()` — при загрузке проверяет перекрытия в сохранённой раскладке и автоматически перестраивает столбик.
