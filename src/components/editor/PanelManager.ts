@@ -21,6 +21,7 @@ const HEADER_HEIGHT = 33;
 const PANEL_GAP = 12;
 const BASE_Z = 100;
 const AVOID_MARGIN = 8;
+const MIN_VIEWPORT_WIDTH = 400;
 
 /**
  * Отдельная плавающая панель: drag за заголовок, сворачивание, закрытие,
@@ -145,19 +146,28 @@ class Panel {
     this.element.style.right = 'auto';
   }
 
-  setCollapsed(collapsed: boolean): void {
+  private setCollapsedImpl(collapsed: boolean): void {
     this.collapsed = collapsed;
     this.element.classList.toggle('collapsed', collapsed);
     const iconEl = this.collapseBtn.querySelector('.ui-icon') as HTMLElement;
     if (iconEl) {
       iconEl.innerHTML = collapsed ? icon('collapseDown') : icon('collapseUp');
     }
-    this.manager.saveLayout();
+  }
+
+  setCollapsed(collapsed: boolean): void {
+    this.setCollapsedImpl(collapsed);
+    if (this.manager.isLayoutReady()) {
+      this.manager.reflowColumn();
+    }
   }
 
   setClosed(closed: boolean): void {
     this.closed = closed;
     this.element.style.display = closed ? 'none' : '';
+    if (this.manager.isLayoutReady()) {
+      this.manager.reflowColumn();
+    }
   }
 
   applyState(state: PanelState): void {
@@ -182,6 +192,10 @@ class Panel {
 export class PanelManager {
   private panels: Panel[] = [];
   private zCounter = BASE_Z;
+  private layoutReady = false;
+  private resizeObserver: ResizeObserver | null = null;
+  private pendingReflow = false;
+  private handleResize = () => this.clampAllToViewport();
 
   constructor(
     configs: PanelConfig[],
@@ -200,6 +214,23 @@ export class PanelManager {
       panel.element.style.zIndex = String(this.zCounter++);
     });
 
+    this.layoutReady = true;
+
+    // Отслеживаем изменение размеров панелей (после рендера React-порталов, сворачивания и т.д.)
+    this.resizeObserver = new ResizeObserver(() => {
+      if (this.pendingReflow) return;
+      this.pendingReflow = true;
+      requestAnimationFrame(() => {
+        this.pendingReflow = false;
+        if (this.layoutReady) {
+          this.reflowColumn();
+        }
+      });
+    });
+    for (const panel of this.panels) {
+      this.resizeObserver.observe(panel.element);
+    }
+
     if (!hasSavedLayout) {
       // При первом запуске выстраиваем панели компактно, без лишних зазоров
       this.reflowColumn();
@@ -210,7 +241,11 @@ export class PanelManager {
 
     this.saveLayout();
 
-    window.addEventListener('resize', () => this.clampAllToViewport());
+    window.addEventListener('resize', this.handleResize);
+  }
+
+  isLayoutReady(): boolean {
+    return this.layoutReady;
   }
 
   /** Восстанавливает раскладку по умолчанию: вертикальный столбик у правого края. */
@@ -219,15 +254,26 @@ export class PanelManager {
     this.saveLayout();
   }
 
-  /** Раскладывает видимые панели в столбик без перекрытий. */
-  private reflowColumn(): void {
+  /** Раскладывает видимые панели в столбик без перекрытий, сохраняя вертикальный порядок. */
+  reflowColumn(): void {
     const avoid = this.avoidRect();
     let y = avoid ? avoid.bottom + AVOID_MARGIN : 60;
-    const x = window.innerWidth - PANEL_WIDTH - 16;
-    for (const panel of this.panels) {
-      if (panel.closed) continue;
+    const effectiveWidth = Math.max(window.innerWidth, PANEL_WIDTH + 32);
+    const x = Math.max(16, effectiveWidth - PANEL_WIDTH - 16);
+
+    const visible = this.panels
+      .filter((p) => !p.closed)
+      .map((p) => ({ p, rect: p.element.getBoundingClientRect() }))
+      .sort((a, b) => a.rect.top - b.rect.top || a.rect.left - b.rect.left)
+      .map((o) => o.p);
+
+    for (const panel of visible) {
       panel.setPosition(x, y);
       y += (panel.collapsed ? HEADER_HEIGHT : panel.element.offsetHeight) + PANEL_GAP;
+    }
+
+    if (this.layoutReady) {
+      this.saveLayout();
     }
   }
 
@@ -297,6 +343,7 @@ export class PanelManager {
   }
 
   saveLayout(): void {
+    if (!this.layoutReady || window.innerWidth < MIN_VIEWPORT_WIDTH) return;
     const layout: Record<string, PanelState> = {};
     for (const panel of this.panels) {
       layout[panel.id] = panel.getState();
@@ -305,6 +352,7 @@ export class PanelManager {
   }
 
   private clampAllToViewport(): void {
+    if (window.innerWidth < MIN_VIEWPORT_WIDTH) return;
     for (const panel of this.panels) {
       const rect = panel.element.getBoundingClientRect();
       let x = Math.max(0, Math.min(window.innerWidth - rect.width, rect.left));
@@ -406,5 +454,11 @@ export class PanelManager {
       icon: p.config.icon,
       visible: !p.closed,
     }));
+  }
+
+  destroy(): void {
+    window.removeEventListener('resize', this.handleResize);
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
   }
 }

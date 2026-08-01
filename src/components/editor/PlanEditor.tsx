@@ -184,6 +184,7 @@ export default function PlanEditor() {
       setPanelBodies({ property: null, layers: null, spec: null, cableJournal: null, validation: null })
       engine.destroy()
       engineRef.current = null
+      panelManagerRef.current?.destroy()
       panelManagerRef.current = null
       sheetsBarRef.current = null
       realtimeSync.stop()
