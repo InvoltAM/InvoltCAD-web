@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useEditor } from './EditorContext'
+import { useCadStore } from '@/stores/cadStore'
 import { projectSync, ProjectMeta } from '@/lib/projects/sync'
 import ShareDialog from './ShareDialog'
 
 export default function ProjectsPanel() {
-  const [open, setOpen] = useState(false)
+  const open = useCadStore((s) => s.projectsOpen)
+  const setOpen = useCadStore((s) => s.setProjectsOpen)
   const [projects, setProjects] = useState<ProjectMeta[]>([])
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
@@ -26,10 +28,10 @@ export default function ProjectsPanel() {
     }
   }
 
-  const handleOpenPanel = () => {
-    setOpen(true)
-    void loadProjects()
-  }
+  useEffect(() => {
+    if (open) void loadProjects()
+  }, [open])
+
 
   const handleOpenProject = async (id: string) => {
     if (!engineRef.current) return
@@ -87,16 +89,6 @@ export default function ProjectsPanel() {
 
   return (
     <>
-      {/* Projects button */}
-      <button
-        onClick={handleOpenPanel}
-        className="absolute left-20 top-3 z-20 rounded-lg border border-gray-200 bg-white p-2 shadow-md dark:border-gray-700 dark:bg-gray-800 md:left-20"
-        title="Проекты"
-      >
-        📁
-      </button>
-
-      {/* Projects panel overlay */}
       {open && (
         <div
           className="fixed inset-0 z-50 bg-black/35"

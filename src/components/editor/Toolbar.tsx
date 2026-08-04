@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useCadStore } from '@/stores/cadStore'
 import { useEditor } from './EditorContext'
 import type { ToolName } from '@core/tools/ToolManager'
@@ -10,7 +10,13 @@ import { PngExporter } from '@core/io/PngExporter'
 import { PrintExporter } from '@core/io/PrintExporter'
 import { icon } from './icons'
 
-const tools: Array<{ name: ToolName; label: string; icon: string }> = [
+interface DockTool {
+  name: ToolName
+  label: string
+  icon: string
+}
+
+const drawingTools: DockTool[] = [
   { name: 'wall', label: 'Стена', icon: icon('wall') },
   { name: 'door', label: 'Дверь', icon: icon('door') },
   { name: 'window', label: 'Окно', icon: icon('window') },
@@ -20,6 +26,14 @@ const tools: Array<{ name: ToolName; label: string; icon: string }> = [
   { name: 'select', label: 'Выбор', icon: icon('select') },
   { name: 'hand', label: 'Рука', icon: icon('hand') },
 ]
+
+interface DockAction {
+  id: string
+  label: string
+  icon: string
+  active?: boolean
+  onClick: () => void
+}
 
 export default function Toolbar() {
   const currentTool = useCadStore((s) => s.currentTool)
@@ -36,12 +50,18 @@ export default function Toolbar() {
   const setOlsOpen = useCadStore((s) => s.setOlsOpen)
   const panelEditorOpen = useCadStore((s) => s.panelEditorOpen)
   const setPanelEditorOpen = useCadStore((s) => s.setPanelEditorOpen)
+  const projectsOpen = useCadStore((s) => s.projectsOpen)
+  const setProjectsOpen = useCadStore((s) => s.setProjectsOpen)
   const { engineRef, themeManagerRef, panelManagerRef } = useEditor()
 
   const [panelMenuOpen, setPanelMenuOpen] = useState(false)
   const [panelMenuPos, setPanelMenuPos] = useState({ x: 0, y: 0 })
   const [panelItems, setPanelItems] = useState<Array<{ id: string; title: string; icon: string; visible: boolean }>>([])
   const panelMenuBtnRef = useRef<HTMLButtonElement>(null)
+
+  // macOS dock hover state
+  const [hoveredDockId, setHoveredDockId] = useState<string | null>(null)
+  const dockRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!panelMenuOpen) return
@@ -59,7 +79,7 @@ export default function Toolbar() {
     if (!panelManagerRef.current) return
     const rect = panelMenuBtnRef.current?.getBoundingClientRect()
     if (rect) {
-      setPanelMenuPos({ x: rect.right + 8, y: rect.top })
+      setPanelMenuPos({ x: rect.left + rect.width / 2, y: rect.top - 8 })
     }
     setPanelMenuOpen((prev) => !prev)
   }
@@ -178,7 +198,6 @@ export default function Toolbar() {
         if (!engine) return
 
         if (file.name.toLowerCase().endsWith('.dxf')) {
-          // Импорт DXF
           const { importDxf } = await import('@core/io/DxfImporter')
           const plan = importDxf(text)
           engine.plan = plan
@@ -186,9 +205,7 @@ export default function Toolbar() {
           engine.requestRender()
           alert('DXF импортирован')
         } else {
-          // Импорт JSON
           const data = JSON.parse(text)
-          // Создаём новый проект с импортированными данными
           const res = await fetch('/api/projects', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -196,13 +213,11 @@ export default function Toolbar() {
           })
           if (!res.ok) throw new Error('Ошибка создания проекта')
           const project = await res.json()
-          // Сохраняем план в проект
           await fetch(`/api/projects/${project.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ plan: data }),
           })
-          // Открываем проект
           await projectSync.loadProject(project.id)
           engine.plan = (await projectSync.loadProject(project.id)).plan
           engine.notifyChanged()
@@ -223,202 +238,177 @@ export default function Toolbar() {
     }
   }
 
+  const getDockScale = useCallback(
+    (id: string) => {
+      if (!hoveredDockId) return 1
+      const allIds = [...drawingTools.map((t) => t.name), 'panels', 'validation', 'theme'] as string[]
+      const idx = allIds.indexOf(id)
+      const hoverIdx = allIds.indexOf(hoveredDockId)
+      if (idx === -1 || hoverIdx === -1) return 1
+      const distance = Math.abs(idx - hoverIdx)
+      if (distance === 0) return 1.55
+      if (distance === 1) return 1.25
+      if (distance === 2) return 1.08
+      return 1
+    },
+    [hoveredDockId]
+  )
+
+  const dockActions: DockAction[] = [
+    {
+      id: 'panels',
+      label: 'Панели',
+      icon: icon('menu'),
+      active: panelMenuOpen,
+      onClick: handleTogglePanelMenu,
+    },
+    {
+      id: 'validation',
+      label: 'Проверка',
+      icon: icon('validation'),
+      active: panelManagerRef.current?.isVisible('validation') ?? false,
+      onClick: handleToggleValidation,
+    },
+    {
+      id: 'theme',
+      label: theme === 'dark' ? 'Светлая тема' : 'Тёмная тема',
+      icon: icon(theme === 'dark' ? 'sun' : 'moon'),
+      onClick: handleToggleTheme,
+    },
+  ]
+
   return (
     <>
-      {/* Desktop toolbar */}
-      <div className="absolute left-0 top-0 z-30 hidden h-full w-16 flex-col gap-2 border-r border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-800 md:flex">
-        {tools.map((tool) => (
+      {/* Left project sidebar */}
+      <div className="project-sidebar">
+        <div className="project-sidebar-top">
           <button
-            key={tool.name}
-            onClick={() => setTool(tool.name)}
-            className={`flex flex-col items-center justify-center rounded-lg border p-2 text-xs ${
-              currentTool === tool.name
-                ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600'
-            }`}
-            title={tool.label}
+            onClick={() => setProjectsOpen(!projectsOpen)}
+            className={`project-sidebar-btn ${projectsOpen ? 'active' : ''}`}
+            title="Проекты"
           >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: tool.icon }} />
-            <span className="text-[10px]">{tool.label}</span>
-          </button>
-        ))}
-
-        <div className="mt-auto flex flex-col gap-2">
-          <button
-            ref={panelMenuBtnRef}
-            onClick={handleTogglePanelMenu}
-            className={`flex flex-col items-center justify-center rounded-lg border p-2 text-xs ${
-              panelMenuOpen
-                ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600'
-            }`}
-            title="Панели"
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('menu') }} />
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('projects') }} />
+            <span className="project-sidebar-label">Проекты</span>
           </button>
           <button
             onClick={handleToggleCableJournal}
-            className={`flex flex-col items-center justify-center rounded-lg border p-2 text-xs ${
-              panelManagerRef.current?.isVisible('cableJournal')
-                ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600'
-            }`}
+            className={`project-sidebar-btn ${panelManagerRef.current?.isVisible('cableJournal') ? 'active' : ''}`}
             title="Кабельный журнал"
           >
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('cable') }} />
+            <span className="project-sidebar-label">Кабели</span>
           </button>
           <button
             onClick={handleToggleOls}
-            className={`flex flex-col items-center justify-center rounded-lg border p-2 text-xs ${
-              olsOpen
-                ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600'
-            }`}
+            className={`project-sidebar-btn ${olsOpen ? 'active' : ''}`}
             title="Однолинейная схема"
           >
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('ols') }} />
+            <span className="project-sidebar-label">ОЛС</span>
           </button>
           <button
             onClick={handleTogglePanelEditor}
-            className={`flex flex-col items-center justify-center rounded-lg border p-2 text-xs ${
-              panelEditorOpen
-                ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600'
-            }`}
+            className={`project-sidebar-btn ${panelEditorOpen ? 'active' : ''}`}
             title="Визуализация щита"
           >
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('panel') }} />
+            <span className="project-sidebar-label">Щит</span>
           </button>
-          <button
-            onClick={handleToggleValidation}
-            className={`flex flex-col items-center justify-center rounded-lg border p-2 text-xs ${
-              panelManagerRef.current?.isVisible('validation')
-                ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600'
-            }`}
-            title="Проверка"
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('validation') }} />
+        </div>
+
+        <div className="project-sidebar-bottom">
+          <button onClick={handleUndo} className="project-sidebar-btn" title="Отменить (Ctrl+Z)">
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('undo') }} />
           </button>
-          <button
-            onClick={handleToggleTheme}
-            className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600"
-            title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon(theme === 'dark' ? 'sun' : 'moon') }} />
+          <button onClick={handleRedo} className="project-sidebar-btn" title="Повторить (Ctrl+Y)">
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('redo') }} />
           </button>
-          <button
-            onClick={handleCycleUiScale}
-            className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600"
-            title={`Масштаб UI ${uiScale}×`}
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('uiScale') }} />
+          <button onClick={() => handleZoom(1.25)} className="project-sidebar-btn" title="Приблизить">
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('zoomIn') }} />
           </button>
-          <button
-            onClick={handleToggleCompact}
-            className={`flex flex-col items-center justify-center rounded-lg border p-2 text-xs ${
-              compactPanels
-                ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600'
-            }`}
-            title={compactPanels ? 'Расширенные панели' : 'Компактные панели'}
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('compact') }} />
+          <button onClick={() => handleZoom(0.8)} className="project-sidebar-btn" title="Отдалить">
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('zoomOut') }} />
+          </button>
+          <button onClick={handleSave} className="project-sidebar-btn" title="Сохранить (Ctrl+S)">
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('save') }} />
+          </button>
+          <button onClick={handleExportPng} className="project-sidebar-btn" title="Экспорт PNG">
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('exportPng') }} />
+          </button>
+          <button onClick={handleExportXlsx} className="project-sidebar-btn" title="Экспорт XLSX">
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('exportXlsx') }} />
+          </button>
+          <button onClick={handleExportSvg} className="project-sidebar-btn" title="Экспорт SVG">
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('exportSvg') }} />
+          </button>
+          <button onClick={handlePrint} className="project-sidebar-btn" title="Печать / PDF">
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('print') }} />
+          </button>
+          <button onClick={handleImport} className="project-sidebar-btn" title="Импорт JSON (Ctrl+O)">
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('import') }} />
+          </button>
+          <button onClick={handleClear} className="project-sidebar-btn" title="Очистить план">
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('clear') }} />
           </button>
           <button
             onClick={handleToggleOrtho}
-            className={`flex flex-col items-center justify-center rounded-lg border p-2 text-xs ${
-              orthoMode
-                ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600'
-            }`}
+            className={`project-sidebar-btn ${orthoMode ? 'active' : ''}`}
             title={orthoMode ? 'Орто: вкл' : 'Орто: выкл (Shift — временно)'}
           >
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('ortho') }} />
           </button>
-          <button
-            onClick={handleUndo}
-            className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600"
-            title="Отменить (Ctrl+Z)"
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('undo') }} />
+          <button onClick={handleCycleUiScale} className="project-sidebar-btn" title={`Масштаб UI ${uiScale}×`}>
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('uiScale') }} />
           </button>
           <button
-            onClick={handleRedo}
-            className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600"
-            title="Повторить (Ctrl+Y)"
+            onClick={handleToggleCompact}
+            className={`project-sidebar-btn ${compactPanels ? 'active' : ''}`}
+            title={compactPanels ? 'Расширенные панели' : 'Компактные панели'}
           >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('redo') }} />
-          </button>
-          <button
-            onClick={() => handleZoom(1.25)}
-            className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600"
-            title="Приблизить"
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('zoomIn') }} />
-          </button>
-          <button
-            onClick={() => handleZoom(0.8)}
-            className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600"
-            title="Отдалить"
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('zoomOut') }} />
-          </button>
-          <button
-            onClick={handleSave}
-            className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600"
-            title="Сохранить (Ctrl+S)"
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('save') }} />
-          </button>
-          <button
-            onClick={handleExportPng}
-            className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600"
-            title="Экспорт PNG"
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('exportPng') }} />
-          </button>
-          <button
-            onClick={handleExportXlsx}
-            className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600"
-            title="Экспорт XLSX"
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('exportXlsx') }} />
-          </button>
-          <button
-            onClick={handleExportSvg}
-            className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600"
-            title="Экспорт SVG"
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('exportSvg') }} />
-          </button>
-          <button
-            onClick={handlePrint}
-            className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600"
-            title="Печать / PDF"
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('print') }} />
-          </button>
-          <button
-            onClick={handleImport}
-            className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600"
-            title="Импорт JSON (Ctrl+O)"
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('import') }} />
-          </button>
-          <button
-            onClick={handleClear}
-            className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600"
-            title="Очистить план"
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('clear') }} />
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('compact') }} />
           </button>
         </div>
       </div>
 
+      {/* macOS-style dock */}
+      <div
+        ref={dockRef}
+        className="editor-dock"
+        onMouseLeave={() => setHoveredDockId(null)}
+      >
+        {drawingTools.map((tool) => (
+          <button
+            key={tool.name}
+            onClick={() => setTool(tool.name)}
+            onMouseEnter={() => setHoveredDockId(tool.name)}
+            className={`editor-dock-item ${currentTool === tool.name ? 'active' : ''}`}
+            title={tool.label}
+            style={{ transform: `scale(${getDockScale(tool.name)})` }}
+          >
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: tool.icon }} />
+            <span className="editor-dock-tooltip">{tool.label}</span>
+          </button>
+        ))}
+        <div className="editor-dock-divider" />
+        {dockActions.map((action) => (
+          <button
+            key={action.id}
+            ref={action.id === 'panels' ? panelMenuBtnRef : undefined}
+            onClick={action.onClick}
+            onMouseEnter={() => setHoveredDockId(action.id)}
+            className={`editor-dock-item ${action.active ? 'active' : ''}`}
+            title={action.label}
+            style={{ transform: `scale(${getDockScale(action.id)})` }}
+          >
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: action.icon }} />
+            <span className="editor-dock-tooltip">{action.label}</span>
+          </button>
+        ))}
+      </div>
+
       {panelMenuOpen && (
         <div
-          className="panels-menu"
+          className="panels-menu panels-menu-dock"
           style={{ left: panelMenuPos.x, top: panelMenuPos.y }}
         >
           {panelItems.map((item) => (
@@ -445,38 +435,6 @@ export default function Toolbar() {
           </button>
         </div>
       )}
-
-      {/* Mobile toolbar */}
-      <div className="absolute bottom-0 left-0 right-0 z-30 flex gap-2 overflow-x-auto border-t border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-800 md:hidden">
-        {tools.map((tool) => (
-          <button
-            key={tool.name}
-            onClick={() => setTool(tool.name)}
-            className={`flex flex-shrink-0 items-center justify-center rounded-lg border p-3 ${
-              currentTool === tool.name
-                ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                : 'border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-700'
-            }`}
-            title={tool.label}
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: tool.icon }} />
-          </button>
-        ))}
-        <button
-          onClick={handleUndo}
-          className="flex flex-shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-600 dark:bg-gray-700"
-          title="Отменить"
-        >
-          <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('undo') }} />
-        </button>
-        <button
-          onClick={handleRedo}
-          className="flex flex-shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-600 dark:bg-gray-700"
-          title="Повторить"
-        >
-          <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('redo') }} />
-        </button>
-      </div>
     </>
   )
 }

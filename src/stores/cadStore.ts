@@ -48,6 +48,7 @@ interface CadStoreState {
   orthoMode: boolean
   olsOpen: boolean
   panelEditorOpen: boolean
+  projectsOpen: boolean
 
   setTool: (tool: ToolName) => void
   setSelectedWall: (id: string | null) => void
@@ -75,6 +76,7 @@ interface CadStoreState {
   setOrthoMode: (orthoMode: boolean) => void
   setOlsOpen: (open: boolean) => void
   setPanelEditorOpen: (open: boolean) => void
+  setProjectsOpen: (open: boolean) => void
   clearSelection: () => void
 }
 
@@ -113,6 +115,7 @@ export const useCadStore = create<CadStoreState>((set) => ({
   orthoMode: false,
   olsOpen: false,
   panelEditorOpen: false,
+  projectsOpen: false,
 
   setTool: (tool) => set({ currentTool: tool }),
   setSelectedWall: (id) => set({ selectedWallId: id }),
@@ -140,6 +143,7 @@ export const useCadStore = create<CadStoreState>((set) => ({
   setOrthoMode: (orthoMode) => set({ orthoMode }),
   setOlsOpen: (olsOpen) => set({ olsOpen }),
   setPanelEditorOpen: (panelEditorOpen) => set({ panelEditorOpen }),
+  setProjectsOpen: (projectsOpen) => set({ projectsOpen }),
   clearSelection: () =>
     set({
       selectedWallId: null,

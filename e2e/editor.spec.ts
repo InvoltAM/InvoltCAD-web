@@ -35,7 +35,7 @@ test.describe('InvoltCAD Editor', () => {
 
   test('панель проверки отображается', async ({ page }) => {
     await page.goto('/editor')
-    await expect(page.locator('text=Проверка')).toBeVisible()
+    await expect(page.locator('.float-panel-title').filter({ hasText: 'Проверка' })).toBeVisible()
   })
 
   test('переключение инструментов работает', async ({ page }) => {

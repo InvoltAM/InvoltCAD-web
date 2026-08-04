@@ -306,7 +306,7 @@ body {
 
 @media (min-width: 1024px) {
   .sheets-bar {
-    left: 64px;
+    left: 76px;
     right: 12px;
     transform: none;
     max-width: none;
@@ -336,6 +336,199 @@ body {
   display: block;
 }
 
+/* Левая боковая панель проекта */
+.project-sidebar {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  bottom: 12px;
+  width: 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 2px 12px var(--shadow);
+  z-index: 35;
+  user-select: none;
+}
+
+.project-sidebar-top,
+.project-sidebar-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.project-sidebar-bottom {
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+  max-height: 55%;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.project-sidebar-bottom::-webkit-scrollbar {
+  display: none;
+}
+
+.project-sidebar-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 4px 2px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.project-sidebar-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+.project-sidebar-btn:active {
+  transform: scale(0.95);
+}
+
+.project-sidebar-btn.active {
+  border-color: var(--accent);
+  background: rgba(255, 140, 0, 0.12);
+  color: var(--accent);
+}
+
+.project-sidebar-btn .ui-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.project-sidebar-label {
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.1;
+  margin-top: 2px;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* macOS-style dock */
+.editor-dock {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255,255,255,0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 40;
+  user-select: none;
+}
+
+[data-theme='dark'] .editor-dock,
+.dark .editor-dock {
+  background: rgba(40, 40, 40, 0.82);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.editor-dock-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.12s ease-out;
+  transform-origin: center bottom;
+  flex-shrink: 0;
+}
+
+.editor-dock-item:hover {
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--text);
+}
+
+[data-theme='dark'] .editor-dock-item,
+.dark .editor-dock-item {
+  background: rgba(60, 60, 60, 0.6);
+}
+
+[data-theme='dark'] .editor-dock-item:hover,
+.dark .editor-dock-item:hover {
+  background: rgba(80, 80, 80, 0.95);
+}
+
+.editor-dock-item.active {
+  border-color: var(--accent);
+  background: rgba(255, 140, 0, 0.15);
+  color: var(--accent);
+}
+
+.editor-dock-item .ui-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.editor-dock-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--border);
+  margin: 0 2px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.editor-dock-tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: 5px 10px;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 50;
+}
+
+.editor-dock-item:hover .editor-dock-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 /* Меню повторного открытия панелей */
 .panels-menu {
   position: fixed;
@@ -346,6 +539,10 @@ body {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   z-index: 300;
   overflow: hidden;
+}
+
+.panels-menu.panels-menu-dock {
+  transform: translateX(-50%) translateY(-100%);
 }
 
 .panels-menu-item {

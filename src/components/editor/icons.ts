@@ -2,7 +2,7 @@ export type IconName =
   | 'wall' | 'door' | 'window' | 'device' | 'cable' | 'dimension' | 'select' | 'hand'
   | 'properties' | 'layers' | 'spec' | 'menu' | 'collapseDown' | 'collapseUp'
   | 'undo' | 'redo' | 'zoomIn' | 'zoomOut' | 'save' | 'exportPng' | 'exportXlsx' | 'exportSvg' | 'print' | 'import' | 'clear'
-  | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset';
+  | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects';
 
 const wrap = (body: string): string =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
@@ -42,6 +42,7 @@ const ICONS: Record<IconName, string> = {
   panel: wrap('<rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/>'),
   validation: wrap('<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/>'),
   reset: wrap('<path d="M23 4v6h-6M1 20v-6h6M3.5 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.5 15"/>'),
+  projects: wrap('<path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/><path d="M3 7l9 6 9-6"/>'),
 };
 
 export function icon(name: IconName): string {
