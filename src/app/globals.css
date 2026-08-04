@@ -146,15 +146,66 @@ body {
   flex-direction: column;
   gap: 10px;
   overflow-y: auto;
-  max-height: calc(100vh - 120px);
+  flex: 1 1 auto;
+  max-height: 80vh;
+  opacity: 1;
+  transition: max-height 0.25s ease, opacity 0.25s ease, padding 0.25s ease;
 }
 
 .float-panel.collapsed .float-panel-body {
-  display: none;
+  max-height: 0;
+  opacity: 0;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
 }
 
 .float-panel.collapsed .float-panel-header {
   border-bottom: none;
+}
+
+.float-panel-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 55%, var(--text-muted) 55%);
+  border-radius: 0 0 10px 0;
+  z-index: 2;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+.float-panel-resize:hover,
+.float-panel-resize.resizing {
+  opacity: 1;
+}
+
+@media (min-width: 768px) {
+  /* Свернутая панель на десктопе сжимается до заголовка, игнорируя заданную высоту */
+  .float-panel.collapsed {
+    height: auto !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .float-panel {
+    position: fixed;
+    width: 100vw;
+    max-width: none;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 20px var(--shadow);
+  }
+
+  .float-panel-header {
+    cursor: default;
+  }
+
+  .float-panel-resize {
+    display: none;
+  }
 }
 
 /* Панель листов */

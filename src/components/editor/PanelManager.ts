@@ -12,6 +12,8 @@ interface PanelState {
   y: number;
   collapsed: boolean;
   closed: boolean;
+  w?: number;
+  h?: number;
 }
 
 const STORAGE_LAYOUT = 'involtcad-panels-layout';
@@ -21,6 +23,9 @@ const PANEL_GAP = 12;
 const BASE_Z = 100;
 const AVOID_MARGIN = 8;
 const MIN_VIEWPORT_WIDTH = 400;
+const MIN_PANEL_WIDTH = 240;
+const MAX_PANEL_WIDTH = 600;
+const MIN_PANEL_HEIGHT = 120;
 
 /**
  * Отдельная плавающая панель: drag за заголовок, сворачивание, закрытие,
@@ -34,6 +39,7 @@ class Panel {
   private header!: HTMLDivElement;
   private bodyWrap!: HTMLDivElement;
   private collapseBtn!: HTMLButtonElement;
+  private resizeHandle!: HTMLDivElement;
 
   constructor(
     readonly config: PanelConfig,
@@ -86,8 +92,14 @@ class Panel {
     this.bodyWrap.className = 'float-panel-body';
     this.bodyWrap.appendChild(this.config.body);
 
+    this.resizeHandle = document.createElement('div');
+    this.resizeHandle.className = 'float-panel-resize';
+    this.resizeHandle.title = 'Изменить размер';
+    this.resizeHandle.addEventListener('pointerdown', e => this.onResizeStart(e));
+
     el.appendChild(this.header);
     el.appendChild(this.bodyWrap);
+    el.appendChild(this.resizeHandle);
 
     el.addEventListener('pointerdown', () => this.manager.bringToFront(this.id));
     this.header.addEventListener('pointerdown', e => this.onDragStart(e));
@@ -97,6 +109,7 @@ class Panel {
 
   private onDragStart(e: PointerEvent): void {
     if (e.button !== 0) return;
+    if (window.innerWidth < 768) return; // на мобильных drag отключён (bottom-sheet)
     if ((e.target as HTMLElement).closest('button')) return;
     e.preventDefault();
 
@@ -139,13 +152,65 @@ class Panel {
     this.header.addEventListener('pointerup', onUp);
   }
 
+  private onResizeStart(e: PointerEvent): void {
+    if (e.button !== 0) return;
+    if (window.innerWidth < 768) return; // на мобильных ресайз отключён (bottom-sheet)
+    e.preventDefault();
+    e.stopPropagation();
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startRect = this.element.getBoundingClientRect();
+    const maxH = window.innerHeight - 80;
+
+    this.resizeHandle.classList.add('resizing');
+
+    const onMove = (ev: PointerEvent): void => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      const w = Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, startRect.width + dx));
+      const h = Math.max(MIN_PANEL_HEIGHT, Math.min(maxH, startRect.height + dy));
+      this.setSize(w, h);
+    };
+
+    const onUp = (ev: PointerEvent): void => {
+      this.resizeHandle.classList.remove('resizing');
+      try {
+        this.resizeHandle.releasePointerCapture(ev.pointerId);
+      } catch {
+        // synthetic events may not have an active pointer
+      }
+      this.resizeHandle.removeEventListener('pointermove', onMove);
+      this.resizeHandle.removeEventListener('pointerup', onUp);
+      this.manager.saveLayout();
+    };
+
+    try {
+      this.resizeHandle.setPointerCapture(e.pointerId);
+    } catch {
+      // synthetic events may not have an active pointer
+    }
+    this.resizeHandle.addEventListener('pointermove', onMove);
+    this.resizeHandle.addEventListener('pointerup', onUp);
+  }
+
   setPosition(x: number, y: number): void {
     this.element.style.left = `${Math.round(x)}px`;
     this.element.style.top = `${Math.round(y)}px`;
     this.element.style.right = 'auto';
   }
 
-  private setCollapsedImpl(collapsed: boolean): void {
+  setSize(w: number, h: number): void {
+    this.element.style.width = `${Math.round(w)}px`;
+    this.element.style.height = `${Math.round(h)}px`;
+  }
+
+  clearSize(): void {
+    this.element.style.width = '';
+    this.element.style.height = '';
+  }
+
+  setCollapsedImpl(collapsed: boolean): void {
     this.collapsed = collapsed;
     this.element.classList.toggle('collapsed', collapsed);
     const iconEl = this.collapseBtn.querySelector('.ui-icon') as HTMLElement;
@@ -155,6 +220,9 @@ class Panel {
   }
 
   setCollapsed(collapsed: boolean): void {
+    if (this.manager.isLayoutReady() && !collapsed && this.manager.isMobile()) {
+      this.manager.collapseOthers(this);
+    }
     this.setCollapsedImpl(collapsed);
     if (this.manager.isLayoutReady()) {
       this.manager.reflowColumns();
@@ -171,6 +239,11 @@ class Panel {
 
   applyState(state: PanelState): void {
     this.setPosition(state.x, state.y);
+    if (state.w && state.h) {
+      this.setSize(state.w, state.h);
+    } else {
+      this.clearSize();
+    }
     this.setCollapsed(state.collapsed);
     this.setClosed(state.closed);
   }
@@ -181,6 +254,8 @@ class Panel {
       y: parseFloat(this.element.style.top) || 0,
       collapsed: this.collapsed,
       closed: this.closed,
+      w: parseFloat(this.element.style.width) || undefined,
+      h: parseFloat(this.element.style.height) || undefined,
     };
   }
 }
@@ -194,7 +269,14 @@ export class PanelManager {
   private layoutReady = false;
   private resizeObserver: ResizeObserver | null = null;
   private pendingReflow = false;
-  private handleResize = () => this.clampAllToViewport();
+  private reflowing = false;
+  private handleResize = () => {
+    if (this.isMobile()) {
+      this.reflowMobile();
+    } else {
+      this.clampAllToViewport();
+    }
+  };
 
   constructor(
     configs: PanelConfig[],
@@ -217,13 +299,17 @@ export class PanelManager {
 
     // Отслеживаем изменение размеров панелей (после рендера React-порталов, сворачивания и т.д.)
     this.resizeObserver = new ResizeObserver(() => {
-      if (this.pendingReflow) return;
+      if (this.pendingReflow || this.reflowing) return;
       this.pendingReflow = true;
       requestAnimationFrame(() => {
-        this.pendingReflow = false;
-        if (this.layoutReady) {
-          this.reflowColumns();
+        if (!this.layoutReady) {
+          this.pendingReflow = false;
+          return;
         }
+        this.reflowing = true;
+        this.reflowColumns();
+        this.reflowing = false;
+        this.pendingReflow = false;
       });
     });
     for (const panel of this.panels) {
@@ -247,6 +333,57 @@ export class PanelManager {
     return this.layoutReady;
   }
 
+  isMobile(): boolean {
+    return window.innerWidth < 768;
+  }
+
+  /** Сворачивает все панели кроме указанной (используется на мобильных). */
+  collapseOthers(except: Panel): void {
+    for (const panel of this.panels) {
+      if (panel !== except && !panel.closed && !panel.collapsed) {
+        panel.setCollapsedImpl(true);
+      }
+    }
+  }
+
+  /** Мобильная раскладка: развёрнутая панель — bottom sheet, остальные — табы внизу. */
+  reflowMobile(): void {
+    const visible = this.panels.filter((p) => !p.closed);
+    if (visible.length === 0) return;
+
+    const tabs = visible.filter((p) => p.collapsed);
+    const expanded = visible.filter((p) => !p.collapsed);
+
+    const tabH = 48;
+    const tabCount = tabs.length;
+    const tabW = tabCount > 0 ? window.innerWidth / tabCount : window.innerWidth;
+
+    // Активная развёрнутая панель — та, что выше по z-index
+    const active = expanded.length > 0
+      ? expanded.reduce((a, b) => (parseInt(a.element.style.zIndex || '0') > parseInt(b.element.style.zIndex || '0') ? a : b))
+      : null;
+
+    // Раскладываем свёрнутые панели в виде табов внизу
+    tabs.forEach((panel, i) => {
+      panel.setPosition(Math.round(i * tabW), window.innerHeight - tabH);
+      panel.setSize(Math.round(tabW), tabH);
+    });
+
+    // Активная панель занимает bottom sheet над табами
+    if (active) {
+      const maxSheetH = window.innerHeight - 120;
+      const sheetH = Math.min(maxSheetH, Math.max(200, Math.round(window.innerHeight * 0.55)));
+      const y = window.innerHeight - sheetH - tabH;
+      active.setPosition(0, y);
+      active.setSize(window.innerWidth, sheetH);
+      this.bringToFront(active.id);
+    }
+
+    if (this.layoutReady) {
+      this.saveLayout();
+    }
+  }
+
   /** Восстанавливает раскладку по умолчанию: вертикальный столбик у правого края. */
   resetLayout(): void {
     this.reflowColumn();
@@ -255,6 +392,11 @@ export class PanelManager {
 
   /** Раскладывает видимые панели в столбик без перекрытий, сохраняя вертикальный порядок. */
   reflowColumn(): void {
+    if (this.isMobile()) {
+      this.reflowMobile();
+      return;
+    }
+
     const avoid = this.avoidRect();
     let y = avoid ? avoid.bottom + AVOID_MARGIN : 60;
     const effectiveWidth = Math.max(window.innerWidth, PANEL_WIDTH + 32);
@@ -267,6 +409,7 @@ export class PanelManager {
       .map((o) => o.p);
 
     for (const panel of visible) {
+      panel.clearSize();
       panel.setPosition(x, y);
       y += panel.element.offsetHeight + PANEL_GAP;
     }
@@ -280,8 +423,14 @@ export class PanelManager {
    * Перестраивает каждую вертикальную колонку панелей: панели с близким X
    * сохраняют своё горизонтальное положение, а по Y прилипают друг к другу
    * (нижняя к нижней границе вышестоящей) без перекрытий.
+   * На мобильных устройствах переключается на bottom-sheet раскладку.
    */
   reflowColumns(): void {
+    if (this.isMobile()) {
+      this.reflowMobile();
+      return;
+    }
+
     const visible = this.panels.filter((p) => !p.closed);
     if (visible.length === 0) return;
 
@@ -396,7 +545,7 @@ export class PanelManager {
   }
 
   saveLayout(): void {
-    if (!this.layoutReady || window.innerWidth < MIN_VIEWPORT_WIDTH) return;
+    if (!this.layoutReady || window.innerWidth < MIN_VIEWPORT_WIDTH || this.isMobile()) return;
     const layout: Record<string, PanelState> = {};
     for (const panel of this.panels) {
       layout[panel.id] = panel.getState();

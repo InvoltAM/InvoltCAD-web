@@ -193,3 +193,68 @@ test.describe('Тарифы', () => {
     await expect(page.locator('text=Business')).toBeVisible()
   })
 })
+
+test.describe('Плавающие панели', () => {
+  test('панель можно изменить размер', async ({ page }) => {
+    await page.goto('/editor')
+    await page.waitForTimeout(1000)
+
+    const panel = page.locator('[data-panel="properties"]')
+    const handle = panel.locator('.float-panel-resize')
+    await expect(handle).toBeVisible()
+
+    const boxBefore = await panel.boundingBox()
+    expect(boxBefore).toBeTruthy()
+
+    const handleBox = await handle.boundingBox()
+    expect(handleBox).toBeTruthy()
+    const startX = handleBox!.x + handleBox!.width / 2
+    const startY = handleBox!.y + handleBox!.height / 2
+
+    await page.mouse.move(startX, startY)
+    await page.mouse.down()
+    await page.mouse.move(startX + 120, startY + 120, { steps: 8 })
+    await page.mouse.up()
+
+    await page.waitForTimeout(300)
+    const boxAfter = await panel.boundingBox()
+    expect(boxAfter).toBeTruthy()
+    expect(boxAfter!.width).toBeGreaterThan(boxBefore!.width + 50)
+    expect(boxAfter!.height).toBeGreaterThan(boxBefore!.height + 50)
+  })
+
+  test('сворачивание/разворачивание анимируется и меняет высоту', async ({ page }) => {
+    await page.goto('/editor')
+    await page.waitForTimeout(1000)
+
+    const panel = page.locator('[data-panel="properties"]')
+    const btn = panel.locator('.float-panel-collapse')
+    const boxBefore = await panel.boundingBox()
+    expect(boxBefore).toBeTruthy()
+    expect(boxBefore!.height).toBeGreaterThan(100)
+
+    await btn.click()
+    await page.waitForTimeout(400)
+    const boxCollapsed = await panel.boundingBox()
+    expect(boxCollapsed).toBeTruthy()
+    expect(boxCollapsed!.height).toBeLessThan(80)
+
+    await btn.click()
+    await page.waitForTimeout(400)
+    const boxExpanded = await panel.boundingBox()
+    expect(boxExpanded).toBeTruthy()
+    expect(boxExpanded!.height).toBeGreaterThan(100)
+  })
+
+  test('на мобильных панель отображается как bottom sheet', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto('/editor')
+    await page.waitForTimeout(1000)
+
+    const panel = page.locator('[data-panel="properties"]')
+    const box = await panel.boundingBox()
+    expect(box).toBeTruthy()
+    expect(box!.width).toBeCloseTo(375, 0)
+    expect(box!.y).toBeGreaterThan(300)
+  })
+})
