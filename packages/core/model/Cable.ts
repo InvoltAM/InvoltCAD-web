@@ -12,6 +12,7 @@ export interface Cable {
   spareLength?: number; // длина запаса, мм
   totalLength?: number; // длина с запасом, мм
   route: Vector2[];     // точки маршрута кабеля
+  circuitId?: string;   // привязка к линии/цепи щита
 }
 
 export const DEFAULT_CABLE: { type: CableType; crossSection: number } = {

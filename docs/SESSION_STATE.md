@@ -144,6 +144,25 @@
   - Унифицирован рендер для устройств, полученных из `layoutPanel()` и из `buildPanelFromBoard()`, исправлена типизация.
 - Проверка: `npx tsc --noEmit`, `npm test`, `npm run build`, `npx playwright test e2e/editor.spec.ts` — всё чисто.
 
+### Этап 6 — Кабельный журнал v2 с геометрическими длинами
+- Создан `packages/core/electrical/CableRunEngine.ts`:
+  - `CableRunData`, `CableRunSegment` — runtime-модель кабельной трассы.
+  - `buildCableRuns(cables, circuits)` — привязка кабелей к цепям щита по `deviceId` потребителей, расчёт маршрута, запаса (10% или минимум 0,5 м) и итоговой длины.
+  - `buildCableSpecification(runs)` — сводная спецификация: кабели по типам/сечениям, гофротруба, клеммные колодки.
+- Обновлена модель кабеля (`packages/core/model/Cable.ts`):
+  - Добавлены `spareLength`, `totalLength`, `circuitId`.
+- Обновлен `packages/core/model/Plan.ts`:
+  - `PlanElectrical.cableRuns` теперь типизирован как `CableRunData[]`.
+  - `recalcCableRoutes()` автоматически пересчитывает `spareLength` и `totalLength`.
+  - `toJSON`/`fromJSON` сохраняют и восстанавливают `spareLength`, `totalLength`, `circuitId`.
+- Переписан `src/components/editor/CableJournalPanel.tsx`:
+  - Три вкладки: «Кабели», «Нагрузки», «Спецификация».
+  - Кабели отображаются с геометрической длиной, запасом, итогом и привязкой к линии щита.
+  - Кнопка «Обновить» пересчитывает маршруты и перестраивает cableRuns.
+  - Итоговая сумма кабеля по всем трассам.
+- Добавлены unit-тесты `packages/core/electrical/CableRunEngine.test.ts`.
+- Проверка: `npx tsc --noEmit`, `npm test` (15/15), `npm run build`, `npx playwright test e2e/editor.spec.ts` (17/17) — всё чисто.
+
 ### Интеграция щитового/сметного функционала (Electrosmeta / Разряд)
 - Изучены материалы `C:\Работа\Kими\Kimi_Agent_Electros`:
   - `electrosmeta-code-analysis.md` — архитектура и модули Electrosmeta.
@@ -196,15 +215,16 @@
 
 - `npm run build` — чисто.
 - `npx tsc --noEmit` — чисто.
-- `npm test` — 12/12.
+- `npm test` — 15/15.
 - `npx playwright test e2e/editor.spec.ts` — 17/17.
 - Dev-сервер запущен на `http://localhost:3002/editor`.
 - Этап 5 завершён: автосборка щита и SVG-однолинейная схема работают.
+- Этап 6 завершён: кабельный журнал v2 с геометрическими длинами и спецификацией работает.
 
 ## Что осталось / следующие шаги
 
 1. ✅ Этап 5 — автосборка щита + SVG-однолинейная схема (завершён).
-2. Этап 6 — кабельный журнал v2 с геометрическими длинами и спецификацией расходников.
+2. ✅ Этап 6 — кабельный журнал v2 с геометрическими длинами и спецификацией расходников (завершён).
 3. Этап 7 — прайс-листы материалов и работ.
 4. Этап 8 — сметы, счета, договоры, акты.
 5. Этап 9 — публичные ссылки на КП + оплата.

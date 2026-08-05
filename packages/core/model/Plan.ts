@@ -10,12 +10,13 @@ import { Quadtree, buildWallQuadtree } from '../geometry/Quadtree';
 import { projectPointToSegment } from '../geometry/Geometry';
 
 import { Sheet, createDefaultSheets } from './Sheet';
+import { CableRunData } from '../electrical/CableRunEngine';
 
 export interface PlanElectrical {
   consumers: any[];
   circuits: any[];
   distributionBoards: any[];
-  cableRuns: any[];
+  cableRuns: CableRunData[];
   priceItems: any[];
   priceWorkItems: any[];
   estimates: any[];
@@ -531,6 +532,8 @@ export class Plan {
       const toPos = this.deviceWorldPosition(to);
       cable.route = Plan.computeManhattanRoute(fromPos, toPos);
       cable.length = Plan.routeLength(cable.route);
+      cable.spareLength = Math.max(cable.length * 0.1, 500);
+      cable.totalLength = cable.length + cable.spareLength;
     }
 
   }
@@ -624,7 +627,10 @@ export class Plan {
       type: c.type,
       crossSection: c.crossSection,
       length: c.length,
+      spareLength: c.spareLength,
+      totalLength: c.totalLength,
       route: c.route.map(p => ({ x: p.x, y: p.y })),
+      circuitId: c.circuitId,
     }));
     const dimensionsToJSON = (dimensions: Dimension[]) => dimensions.map(d => ({
       id: d.id,
@@ -710,14 +716,18 @@ export class Plan {
       const toPos = to ? plan.deviceWorldPosition(to) : new Vector2(0, 0);
       const route = (c.route as Array<{x: number; y: number}> | undefined)?.map(p => new Vector2(p.x, p.y))
         ?? Plan.computeManhattanRoute(fromPos, toPos);
+      const length = c.length ?? Plan.routeLength(route);
       return {
         id: c.id || crypto.randomUUID(),
         fromDeviceId: c.fromDeviceId,
         toDeviceId: c.toDeviceId,
         type: c.type || DEFAULT_CABLE.type,
         crossSection: c.crossSection ?? DEFAULT_CABLE.crossSection,
-        length: c.length ?? Plan.routeLength(route),
+        length,
+        spareLength: c.spareLength,
+        totalLength: c.totalLength,
         route,
+        circuitId: c.circuitId,
       };
     });
 
