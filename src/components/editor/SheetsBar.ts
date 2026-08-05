@@ -1,5 +1,6 @@
 import { Plan } from '@core/model/Plan';
 import { CanvasEngine } from '@core/engine/CanvasEngine';
+import { PageSize, PageOrientation, PAGE_SIZES } from '@core/model/Sheet';
 import { icon } from './icons';
 
 /**
@@ -10,6 +11,9 @@ import { icon } from './icons';
 export class SheetsBar {
   readonly element: HTMLDivElement;
   private draggedSheetId: string | null = null;
+  private activeMenuSheetId: string | null = null;
+  private activeMenuEl: HTMLDivElement | null = null;
+  private outsideClickHandler: ((e: MouseEvent) => void) | null = null;
 
   constructor(
     private plan: Plan,
@@ -23,6 +27,7 @@ export class SheetsBar {
   }
 
   refresh(): void {
+    this.closeMenu();
     this.element.innerHTML = '';
 
     const tabs = document.createElement('div');
@@ -53,6 +58,23 @@ export class SheetsBar {
     label.className = 'sheet-tab-label';
     label.textContent = name;
     btn.appendChild(label);
+
+    // Меню формата листа
+    const menuBtn = document.createElement('button');
+    menuBtn.className = 'sheet-tab-menu-btn';
+    menuBtn.title = 'Формат листа';
+    menuBtn.type = 'button';
+    menuBtn.draggable = false;
+    menuBtn.innerHTML = `<span class="ui-icon">${icon('dotsThreeVertical')}</span>`;
+    menuBtn.addEventListener('pointerdown', e => {
+      e.stopPropagation();
+    });
+    menuBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      e.preventDefault();
+      this.toggleMenu(id, menuBtn);
+    });
+    btn.appendChild(menuBtn);
 
     // Удаление доступно, если листов больше одного
     if (this.plan.sheets.length > 1) {
@@ -175,7 +197,118 @@ export class SheetsBar {
     this.refresh();
   }
 
+  private toggleMenu(sheetId: string, anchor: HTMLElement): void {
+    if (this.activeMenuSheetId === sheetId) {
+      this.closeMenu();
+      return;
+    }
+    this.closeMenu();
+    this.openMenu(sheetId, anchor);
+  }
+
+  private openMenu(sheetId: string, anchor: HTMLElement): void {
+    const sheet = this.plan.sheets.find(s => s.id === sheetId);
+    if (!sheet) return;
+
+    const menu = document.createElement('div');
+    menu.className = 'sheet-tab-menu';
+
+    const createRow = (label: string, control: HTMLElement): HTMLDivElement => {
+      const row = document.createElement('div');
+      row.className = 'sheet-tab-menu-row';
+      const labelEl = document.createElement('span');
+      labelEl.className = 'sheet-tab-menu-label';
+      labelEl.textContent = label;
+      row.appendChild(labelEl);
+      row.appendChild(control);
+      return row;
+    };
+
+    const formatSelect = document.createElement('select');
+    formatSelect.className = 'sheet-tab-menu-select';
+    for (const size of PAGE_SIZES) {
+      const opt = document.createElement('option');
+      opt.value = size;
+      opt.textContent = size;
+      if (sheet.pageSize === size) opt.selected = true;
+      formatSelect.appendChild(opt);
+    }
+    formatSelect.addEventListener('change', () => {
+      sheet.pageSize = formatSelect.value as PageSize;
+      this.engine.notifyChanged();
+    });
+    menu.appendChild(createRow('Формат', formatSelect));
+
+    const orientationSelect = document.createElement('select');
+    orientationSelect.className = 'sheet-tab-menu-select';
+    const orientations: Array<{ value: PageOrientation; label: string }> = [
+      { value: 'landscape', label: 'Альбомная' },
+      { value: 'portrait', label: 'Портретная' },
+    ];
+    for (const o of orientations) {
+      const opt = document.createElement('option');
+      opt.value = o.value;
+      opt.textContent = o.label;
+      if (sheet.orientation === o.value) opt.selected = true;
+      orientationSelect.appendChild(opt);
+    }
+    orientationSelect.addEventListener('change', () => {
+      sheet.orientation = orientationSelect.value as PageOrientation;
+      this.engine.notifyChanged();
+    });
+    menu.appendChild(createRow('Ориентация', orientationSelect));
+
+    const scaleSelect = document.createElement('select');
+    scaleSelect.className = 'sheet-tab-menu-select';
+    const scales = [50, 100, 200, 500, 1000];
+    for (const scale of scales) {
+      const opt = document.createElement('option');
+      opt.value = String(scale);
+      opt.textContent = `1:${scale}`;
+      if (sheet.printScale === scale) opt.selected = true;
+      scaleSelect.appendChild(opt);
+    }
+    scaleSelect.addEventListener('change', () => {
+      sheet.printScale = Number(scaleSelect.value);
+      this.engine.notifyChanged();
+    });
+    menu.appendChild(createRow('Масштаб', scaleSelect));
+
+    const rect = anchor.getBoundingClientRect();
+    menu.style.left = `${Math.round(rect.left)}px`;
+    menu.style.top = `${Math.round(rect.bottom + 6)}px`;
+    document.body.appendChild(menu);
+
+    this.activeMenuSheetId = sheetId;
+    this.activeMenuEl = menu;
+
+    this.outsideClickHandler = (e: MouseEvent) => {
+      if (!menu.contains(e.target as Node)) {
+        this.closeMenu();
+      }
+    };
+    // Закрываем на следующем тике, чтобы текущий click не сразу закрыл меню
+    setTimeout(() => {
+      if (this.outsideClickHandler) {
+        document.addEventListener('click', this.outsideClickHandler, { once: true });
+      }
+    }, 0);
+  }
+
+  private closeMenu(): void {
+    if (this.outsideClickHandler) {
+      document.removeEventListener('click', this.outsideClickHandler);
+      this.outsideClickHandler = null;
+    }
+    if (this.activeMenuEl) {
+      this.activeMenuEl.remove();
+      this.activeMenuEl = null;
+    }
+    this.activeMenuSheetId = null;
+  }
+
   private onSheetChanged(): void {
+    this.closeMenu();
     this.engine.setSelectedWall(null);
     this.engine.setSelectedOpening(null);
     this.engine.setSelectedDevice(null);

@@ -17,6 +17,7 @@ import { EditorState } from '../editor/EditorState';
 import { CommandManager } from '../editor/CommandManager';
 import { ValidationIssue } from '../rules/ValidationTypes';
 import { ThemeManager } from '../editor/ThemeManager';
+import { SheetFrameRenderer } from '../render/SheetFrameRenderer';
 
 /**
  * Главный движок редактора.
@@ -37,6 +38,7 @@ export class CanvasEngine {
   cableRenderer: CableRenderer;
   roomRenderer!: RoomRenderer;
   wallDimensionRenderer!: WallDimensionRenderer;
+  sheetFrameRenderer: SheetFrameRenderer;
   input: InputManager;
   snapEngine: SnapEngine;
   toolManager: ToolManager;
@@ -80,6 +82,7 @@ export class CanvasEngine {
     this.cableRenderer = new CableRenderer(plan, this.camera, this.editorState, this.themeManager);
     this.roomRenderer = new RoomRenderer(plan, this.camera, this.themeManager);
     this.wallDimensionRenderer = new WallDimensionRenderer(plan, this.camera, this.themeManager);
+    this.sheetFrameRenderer = new SheetFrameRenderer(plan, this.camera, this.themeManager);
 
     this.input = new InputManager(canvas, this.camera);
     this.setupInput();
@@ -200,7 +203,10 @@ export class CanvasEngine {
     // 2. Сетка
     this.gridRenderer.render(ctx);
 
-    // 3. Комнаты (под стенами)
+    // 3. Рамка листа (под комнатами/стенами, как фоновый гид)
+    this.sheetFrameRenderer.render(ctx);
+
+    // 4. Комнаты (под стенами)
     if (layers.rooms) {
       this.roomRenderer.render(ctx);
     }

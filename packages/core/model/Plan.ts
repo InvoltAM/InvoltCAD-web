@@ -122,6 +122,9 @@ export class Plan {
       devices: [],
       cables: [],
       dimensions: [],
+      pageSize: 'A4',
+      orientation: 'landscape',
+      printScale: 100,
     };
     this.sheets.push(sheet);
     this.activeSheetId = sheet.id;
@@ -662,6 +665,9 @@ export class Plan {
         devices: devicesToJSON(s.devices),
         cables: cablesToJSON(s.cables),
         dimensions: dimensionsToJSON(s.dimensions),
+        pageSize: s.pageSize,
+        orientation: s.orientation,
+        printScale: s.printScale,
       })),
       activeSheetId: this.activeSheetId || this.sheets[0]?.id,
       electrical: this.electrical ?? createEmptyElectrical(),
@@ -753,6 +759,9 @@ export class Plan {
           devices,
           cables: cablesFromJSON(s.cables, devices),
           dimensions: dimensionsFromJSON(s.dimensions),
+          pageSize: s.pageSize || 'A4',
+          orientation: s.orientation || 'landscape',
+          printScale: s.printScale ?? 100,
         };
       });
       plan.activeSheetId = data.sheets.some((s: any) => s.id === data.activeSheetId)

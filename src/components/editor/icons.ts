@@ -3,7 +3,8 @@ export type IconName =
   | 'properties' | 'layers' | 'spec' | 'menu' | 'collapseDown' | 'collapseUp'
   | 'undo' | 'redo' | 'zoomIn' | 'zoomOut' | 'save' | 'exportPng' | 'exportXlsx' | 'exportSvg' | 'print' | 'import' | 'clear'
   | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects'
-  | 'rooms' | 'estimates' | 'invoices' | 'documents' | 'catalog' | 'marking' | 'automation' | 'templates';
+  | 'rooms' | 'estimates' | 'invoices' | 'documents' | 'catalog' | 'marking' | 'automation' | 'templates'
+  | 'dotsThreeVertical';
 
 const MAP: Record<IconName, string> = {
   wall: 'wall',
@@ -49,6 +50,7 @@ const MAP: Record<IconName, string> = {
   marking: 'tag',
   automation: 'lightning',
   templates: 'copy',
+  dotsThreeVertical: 'dots-three-vertical',
 };
 
 export function icon(name: IconName): string {

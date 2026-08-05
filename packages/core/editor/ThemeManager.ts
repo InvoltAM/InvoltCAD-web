@@ -41,7 +41,8 @@ export type ThemeColorKey =
   | 'selectionFill'
   | 'validationError'
   | 'validationWarning'
-  | 'validationInfo';
+  | 'validationInfo'
+  | 'sheetFrame';
 
 interface ThemePalette {
   colors: Record<ThemeColorKey, string>;
@@ -90,6 +91,7 @@ const light: ThemePalette = {
     validationError: '#dc2626',
     validationWarning: '#eab308',
     validationInfo: '#3b82f6',
+    sheetFrame: '#2563eb',
   },
 };
 
@@ -136,6 +138,7 @@ const dark: ThemePalette = {
     validationError: '#f87171',
     validationWarning: '#fbbf24',
     validationInfo: '#60a5fa',
+    sheetFrame: '#60a5fa',
   },
 };
 

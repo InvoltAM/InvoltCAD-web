@@ -1,8 +1,9 @@
 import { Plan } from '../model/Plan'
+import { PageSize, PageOrientation, getSheetDimensions } from '../model/Sheet'
 
 export interface SheetLayout {
-  pageSize: 'A4' | 'A3'
-  orientation: 'portrait' | 'landscape'
+  pageSize: PageSize
+  orientation: PageOrientation
   scale: number
   title: string
   includeSpec: boolean
@@ -13,6 +14,21 @@ export interface SheetContent {
   svg: string
   spec: string
   legend: string
+}
+
+/**
+ * Возвращает параметры листа по умолчанию из активного листа плана.
+ */
+export function getDefaultSheetLayout(plan: Plan): SheetLayout {
+  const sheet = plan.activeSheet
+  return {
+    pageSize: sheet.pageSize,
+    orientation: sheet.orientation,
+    scale: sheet.printScale || 100,
+    title: sheet.name,
+    includeSpec: true,
+    includeLegend: true,
+  }
 }
 
 /**
@@ -36,7 +52,9 @@ function generatePlanSvg(plan: Plan, options: SheetLayout): string {
   const width = bounds.max.x - bounds.min.x
   const height = bounds.max.y - bounds.min.y
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.min.x} ${bounds.min.y} ${width} ${height}" width="${width / options.scale}mm" height="${height / options.scale}mm">
+  const dim = getSheetDimensions(options.pageSize, options.orientation)
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bounds.min.x} ${bounds.min.y} ${width} ${height}" width="${dim.width * options.scale}mm" height="${dim.height * options.scale}mm">
   <rect x="${bounds.min.x}" y="${bounds.min.y}" width="${width}" height="${height}" fill="white" stroke="black" stroke-width="0.5"/>
 `
 

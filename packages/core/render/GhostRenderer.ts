@@ -57,6 +57,7 @@ export class GhostRenderer {
       validationError: '#dc2626',
       validationWarning: '#eab308',
       validationInfo: '#3b82f6',
+      sheetFrame: '#2563eb',
     };
     return fallback[key];
   }
