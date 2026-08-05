@@ -143,6 +143,7 @@ export default function PlanEditor() {
           }]
         : []
       useCadStore.getState().setValidationIssues(issues)
+      sheetsBarRef.current?.refresh()
       projectSync.scheduleSave(plan)
     }
 

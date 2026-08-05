@@ -496,6 +496,7 @@ model ProjectTemplate {
   name        String
   description String?
   category    String   @default("other")
+  templateType String  @default("project") // project | room | device
   isBuiltin   Boolean  @default(false)
   userId      String?
   thumbnail   String?
@@ -517,6 +518,7 @@ model ProjectTemplate {
   @@index([userId])
   @@index([sellerId])
   @@index([published])
+  @@index([templateType])
 }
 
 // ---------- Monetization ----------

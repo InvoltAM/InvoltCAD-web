@@ -310,11 +310,38 @@
 - Исправлена типизация JSON-поля `devices` в API (`Prisma.InputJsonValue`).
 - Проверка: `npx tsc --noEmit`, `npm test` (33/33), `npm run build`, `npx playwright test e2e/editor.spec.ts` (17/17) — всё чисто.
 
+### Этап 12 — Шаблоны объектов и импорт CSV каталогов
+- Обновлена `prisma/schema.prisma`:
+  - Добавлено поле `templateType` в `ProjectTemplate` (`project` | `room` | `device`).
+  - Сгенерирована и применена миграция `20260805122537_add_template_type`.
+- Создан `packages/core/templates/TemplateEngine.ts`:
+  - `ProjectTemplateData`, `TemplatePayload`, `ApplyTemplateOptions` — runtime-типы.
+  - `createTemplateFromPlan(plan, type, name, ...)` — сериализация плана через `serializePlan`.
+  - `applyTemplateToPlan(plan, template, { mode, offsetMm })` — загрузка шаблона с заменой или добавлением (merge) и смещением.
+  - `exportTemplateToJson` / `importTemplateFromJson` — экспорт/импорт JSON-файлов.
+  - `builtinTemplates()` — встроенные шаблоны: комната 5×4 м, 2-комнатная квартира 6×6 м, офисная ячейка 4×3 м.
+- Добавлены API endpoints:
+  - `GET /api/templates` — встроенные + пользовательские шаблоны текущего пользователя.
+  - `POST /api/templates` — сохранить текущий план как шаблон.
+  - `PUT /api/templates/[id]` — обновить метаданные шаблона.
+  - `DELETE /api/templates/[id]` — удалить свой шаблон.
+  - `POST /api/catalog/devices/import` — пакетный импорт устройств из CSV (`category;deviceType;name;nameRu;width;height;price;svg;properties`).
+- Переписан `src/components/editor/TemplatesPanel.tsx`:
+  - Вкладки «Шаблоны» и «Импорт устройств».
+  - Сохранение текущего плана как шаблон (название, категория, тип).
+  - Загрузка шаблона в план (режимы «Заменить» / «Добавить»).
+  - Экспорт/импорт JSON шаблонов.
+  - Импорт CSV каталога устройств с отчётом об ошибках.
+- Обновлён `src/components/editor/PlanEditor.tsx`:
+  - `onChange` теперь обновляет `SheetsBar` (чтобы листы пересчитывались после загрузки шаблона).
+- Добавлены unit-тесты `packages/core/templates/TemplateEngine.test.ts`.
+- Проверка: `npx tsc --noEmit`, `npm test` (39/39), `npm run build`, `npx playwright test e2e/editor.spec.ts` (17/17) — всё чисто.
+
 ## Проверки
 
 - `npm run build` — чисто.
 - `npx tsc --noEmit` — чисто.
-- `npm test` — 33/33.
+- `npm test` — 39/39.
 - `npx playwright test e2e/editor.spec.ts` — 17/17.
 - Dev-сервер запущен на `http://localhost:3002/editor`.
 - Этап 5 завершён: автосборка щита и SVG-однолинейная схема работают.
@@ -333,7 +360,7 @@
 5. ✅ Этап 9 — публичные ссылки на КП + оплата (завершён).
 6. ✅ Этап 10 — маркировка IEC и печать этикеток (завершён).
 7. ✅ Этап 11 — генераторы Wirenboard / Home Assistant (завершён).
-8. Этап 12 — шаблоны объектов и импорт CSV каталогов.
+8. ✅ Этап 12 — шаблоны объектов и импорт CSV каталогов (завершён).
 9. Ручное тестирование новых панелей и интеграции в браузере.
 
 ## Как продолжить разработку на другом ПК
