@@ -345,6 +345,10 @@
   - Divider: 22 px (было 28 px).
   - Tooltip: 10 px шрифт, 4×8 px padding, 6 px radius.
 - UI: адаптированы цвета выбранных кнопок-пресетов в панели «Свойства» для тёмной темы (`src/components/editor/PropertyPanel.tsx`).
+- UI: адаптированы плавающие панели при изменении размера окна (`src/components/editor/PanelManager.ts`):
+  - При `resize` десктоп теперь вызывает `reflowColumns()` вместо простого `clampAllToViewport`.
+  - Колонки панелей привязываются к правому краю, если вылезают за viewport.
+  - Учитывается панель листов (`avoidRect`) и нижняя граница окна.
 - Проверка: `npx tsc --noEmit`, `npm run build`, `npx playwright test e2e/editor.spec.ts` (17/17) — всё чисто.
 
 ## Проверки

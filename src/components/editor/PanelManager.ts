@@ -274,7 +274,7 @@ export class PanelManager {
     if (this.isMobile()) {
       this.reflowMobile();
     } else {
-      this.clampAllToViewport();
+      this.reflowColumns();
     }
   };
 
@@ -452,16 +452,25 @@ export class PanelManager {
       }
     }
 
+    const avoid = this.avoidRect();
+    const viewportW = window.innerWidth;
+    const viewportH = window.innerHeight;
+
     for (const col of columns) {
       col.sort((a, b) => a.element.getBoundingClientRect().top - b.element.getBoundingClientRect().top);
 
       const firstRect = col[0].element.getBoundingClientRect();
-      let y = firstRect.top;
+
+      // Привязываем колонку к правому краю, если она вылезает за viewport,
+      // иначе сохраняем её горизонтальное положение
+      const minX = 8;
+      const maxX = Math.max(minX, viewportW - firstRect.width - 8);
+      let x = Math.min(Math.max(firstRect.left, minX), maxX);
 
       // Если колонка пересекает панель листов, начинаем ниже неё
-      const avoid = this.avoidRect();
+      let y = firstRect.top;
       if (avoid && avoid.width > 0 && avoid.height > 0) {
-        const overlapsSheets = firstRect.left < avoid.right + AVOID_MARGIN && firstRect.right > avoid.left - AVOID_MARGIN;
+        const overlapsSheets = x < avoid.right + AVOID_MARGIN && x + firstRect.width > avoid.left - AVOID_MARGIN;
         if (overlapsSheets) {
           y = Math.max(y, avoid.bottom + AVOID_MARGIN);
         }
@@ -469,7 +478,12 @@ export class PanelManager {
 
       for (const panel of col) {
         const rect = panel.element.getBoundingClientRect();
-        panel.setPosition(rect.left, y);
+        // Если панель не помещается по высоте, прижимаем её к низу viewport
+        const panelH = rect.height;
+        if (y + panelH > viewportH - 8) {
+          y = Math.max(avoid ? avoid.bottom + AVOID_MARGIN : 8, viewportH - panelH - 8);
+        }
+        panel.setPosition(x, y);
         y += panel.element.offsetHeight + PANEL_GAP;
       }
     }
