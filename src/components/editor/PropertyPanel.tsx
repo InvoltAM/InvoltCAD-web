@@ -133,7 +133,7 @@ function WallProperties({ wall, plan }: { wall: Wall; plan: Plan }) {
               onClick={() => handleThicknessChange(t)}
               className={`rounded border px-2 py-1 text-xs ${
                 wall.thickness === t
-                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                  ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-600 dark:text-white'
                   : 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700'
               }`}
             >
@@ -182,7 +182,7 @@ function WallProperties({ wall, plan }: { wall: Wall; plan: Plan }) {
                 }}
                 className={`flex-1 rounded border px-2 py-1 text-xs ${
                   arcSide === 'left'
-                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                    ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-600 dark:text-white'
                     : 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700'
                 }`}
               >
@@ -195,7 +195,7 @@ function WallProperties({ wall, plan }: { wall: Wall; plan: Plan }) {
                 }}
                 className={`flex-1 rounded border px-2 py-1 text-xs ${
                   arcSide === 'right'
-                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                    ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-600 dark:text-white'
                     : 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700'
                 }`}
               >
@@ -240,7 +240,7 @@ function OpeningProperties({ opening }: { opening: Opening }) {
               onClick={() => handleWidthChange(w)}
               className={`rounded border px-2 py-1 text-xs ${
                 opening.width === w
-                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                  ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-600 dark:text-white'
                   : 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700'
               }`}
             >
@@ -270,7 +270,7 @@ function OpeningProperties({ opening }: { opening: Opening }) {
                   onClick={() => handleSwingSideChange(side)}
                   className={`flex-1 rounded border px-2 py-1 text-xs ${
                     opening.swingSide === side
-                      ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                      ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-600 dark:text-white'
                       : 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700'
                   }`}
                 >
@@ -289,7 +289,7 @@ function OpeningProperties({ opening }: { opening: Opening }) {
                   onClick={() => handleOpenDirChange(dir)}
                   className={`flex-1 rounded border px-2 py-1 text-xs ${
                     opening.openDir === dir
-                      ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                      ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-600 dark:text-white'
                       : 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700'
                   }`}
                 >
@@ -416,7 +416,7 @@ function DeviceProperties({ device, plan }: { device: Device; plan: Plan }) {
                   onClick={() => handleOffsetChange(off)}
                   className={`rounded border px-2 py-1 text-xs ${
                     Math.abs(device.offset - off) < 5
-                      ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                      ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-600 dark:text-white'
                       : 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700'
                   }`}
                 >
@@ -479,7 +479,7 @@ function DeviceProperties({ device, plan }: { device: Device; plan: Plan }) {
                 onClick={() => handleSideChange(side)}
                 className={`flex-1 rounded border px-2 py-1 text-xs ${
                   device.side === side
-                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                    ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-600 dark:text-white'
                     : 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700'
                 }`}
               >
@@ -634,7 +634,7 @@ function WallToolSettings() {
               onClick={() => setWallThickness(t)}
               className={`rounded border px-2 py-1 text-xs ${
                 wallThickness === t
-                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                  ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-600 dark:text-white'
                   : 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700'
               }`}
             >
@@ -665,7 +665,7 @@ function WallToolSettings() {
               }}
               className={`rounded border px-2 py-1 text-xs ${
                 wallJoinStyle === style
-                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                  ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-600 dark:text-white'
                   : 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700'
               }`}
             >
@@ -692,7 +692,7 @@ function DoorToolSettings() {
             onClick={() => setDoorWidth(w)}
             className={`rounded border px-2 py-1 text-xs ${
               doorWidth === w
-                ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-600 dark:text-white'
                 : 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700'
             }`}
           >
@@ -718,7 +718,7 @@ function WindowToolSettings() {
             onClick={() => setWindowWidth(w)}
             className={`rounded border px-2 py-1 text-xs ${
               windowWidth === w
-                ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-600 dark:text-white'
                 : 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700'
             }`}
           >
