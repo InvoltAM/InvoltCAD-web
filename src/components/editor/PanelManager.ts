@@ -10,8 +10,8 @@ export interface PanelConfig {
 interface PanelState {
   x: number;
   y: number;
-  xPercent?: number;
-  yPercent?: number;
+  xAnchor?: 'left' | 'right';
+  xOffset?: number;
   collapsed: boolean;
   closed: boolean;
   w?: number;
@@ -242,8 +242,15 @@ class Panel {
   applyState(state: PanelState): void {
     const viewportW = window.innerWidth;
     const viewportH = window.innerHeight;
-    const x = state.xPercent !== undefined && viewportW > 0 ? state.xPercent * viewportW : state.x;
-    const y = state.yPercent !== undefined && viewportH > 0 ? state.yPercent * viewportH : state.y;
+    const width = state.w ?? this.element.offsetWidth;
+    let x = state.x;
+    if (state.xAnchor === 'right' && state.xOffset !== undefined && viewportW > 0) {
+      x = viewportW - state.xOffset - width;
+    } else if (state.xAnchor === 'left' && state.xOffset !== undefined) {
+      x = state.xOffset;
+    }
+    x = Math.max(0, Math.min(viewportW - width, x));
+    let y = Math.max(0, Math.min(viewportH - 40, state.y));
     this.setPosition(x, y);
     if (state.w && state.h) {
       this.setSize(state.w, state.h);
@@ -257,12 +264,15 @@ class Panel {
   getState(): PanelState {
     const rect = this.element.getBoundingClientRect();
     const viewportW = window.innerWidth;
-    const viewportH = window.innerHeight;
+    const width = rect.width;
+    const center = rect.left + width / 2;
+    const anchor: 'left' | 'right' = center < viewportW / 2 ? 'left' : 'right';
+    const xOffset = anchor === 'left' ? rect.left : viewportW - rect.right;
     return {
       x: rect.left,
       y: rect.top,
-      xPercent: viewportW > 0 ? rect.left / viewportW : 0,
-      yPercent: viewportH > 0 ? rect.top / viewportH : 0,
+      xAnchor: anchor,
+      xOffset,
       collapsed: this.collapsed,
       closed: this.closed,
       w: parseFloat(this.element.style.width) || undefined,
@@ -285,9 +295,19 @@ export class PanelManager {
     if (this.isMobile()) {
       this.reflowMobile();
     } else {
-      this.reflowColumns();
+      this.applyAnchors();
     }
   };
+
+  private applyAnchors(): void {
+    if (!this.layoutReady) return;
+    for (const panel of this.panels) {
+      if (panel.closed) continue;
+      const state = panel.getState();
+      panel.applyState(state);
+    }
+    this.saveLayout();
+  }
 
   constructor(
     configs: PanelConfig[],
@@ -555,8 +575,8 @@ export class PanelManager {
     return {
       x,
       y: top + index * (headerH + bodyH + 12),
-      xPercent: window.innerWidth > 0 ? x / window.innerWidth : 0.85,
-      yPercent: window.innerHeight > 0 ? (top + index * (headerH + bodyH + 12)) / window.innerHeight : 0.1,
+      xAnchor: 'right',
+      xOffset: 16,
       collapsed: index > 0,
       closed: false,
     };
@@ -568,13 +588,12 @@ export class PanelManager {
       if (raw) {
         const parsed = JSON.parse(raw) as Record<string, PanelState>;
         const viewportW = window.innerWidth;
-        const viewportH = window.innerHeight;
         for (const state of Object.values(parsed)) {
-          if (state.xPercent === undefined && viewportW > 0) {
-            state.xPercent = state.x / viewportW;
-          }
-          if (state.yPercent === undefined && viewportH > 0) {
-            state.yPercent = state.y / viewportH;
+          if (state.xAnchor === undefined && viewportW > 0) {
+            const width = state.w ?? PANEL_WIDTH;
+            const center = state.x + width / 2;
+            state.xAnchor = center < viewportW / 2 ? 'left' : 'right';
+            state.xOffset = state.xAnchor === 'left' ? state.x : viewportW - (state.x + width);
           }
         }
         return parsed;
