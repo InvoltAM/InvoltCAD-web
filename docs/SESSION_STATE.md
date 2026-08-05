@@ -185,6 +185,27 @@
 - Добавлены unit-тесты `packages/core/catalogs/PriceCatalog.test.ts`.
 - Проверка: `npx tsc --noEmit`, `npm test` (20/20), `npm run build`, `npx playwright test e2e/editor.spec.ts` (17/17) — всё чисто.
 
+### Этап 8 — Сметы, счета, договоры и акты
+- Создан `packages/core/estimates/EstimateEngine.ts`:
+  - `EstimateData`, `EstimateItemData`, `InvoiceData`, `DocumentData` — runtime-модели.
+  - `buildEstimateFromSpecification(spec, catalogItems, workItems, priceLevel)` — автозаполнение сметы из спецификации кабельного журнала + типовые работы.
+  - `recalcEstimate()` — пересчёт материалов, работ, скидки, НДС, итога.
+  - `buildInvoiceFromEstimate()` — создание счёта на сумму сметы.
+  - `generateEstimateDocument`, `generateContractDocument`, `generateActDocument`, `generateSpecDocument` — текстовые шаблоны документов.
+- Добавлены API endpoints:
+  - `/api/projects/[id]/estimates` — GET/POST.
+  - `/api/projects/[id]/estimates/[estimateId]` — PUT/DELETE.
+  - `/api/projects/[id]/invoices` — GET/POST.
+  - `/api/projects/[id]/invoices/[invoiceId]` — PUT/DELETE.
+  - `/api/projects/[id]/documents` — GET/POST.
+  - `/api/projects/[id]/documents/[documentId]` — PUT/DELETE.
+- Переписаны панели:
+  - `src/components/editor/EstimatesPanel.tsx` — список смет, создание из плана, редактирование позиций, уровень цен/скидка/НДС, генерация счёта, КП, договора, акта, спецификации.
+  - `src/components/editor/InvoicesPanel.tsx` — список счетов, создание/редактирование/удаление, статусы, срок оплаты.
+  - `src/components/editor/DocumentsPanel.tsx` — список документов, редактор текста, типы (договор, акт, КП, спецификация, счёт).
+- Добавлены unit-тесты `packages/core/estimates/EstimateEngine.test.ts`.
+- Проверка: `npx tsc --noEmit`, `npm test` (24/24), `npm run build`, `npx playwright test e2e/editor.spec.ts` (17/17) — всё чисто.
+
 ### Интеграция щитового/сметного функционала (Electrosmeta / Разряд)
 - Изучены материалы `C:\Работа\Kими\Kimi_Agent_Electros`:
   - `electrosmeta-code-analysis.md` — архитектура и модули Electrosmeta.
@@ -237,19 +258,20 @@
 
 - `npm run build` — чисто.
 - `npx tsc --noEmit` — чисто.
-- `npm test` — 20/20.
+- `npm test` — 24/24.
 - `npx playwright test e2e/editor.spec.ts` — 17/17.
 - Dev-сервер запущен на `http://localhost:3002/editor`.
 - Этап 5 завершён: автосборка щита и SVG-однолинейная схема работают.
 - Этап 6 завершён: кабельный журнал v2 с геометрическими длинами и спецификацией работает.
 - Этап 7 завершён: прайс-листы и каталоги материалов/работ работают.
+- Этап 8 завершён: сметы, счета, договоры и акты работают.
 
 ## Что осталось / следующие шаги
 
 1. ✅ Этап 5 — автосборка щита + SVG-однолинейная схема (завершён).
 2. ✅ Этап 6 — кабельный журнал v2 с геометрическими длинами и спецификацией расходников (завершён).
 3. ✅ Этап 7 — прайс-листы материалов и работ (завершён).
-4. Этап 8 — сметы, счета, договоры, акты.
+4. ✅ Этап 8 — сметы, счета, договоры и акты (завершён).
 5. Этап 9 — публичные ссылки на КП + оплата.
 6. Этап 10 — маркировка IEC и печать этикеток.
 7. Этап 11 — генераторы Wirenboard / Home Assistant.
