@@ -10,6 +10,8 @@ export interface PanelConfig {
 interface PanelState {
   x: number;
   y: number;
+  xPercent?: number;
+  yPercent?: number;
   collapsed: boolean;
   closed: boolean;
   w?: number;
@@ -238,7 +240,11 @@ class Panel {
   }
 
   applyState(state: PanelState): void {
-    this.setPosition(state.x, state.y);
+    const viewportW = window.innerWidth;
+    const viewportH = window.innerHeight;
+    const x = state.xPercent !== undefined && viewportW > 0 ? state.xPercent * viewportW : state.x;
+    const y = state.yPercent !== undefined && viewportH > 0 ? state.yPercent * viewportH : state.y;
+    this.setPosition(x, y);
     if (state.w && state.h) {
       this.setSize(state.w, state.h);
     } else {
@@ -249,9 +255,14 @@ class Panel {
   }
 
   getState(): PanelState {
+    const rect = this.element.getBoundingClientRect();
+    const viewportW = window.innerWidth;
+    const viewportH = window.innerHeight;
     return {
-      x: parseFloat(this.element.style.left) || 0,
-      y: parseFloat(this.element.style.top) || 0,
+      x: rect.left,
+      y: rect.top,
+      xPercent: viewportW > 0 ? rect.left / viewportW : 0,
+      yPercent: viewportH > 0 ? rect.top / viewportH : 0,
       collapsed: this.collapsed,
       closed: this.closed,
       w: parseFloat(this.element.style.width) || undefined,
