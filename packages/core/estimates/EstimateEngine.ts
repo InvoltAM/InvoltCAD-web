@@ -27,6 +27,8 @@ export interface EstimateData {
   totalWork: number;
   total: number;
   status: EstimateStatus;
+  publicSlug?: string;
+  publicExpiresAt?: string;
   items: EstimateItemData[];
   createdAt?: string;
   updatedAt?: string;

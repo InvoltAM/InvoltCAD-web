@@ -32,6 +32,8 @@ function estimateToDto(estimate: any): EstimateData {
     })),
     createdAt: estimate.createdAt?.toISOString(),
     updatedAt: estimate.updatedAt?.toISOString(),
+    publicSlug: estimate.publicSlug ?? undefined,
+    publicExpiresAt: estimate.publicExpiresAt?.toISOString(),
   }
 }
 

@@ -63,6 +63,15 @@ export async function POST(request: NextRequest) {
   } else if (dbPayment.purpose === 'marketplace') {
     // Маркетплейс обрабатывается отдельно
     // TODO: реализовать покупку маркетплейс-айтема
+  } else if (dbPayment.purpose === 'estimate') {
+    const estimateId = metadata.estimateId
+    const projectId = metadata.projectId
+    if (estimateId && projectId) {
+      await prisma.estimate.update({
+        where: { id: estimateId },
+        data: { status: 'accepted' },
+      })
+    }
   }
 
   return NextResponse.json({ status: 'processed' })

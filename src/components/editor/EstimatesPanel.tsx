@@ -122,6 +122,24 @@ export default function EstimatesPanel() {
     else setError('Документ создан')
   }
 
+  const publishEstimate = async (estimate: EstimateData) => {
+    const res = await fetch(`/api/projects/${projectId}/estimates/${estimate.id}/publish`, { method: 'POST' })
+    if (!res.ok) {
+      setError('Не удалось опубликовать смету')
+      return
+    }
+    const data = await res.json()
+    navigator.clipboard.writeText(data.publicUrl)
+    setError('Ссылка скопирована в буфер обмена')
+    load()
+  }
+
+  const unpublishEstimate = async (estimate: EstimateData) => {
+    const res = await fetch(`/api/projects/${projectId}/estimates/${estimate.id}/publish`, { method: 'DELETE' })
+    if (!res.ok) setError('Не удалось снять с публикации')
+    else load()
+  }
+
   const openDocument = (estimate: EstimateData, type: 'estimate' | 'contract' | 'act' | 'spec') => {
     const projectName = 'Проект'
     let content = ''
@@ -188,6 +206,14 @@ export default function EstimatesPanel() {
                         <ActionButton onClick={() => openDocument(e, 'contract')}>Договор</ActionButton>
                         <ActionButton onClick={() => openDocument(e, 'act')}>Акт</ActionButton>
                         <ActionButton onClick={() => openDocument(e, 'spec')}>Спецификация</ActionButton>
+                        {e.publicSlug ? (
+                          <>
+                            <ActionButton onClick={() => navigator.clipboard.writeText(`${window.location.origin}/public/estimates/${e.publicSlug}`)}>Копировать ссылку</ActionButton>
+                            <ActionButton danger onClick={() => unpublishEstimate(e)}>Снять с публикации</ActionButton>
+                          </>
+                        ) : (
+                          <ActionButton onClick={() => publishEstimate(e)}>Опубликовать</ActionButton>
+                        )}
                         <ActionButton danger onClick={() => deleteEstimate(e.id)}>Удалить</ActionButton>
                       </div>
                     </div>
