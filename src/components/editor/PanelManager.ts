@@ -551,9 +551,12 @@ export class PanelManager {
     const top = avoid ? avoid.bottom + AVOID_MARGIN : 60;
     const headerH = 33;
     const bodyH = 260;
+    const x = window.innerWidth - PANEL_WIDTH - 16;
     return {
-      x: window.innerWidth - PANEL_WIDTH - 16,
+      x,
       y: top + index * (headerH + bodyH + 12),
+      xPercent: window.innerWidth > 0 ? x / window.innerWidth : 0.85,
+      yPercent: window.innerHeight > 0 ? (top + index * (headerH + bodyH + 12)) / window.innerHeight : 0.1,
       collapsed: index > 0,
       closed: false,
     };
@@ -562,7 +565,20 @@ export class PanelManager {
   private loadLayout(): Record<string, PanelState> {
     try {
       const raw = localStorage.getItem(STORAGE_LAYOUT);
-      if (raw) return JSON.parse(raw) as Record<string, PanelState>;
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<string, PanelState>;
+        const viewportW = window.innerWidth;
+        const viewportH = window.innerHeight;
+        for (const state of Object.values(parsed)) {
+          if (state.xPercent === undefined && viewportW > 0) {
+            state.xPercent = state.x / viewportW;
+          }
+          if (state.yPercent === undefined && viewportH > 0) {
+            state.yPercent = state.y / viewportH;
+          }
+        }
+        return parsed;
+      }
     } catch {
       // ignore parse errors
     }
