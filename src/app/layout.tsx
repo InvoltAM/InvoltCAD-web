@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import "@phosphor-icons/web/regular/style.css";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 

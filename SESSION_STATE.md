@@ -1,7 +1,7 @@
 # Состояние проекта InvoltCAD-web
 
-> **Обновлено:** 2026-07-25 (текущая сессия)  
-> **Статус:** production-ready платформа, UI и команды интегрированы из `experiment/t-junction-rooms`, доработаны DXF-импорт, CSV-экспорт, PropertyPanel и темизация рендереров; dev-сервер запущен для ручного тестирования
+> **Обновлено:** 2026-08-05 (текущая сессия)  
+> **Статус:** production-ready платформа, UI и команды интегрированы из `experiment/t-junction-rooms`, доработаны DXF-импорт, CSV-экспорт, PropertyPanel и темизация рендереров; **иконки заменены на Phosphor Icons**; dev-сервер запущен для ручного тестирования
 
 ## Что реализовано
 
@@ -82,6 +82,16 @@
 - Health check API (`/api/health`)
 - CI/CD для production (deploy to Vercel)
 - `DEPLOY_PRODUCTION.md` — инструкция по деплою
+
+## Сессия 2026-08-05
+
+### Замена иконок на Phosphor Icons
+- Установлены `@phosphor-icons/react` и `@phosphor-icons/web`.
+- `src/components/editor/icons.ts` теперь маппит `IconName` в классы Phosphor и возвращает `<i class="ph ph-...">` вместо самописных SVG.
+- Импорт `regular/style.css` добавлен в `src/app/layout.tsx`.
+- `src/app/globals.css` адаптирован под иконочный шрифт (`font-size: 1em`, специфичные размеры через `font-size`).
+- Все существующие вызовы `icon(...)` и `dangerouslySetInnerHTML` продолжают работать без изменений.
+- Dev-сервер Next.js запущен на `http://localhost:3002`, иконки в редакторе отображаются корректно.
 
 ## Что дальше
 
