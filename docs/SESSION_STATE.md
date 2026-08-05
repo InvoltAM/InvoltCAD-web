@@ -287,11 +287,34 @@
 - Добавлены unit-тесты `packages/core/marking/IecMarkingEngine.test.ts`.
 - Проверка: `npx tsc --noEmit`, `npm test` (29/29), `npm run build`, `npx playwright test e2e/editor.spec.ts` (17/17) — всё чисто.
 
+### Этап 11 — Генераторы Wirenboard / Home Assistant
+- Создан `packages/core/automation/AutomationEngine.ts`:
+  - `AutomationDeviceMapping`, `AutomationConfigData`, `AutomationPlatform` — runtime-типы маппинга устройств и конфигурации автоматизации.
+  - `buildAutomationMappingsFromPlan(devices, circuits)` — маппинг устройств плана и линий щита на типы автоматизации (`switch`, `light`, `dimmer`, `sensor`, `thermostat`, `relay`).
+  - `generateWirenboardConfig(mappings)` — генерация JS-конфигурации для Wirenboard: `defineVirtualDevice`, ячейки `switch`/`range`/`temperature`, шаблоны устройств (`WB-MR6C`, `WB-MRGBW-D`, `WB-MSW`).
+  - `generateHomeAssistantConfig(mappings)` — генерация YAML для Home Assistant: `switch`/`light`/`sensor` через MQTT с `command_topic`/`state_topic`.
+  - `generateAutomationConfig(platform, mappings)` — диспетчер выбора платформы.
+- Добавлены API endpoints:
+  - `GET /api/projects/[id]/automation` — список конфигов автоматизации.
+  - `POST /api/projects/[id]/automation` — создание конфига.
+  - `PUT /api/projects/[id]/automation/[automationId]` — обновление конфига.
+  - `DELETE /api/projects/[id]/automation/[automationId]` — удаление конфига.
+- Переписан `src/components/editor/AutomationPanel.tsx`:
+  - Список конфигов автоматизации.
+  - Редактор имени и выбор платформы (Wirenboard / Home Assistant).
+  - Автозаполнение маппинга из текущего плана (`buildAutomationMappingsFromPlan`).
+  - Редактор маппинга: устройство → тип автоматизации, канал, адрес.
+  - Предпросмотр сгенерированного скрипта.
+  - Скачивание файла `.js` (Wirenboard) или `.yaml` (Home Assistant).
+- Добавлены unit-тесты `packages/core/automation/AutomationEngine.test.ts`.
+- Исправлена типизация JSON-поля `devices` в API (`Prisma.InputJsonValue`).
+- Проверка: `npx tsc --noEmit`, `npm test` (33/33), `npm run build`, `npx playwright test e2e/editor.spec.ts` (17/17) — всё чисто.
+
 ## Проверки
 
 - `npm run build` — чисто.
 - `npx tsc --noEmit` — чисто.
-- `npm test` — 29/29.
+- `npm test` — 33/33.
 - `npx playwright test e2e/editor.spec.ts` — 17/17.
 - Dev-сервер запущен на `http://localhost:3002/editor`.
 - Этап 5 завершён: автосборка щита и SVG-однолинейная схема работают.
@@ -309,7 +332,7 @@
 4. ✅ Этап 8 — сметы, счета, договоры и акты (завершён).
 5. ✅ Этап 9 — публичные ссылки на КП + оплата (завершён).
 6. ✅ Этап 10 — маркировка IEC и печать этикеток (завершён).
-7. Этап 11 — генераторы Wirenboard / Home Assistant.
+7. ✅ Этап 11 — генераторы Wirenboard / Home Assistant (завершён).
 8. Этап 12 — шаблоны объектов и импорт CSV каталогов.
 9. Ручное тестирование новых панелей и интеграции в браузере.
 
