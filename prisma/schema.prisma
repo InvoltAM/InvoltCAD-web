@@ -97,6 +97,14 @@ model Project {
   cables    Cable[]
   dimensions Dimension[]
   members   ProjectMember[]
+  consumers Consumer[]
+  circuits  Circuit[]
+  distributionBoards DistributionBoard[]
+  cableRuns CableRun[]
+  estimates Estimate[]
+  invoices  Invoice[]
+  documents Document[]
+  automationConfigs AutomationConfig[]
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
@@ -154,8 +162,10 @@ model Room {
   centroidX   Float?
   centroidY   Float?
   type        String @default("other")
+  heightMm    Float?
 
   project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  consumers   Consumer[]
 }
 
 model Device {
@@ -200,6 +210,251 @@ model Dimension {
   offset        Float  @default(0)
 
   project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// ---------- Rooms & Consumers (Electrical calculation) ----------
+
+model Consumer {
+  id          String   @id @default(cuid())
+  projectId   String
+  roomId      String?
+  deviceId    String?  // optional link to Device on plan
+  name        String
+  category    String   // socket | switch | light | appliance | lowcurrent
+  type        String   // concrete type from catalog
+  powerW      Float    @default(0)
+  voltage     Float    @default(230)
+  count       Int      @default(1)
+  demandRatio Float    @default(1)
+  roomName    String?  // cached for free consumers
+  circuitId   String?
+  phase       String   @default("L1")
+  properties  Json     @default("{}")
+  sortOrder   Int      @default(0)
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  room        Room?    @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  circuit     Circuit? @relation(fields: [circuitId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([roomId])
+  @@index([circuitId])
+}
+
+model Circuit {
+  id              String   @id @default(cuid())
+  projectId       String
+  boardId         String?
+  name            String
+  type            String   // socket | lighting | appliance | lowcurrent | heating
+  ratedCurrentA   Float?
+  breakerType     String?  // B | C | D | dif | dif-selective
+  cableType       String?
+  crossSectionMm2 Float?
+  lengthM         Float?
+  consumers       Consumer[]
+  phase           String   @default("L1")
+  color           String?  // hex color for diagram
+  sortOrder       Int      @default(0)
+
+  project         Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  board           DistributionBoard?  @relation(fields: [boardId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([boardId])
+}
+
+model DistributionBoard {
+  id              String   @id @default(cuid())
+  projectId       String
+  name            String   @default("Щит")
+  inBreakerA      Float?
+  inBreakerType   String?
+  rcdIn           Boolean  @default(false)
+  rcdInMA         Float?
+  rcdInType       String?  // AC | A | S
+  voltage         Float    @default(230)
+  phases          String   @default("single") // single | three
+  dinModules      Int      @default(0)
+  enclosureType   String   @default("surface") // surface | flush | floor
+  manufacturer    String?
+  article         String?
+  priceLevel      String   @default("standard") // budget | standard | premium
+  circuits        Circuit[]
+  properties      Json     @default("{}")
+
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model CableRun {
+  id              String   @id @default(cuid())
+  projectId       String
+  circuitId       String?
+  fromDeviceId    String?
+  toDeviceId      String?
+  cableType       String   @default("power")
+  crossSectionMm2 Float    @default(2.5)
+  routeM          Float    @default(0)
+  spareM          Float    @default(0)
+  totalM          Float    @default(0)
+  segments        Json     @default("[]")
+  description     String?
+
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([circuitId])
+}
+
+// ---------- Price catalogs ----------
+
+model PriceItem {
+  id            String   @id @default(cuid())
+  userId        String?  // null = built-in
+  category      String
+  name          String
+  unit          String
+  priceBudget   Int      @default(0) // stored in smallest currency unit (kopecks)
+  priceStandard Int      @default(0)
+  pricePremium  Int      @default(0)
+  currency      String   @default("RUB")
+  vendor        String?
+  sku           String?
+  article       String?
+  description   String?
+  isBuiltin     Boolean  @default(false)
+  isHiddenByAdmin Boolean @default(false)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([category])
+  @@index([isBuiltin])
+}
+
+model PriceWorkItem {
+  id            String   @id @default(cuid())
+  userId        String?
+  category      String
+  name          String
+  unit          String
+  priceBudget   Int      @default(0)
+  priceStandard Int      @default(0)
+  pricePremium  Int      @default(0)
+  currency      String   @default("RUB")
+  description   String?
+  isBuiltin     Boolean  @default(false)
+  isHiddenByAdmin Boolean @default(false)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([category])
+  @@index([isBuiltin])
+}
+
+// ---------- Estimates & Documents ----------
+
+model Estimate {
+  id            String   @id @default(cuid())
+  projectId     String
+  name          String   @default("Смета")
+  priceLevel    String   @default("standard")
+  discountPercent Float  @default(0)
+  vatPercent    Float    @default(0)
+  totalMaterial Int      @default(0)
+  totalWork     Int      @default(0)
+  total         Int      @default(0)
+  status        String   @default("draft") // draft | sent | accepted | rejected
+  publicSlug    String?  @unique
+  publicExpiresAt DateTime?
+  properties    Json     @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  items         EstimateItem[]
+
+  @@index([projectId])
+  @@index([publicSlug])
+}
+
+model EstimateItem {
+  id            String   @id @default(cuid())
+  estimateId    String
+  itemType      String   // material | work
+  priceItemId   String?
+  name          String
+  unit          String
+  quantity      Float    @default(0)
+  price         Int      @default(0)
+  total         Int      @default(0)
+  sortOrder     Int      @default(0)
+
+  estimate      Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+
+  @@index([estimateId])
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  projectId     String
+  estimateId    String?
+  number        String
+  amount        Int      @default(0)
+  currency      String   @default("RUB")
+  vatPercent    Float    @default(0)
+  vatAmount     Int      @default(0)
+  status        String   @default("draft") // draft | sent | paid | cancelled
+  dueDate       DateTime?
+  paidAt        DateTime?
+  properties    Json     @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([estimateId])
+}
+
+model Document {
+  id            String   @id @default(cuid())
+  projectId     String
+  type          String   // contract | act | invoice | estimate | spec
+  name          String
+  fileUrl       String?
+  status        String   @default("draft")
+  properties    Json     @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([type])
+}
+
+// ---------- Automation (Wirenboard / Home Assistant) ----------
+
+model AutomationConfig {
+  id            String   @id @default(cuid())
+  projectId     String
+  platform      String   @default("wirenboard") // wirenboard | homeassistant
+  name          String
+  script        String   @db.Text
+  devices       Json     @default("[]")
+  properties    Json     @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
 }
 
 // ---------- Marketplace ----------

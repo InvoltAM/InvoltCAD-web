@@ -1,4 +1,4 @@
-# Сессия разработки — 2026-08-01
+# Сессия разработки — 2026-08-05
 
 ## Текущий контекст
 
@@ -105,6 +105,40 @@
 - `e2e/editor.spec.ts`:
   - Исправлен локатор теста «панель проверки отображается» на `.float-panel-title`, чтобы избежать конфликта с tooltip dock.
 
+### Интеграция щитового/сметного функционала (Electrosmeta / Разряд)
+- Изучены материалы `C:\Работа\Kими\Kimi_Agent_Electros`:
+  - `electrosmeta-code-analysis.md` — архитектура и модули Electrosmeta.
+  - `razryad-analog-plan.md` / `razryad-code-analysis.md` — workflow и алгоритмы сервиса Разряд.
+- Принят подход: воспроизводить функциональность и алгоритмы, не копируя чужой код, UI, бренды и базы товаров.
+- `prisma/schema.prisma`:
+  - Расширена модель `Room` (добавлено `heightMm`, обратное отношение `consumers`).
+  - Добавлены модели: `Consumer`, `Circuit`, `DistributionBoard`, `CableRun`, `PriceItem`, `PriceWorkItem`, `Estimate`, `EstimateItem`, `Invoice`, `Document`, `AutomationConfig`.
+  - Отношения добавлены в `Project`.
+- Применена миграция `20260805082856_add_electrical_entities`.
+- `packages/core/model/Plan.ts`:
+  - Добавлен `PlanElectrical` и поле `electrical` для хранения новых сущностей в runtime-модели.
+  - `toJSON`/`fromJSON` сохраняют и восстанавливают `electrical`.
+- `src/lib/projects/serializer.ts`:
+  - `SerializedPlan` расширен полем `electrical`.
+  - `serializePlan`/`deserializePlan` работают с electrical-данными.
+- `src/app/api/projects/[id]/route.ts`:
+  - GET загружает новые сущности через `include` и возвращает в `plan.electrical`.
+  - PUT удаляет и пересоздаёт новые сущности в транзакции.
+- `src/stores/cadStore.ts`:
+  - Добавлены флаги открытия модальных панелей: `roomsOpen`, `estimatesOpen`, `invoicesOpen`, `documentsOpen`, `catalogOpen`, `markingOpen`, `automationOpen`, `templatesOpen`.
+- `src/components/editor/icons.ts`:
+  - Добавлены иконки: `rooms`, `estimates`, `invoices`, `documents`, `catalog`, `marking`, `automation`, `templates`.
+- `src/components/editor/Toolbar.tsx`:
+  - В левую панель добавлены кнопки: Комнаты, Каталог, Сметы, Счета, Документы, Маркировка, Автоматика, Шаблоны.
+- `src/components/editor/ModalPanel.tsx`:
+  - Создан универсальный компонент модальной панели (заголовок + overlay + контент).
+- Добавлены заглушки новых модальных панелей:
+  - `RoomsPanel`, `CatalogPanel`, `EstimatesPanel`, `InvoicesPanel`, `DocumentsPanel`, `MarkingPanel`, `AutomationPanel`, `TemplatesPanel`.
+- `src/components/editor/PlanEditor.tsx`:
+  - Подключены все новые модальные панели.
+- `src/app/globals.css`:
+  - `.project-sidebar-top` получил `flex: 1 1 auto` и `overflow-y: auto`, чтобы длинный список вкладок скроллился.
+
 ### Ресайз, анимации и mobile bottom-sheet
 - `src/components/editor/PanelManager.ts`:
   - Добавлена ручка ресайза в правом нижнем углу каждой панели: можно менять ширину (240–600 px) и высоту.
@@ -129,10 +163,16 @@
 
 ## Что осталось / следующие шаги
 
-1. Ручное тестирование нового dock и левой панели проекта в браузере.
-2. Доработка UI/UX редактора по дальнейшим указаниям пользователя.
-3. Проверить интеграцию облачных проектов и совместного доступа.
-4. При необходимости — донастроить MCP-серверы (`playwright`, `eslint`, `semgrep`).
+1. Этап 4 — панель «Комнаты и потребители» + автогруппировка линий.
+2. Этап 5 — автосборка щита + SVG-однолинейная схема.
+3. Этап 6 — кабельный журнал v2 с геометрическими длинами и спецификацией расходников.
+4. Этап 7 — прайс-листы материалов и работ.
+5. Этап 8 — сметы, счета, договоры, акты.
+6. Этап 9 — публичные ссылки на КП + оплата.
+7. Этап 10 — маркировка IEC и печать этикеток.
+8. Этап 11 — генераторы Wirenboard / Home Assistant.
+9. Этап 12 — шаблоны объектов и импорт CSV каталогов.
+10. Ручное тестирование новых панелей и интеграции в браузере.
 
 ## Как продолжить разработку на другом ПК
 

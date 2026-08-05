@@ -49,6 +49,14 @@ interface CadStoreState {
   olsOpen: boolean
   panelEditorOpen: boolean
   projectsOpen: boolean
+  roomsOpen: boolean
+  estimatesOpen: boolean
+  invoicesOpen: boolean
+  documentsOpen: boolean
+  catalogOpen: boolean
+  markingOpen: boolean
+  automationOpen: boolean
+  templatesOpen: boolean
 
   setTool: (tool: ToolName) => void
   setSelectedWall: (id: string | null) => void
@@ -77,6 +85,14 @@ interface CadStoreState {
   setOlsOpen: (open: boolean) => void
   setPanelEditorOpen: (open: boolean) => void
   setProjectsOpen: (open: boolean) => void
+  setRoomsOpen: (open: boolean) => void
+  setEstimatesOpen: (open: boolean) => void
+  setInvoicesOpen: (open: boolean) => void
+  setDocumentsOpen: (open: boolean) => void
+  setCatalogOpen: (open: boolean) => void
+  setMarkingOpen: (open: boolean) => void
+  setAutomationOpen: (open: boolean) => void
+  setTemplatesOpen: (open: boolean) => void
   clearSelection: () => void
 }
 
@@ -116,6 +132,14 @@ export const useCadStore = create<CadStoreState>((set) => ({
   olsOpen: false,
   panelEditorOpen: false,
   projectsOpen: false,
+  roomsOpen: false,
+  estimatesOpen: false,
+  invoicesOpen: false,
+  documentsOpen: false,
+  catalogOpen: false,
+  markingOpen: false,
+  automationOpen: false,
+  templatesOpen: false,
 
   setTool: (tool) => set({ currentTool: tool }),
   setSelectedWall: (id) => set({ selectedWallId: id }),
@@ -144,6 +168,14 @@ export const useCadStore = create<CadStoreState>((set) => ({
   setOlsOpen: (olsOpen) => set({ olsOpen }),
   setPanelEditorOpen: (panelEditorOpen) => set({ panelEditorOpen }),
   setProjectsOpen: (projectsOpen) => set({ projectsOpen }),
+  setRoomsOpen: (roomsOpen) => set({ roomsOpen }),
+  setEstimatesOpen: (estimatesOpen) => set({ estimatesOpen }),
+  setInvoicesOpen: (invoicesOpen) => set({ invoicesOpen }),
+  setDocumentsOpen: (documentsOpen) => set({ documentsOpen }),
+  setCatalogOpen: (catalogOpen) => set({ catalogOpen }),
+  setMarkingOpen: (markingOpen) => set({ markingOpen }),
+  setAutomationOpen: (automationOpen) => set({ automationOpen }),
+  setTemplatesOpen: (templatesOpen) => set({ templatesOpen }),
   clearSelection: () =>
     set({
       selectedWallId: null,

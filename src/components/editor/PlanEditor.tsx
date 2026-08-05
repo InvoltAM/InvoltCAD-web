@@ -26,6 +26,14 @@ import ProjectsPanel from './ProjectsPanel'
 import CableJournalPanel from './CableJournalPanel'
 import OlsPanel from './OlsPanel'
 import PanelEditor from './PanelEditor'
+import RoomsPanel from './RoomsPanel'
+import CatalogPanel from './CatalogPanel'
+import EstimatesPanel from './EstimatesPanel'
+import InvoicesPanel from './InvoicesPanel'
+import DocumentsPanel from './DocumentsPanel'
+import MarkingPanel from './MarkingPanel'
+import AutomationPanel from './AutomationPanel'
+import TemplatesPanel from './TemplatesPanel'
 import { PanelManager } from './PanelManager'
 import { SheetsBar } from './SheetsBar'
 import { icon } from './icons'
@@ -267,6 +275,14 @@ export default function PlanEditor() {
         <ProjectsPanel />
         <OlsPanel />
         <PanelEditor />
+        <RoomsPanel />
+        <CatalogPanel />
+        <EstimatesPanel />
+        <InvoicesPanel />
+        <DocumentsPanel />
+        <MarkingPanel />
+        <AutomationPanel />
+        <TemplatesPanel />
         {panelBodies.property && createPortal(<PropertyPanel />, panelBodies.property)}
         {panelBodies.layers && createPortal(<LayersPanel />, panelBodies.layers)}
         {panelBodies.spec && createPortal(<SpecPanel />, panelBodies.spec)}

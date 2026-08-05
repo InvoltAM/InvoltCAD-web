@@ -11,6 +11,34 @@ import { projectPointToSegment } from '../geometry/Geometry';
 
 import { Sheet, createDefaultSheets } from './Sheet';
 
+export interface PlanElectrical {
+  consumers: any[];
+  circuits: any[];
+  distributionBoards: any[];
+  cableRuns: any[];
+  priceItems: any[];
+  priceWorkItems: any[];
+  estimates: any[];
+  invoices: any[];
+  documents: any[];
+  automationConfigs: any[];
+}
+
+export function createEmptyElectrical(): PlanElectrical {
+  return {
+    consumers: [],
+    circuits: [],
+    distributionBoards: [],
+    cableRuns: [],
+    priceItems: [],
+    priceWorkItems: [],
+    estimates: [],
+    invoices: [],
+    documents: [],
+    automationConfigs: [],
+  };
+}
+
 /**
  * Корневая модель плана помещения.
  * Все координаты в миллиметрах.
@@ -19,6 +47,7 @@ export class Plan {
   walls: Wall[] = [];
   sheets: Sheet[] = createDefaultSheets();
   activeSheetId: string = '';
+  electrical: PlanElectrical = createEmptyElectrical();
 
   private wallQuadtree: Quadtree<Wall> | null = null;
   private cachedQuadtreeHash = '';
@@ -629,6 +658,7 @@ export class Plan {
         dimensions: dimensionsToJSON(s.dimensions),
       })),
       activeSheetId: this.activeSheetId || this.sheets[0]?.id,
+      electrical: this.electrical ?? createEmptyElectrical(),
     };
   }
 
@@ -726,6 +756,8 @@ export class Plan {
       first.dimensions = dimensionsFromJSON(data.dimensions);
       plan.activeSheetId = first.id;
     }
+
+    plan.electrical = data.electrical ?? createEmptyElectrical();
 
     return plan;
   }

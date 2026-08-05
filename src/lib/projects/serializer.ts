@@ -1,4 +1,4 @@
-import { Plan } from '@core/model/Plan'
+import { Plan, createEmptyElectrical } from '@core/model/Plan'
 import { Wall } from '@core/model/Wall'
 import { Opening } from '@core/model/Opening'
 import { Device, DeviceType } from '@core/model/Device'
@@ -70,6 +70,19 @@ export interface SerializedPlan {
   devices: SerializedDevice[]
   cables: SerializedCable[]
   dimensions: SerializedDimension[]
+  electrical: {
+    consumers: any[]
+    circuits: any[]
+    distributionBoards: any[]
+    cableRuns: any[]
+    priceItems: any[]
+    priceWorkItems: any[]
+    estimates: any[]
+    invoices: any[]
+    documents: any[]
+    automationConfigs: any[]
+    rooms?: any[]
+  }
 }
 
 /**
@@ -140,7 +153,7 @@ export function serializePlan(plan: Plan): SerializedPlan {
     text: dim.text,
   }))
 
-  return { walls, openings, devices, cables, dimensions }
+  return { walls, openings, devices, cables, dimensions, electrical: plan.electrical ?? createEmptyElectrical() }
 }
 
 /**
@@ -234,6 +247,7 @@ export function deserializePlan(data: SerializedPlan): Plan {
     plan.dimensions.push(dimension)
   }
 
+  plan.electrical = data.electrical ?? createEmptyElectrical()
   plan.invalidateRooms()
   return plan
 }

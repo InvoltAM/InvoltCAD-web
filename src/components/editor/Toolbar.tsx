@@ -52,6 +52,22 @@ export default function Toolbar() {
   const setPanelEditorOpen = useCadStore((s) => s.setPanelEditorOpen)
   const projectsOpen = useCadStore((s) => s.projectsOpen)
   const setProjectsOpen = useCadStore((s) => s.setProjectsOpen)
+  const roomsOpen = useCadStore((s) => s.roomsOpen)
+  const setRoomsOpen = useCadStore((s) => s.setRoomsOpen)
+  const estimatesOpen = useCadStore((s) => s.estimatesOpen)
+  const setEstimatesOpen = useCadStore((s) => s.setEstimatesOpen)
+  const invoicesOpen = useCadStore((s) => s.invoicesOpen)
+  const setInvoicesOpen = useCadStore((s) => s.setInvoicesOpen)
+  const documentsOpen = useCadStore((s) => s.documentsOpen)
+  const setDocumentsOpen = useCadStore((s) => s.setDocumentsOpen)
+  const catalogOpen = useCadStore((s) => s.catalogOpen)
+  const setCatalogOpen = useCadStore((s) => s.setCatalogOpen)
+  const markingOpen = useCadStore((s) => s.markingOpen)
+  const setMarkingOpen = useCadStore((s) => s.setMarkingOpen)
+  const automationOpen = useCadStore((s) => s.automationOpen)
+  const setAutomationOpen = useCadStore((s) => s.setAutomationOpen)
+  const templatesOpen = useCadStore((s) => s.templatesOpen)
+  const setTemplatesOpen = useCadStore((s) => s.setTemplatesOpen)
   const { engineRef, themeManagerRef, panelManagerRef } = useEditor()
 
   const [panelMenuOpen, setPanelMenuOpen] = useState(false)
@@ -313,6 +329,70 @@ export default function Toolbar() {
           >
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('panel') }} />
             <span className="project-sidebar-label">Щит</span>
+          </button>
+          <button
+            onClick={() => setRoomsOpen(!roomsOpen)}
+            className={`project-sidebar-btn ${roomsOpen ? 'active' : ''}`}
+            title="Комнаты и потребители"
+          >
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('rooms') }} />
+            <span className="project-sidebar-label">Комнаты</span>
+          </button>
+          <button
+            onClick={() => setCatalogOpen(!catalogOpen)}
+            className={`project-sidebar-btn ${catalogOpen ? 'active' : ''}`}
+            title="Каталог материалов и работ"
+          >
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('catalog') }} />
+            <span className="project-sidebar-label">Каталог</span>
+          </button>
+          <button
+            onClick={() => setEstimatesOpen(!estimatesOpen)}
+            className={`project-sidebar-btn ${estimatesOpen ? 'active' : ''}`}
+            title="Сметы и КП"
+          >
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('estimates') }} />
+            <span className="project-sidebar-label">Сметы</span>
+          </button>
+          <button
+            onClick={() => setInvoicesOpen(!invoicesOpen)}
+            className={`project-sidebar-btn ${invoicesOpen ? 'active' : ''}`}
+            title="Счета"
+          >
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('invoices') }} />
+            <span className="project-sidebar-label">Счета</span>
+          </button>
+          <button
+            onClick={() => setDocumentsOpen(!documentsOpen)}
+            className={`project-sidebar-btn ${documentsOpen ? 'active' : ''}`}
+            title="Договоры и акты"
+          >
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('documents') }} />
+            <span className="project-sidebar-label">Документы</span>
+          </button>
+          <button
+            onClick={() => setMarkingOpen(!markingOpen)}
+            className={`project-sidebar-btn ${markingOpen ? 'active' : ''}`}
+            title="Маркировка IEC"
+          >
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('marking') }} />
+            <span className="project-sidebar-label">Маркировка</span>
+          </button>
+          <button
+            onClick={() => setAutomationOpen(!automationOpen)}
+            className={`project-sidebar-btn ${automationOpen ? 'active' : ''}`}
+            title="Wirenboard / Умный дом"
+          >
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('automation') }} />
+            <span className="project-sidebar-label">Автоматика</span>
+          </button>
+          <button
+            onClick={() => setTemplatesOpen(!templatesOpen)}
+            className={`project-sidebar-btn ${templatesOpen ? 'active' : ''}`}
+            title="Шаблоны проектов"
+          >
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('templates') }} />
+            <span className="project-sidebar-label">Шаблоны</span>
           </button>
         </div>
 
