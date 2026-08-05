@@ -1,16 +1,21 @@
+/* eslint-disable react-hooks/immutability -- редактор работает через мутации плана по дизайну */
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { useEditor } from './EditorContext'
 import { useCadStore } from '@/stores/cadStore'
 import { Plan } from '@core/model/Plan'
-import { generateOls } from '@core/ols/olsGenerator'
+import { buildDistributionBoard, DistributionBoardData } from '@core/electrical/BoardEngine'
+import { generateBoardSvg, generateOlsFromCircuits } from '@core/electrical/BoardSvgScheme'
+import { CircuitData } from '@core/electrical/RoomConsumerEngine'
 
 export default function OlsPanel() {
   const { engineRef } = useEditor()
   const [plan, setPlan] = useState<Plan | null>(null)
   const open = useCadStore((s) => s.olsOpen)
   const setOpen = useCadStore((s) => s.setOlsOpen)
+  const theme = useCadStore((s) => s.theme)
+  const [, forceUpdate] = useState(0)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -19,23 +24,53 @@ export default function OlsPanel() {
     return () => clearTimeout(timer)
   }, [engineRef])
 
-  const ols = useMemo(() => {
-    if (!plan) return null
-    return generateOls(plan)
-  }, [plan])
+  const circuits = (plan?.electrical.circuits as CircuitData[]) || []
+  const board = (plan?.electrical.distributionBoards?.[0] as DistributionBoardData | undefined) || null
 
-  if (!open) {
+  const svg = useMemo(() => {
+    if (board) return generateBoardSvg(board, { dark: theme === 'dark' })
+    if (circuits.length > 0) return generateOlsFromCircuits(circuits, { dark: theme === 'dark' })
     return null
+  }, [board, circuits, theme, forceUpdate])
+
+  const refresh = () => {
+    forceUpdate((n) => n + 1)
+    engineRef.current?.notifyChanged()
+    engineRef.current?.requestRender()
   }
+
+  const handleBuildBoard = () => {
+    if (!plan) return
+    if (circuits.length === 0) {
+      alert('Сначала сгруппируйте потребителей в линии (Комнаты и потребители → Автогруппировать линии)')
+      return
+    }
+    const newBoard = buildDistributionBoard(circuits, { phases: 'single', withMainRcd: true })
+    plan.electrical.distributionBoards = [newBoard]
+    refresh()
+  }
+
+  const handleExportSvg = () => {
+    if (!svg) return
+    const blob = new Blob([svg], { type: 'image/svg+xml' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'involtcad-ols.svg'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  if (!open) return null
 
   return (
     <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/35" onClick={() => setOpen(false)}>
       <div
-        className="h-[80vh] w-[90vw] max-w-4xl rounded-lg bg-white p-4 dark:bg-gray-800"
+        className="flex h-[80vh] w-[90vw] max-w-5xl flex-col rounded-lg bg-white p-4 dark:bg-gray-800"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <span className="text-lg font-semibold text-gray-900 dark:text-white">Однолинейная схема</span>
+          <span className="text-lg font-semibold text-gray-900 dark:text-white">Однолинейная схема / Щит</span>
           <button
             onClick={() => setOpen(false)}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -44,55 +79,29 @@ export default function OlsPanel() {
           </button>
         </div>
 
-        <div className="h-[calc(100%-48px)] overflow-auto rounded border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-900">
-          {ols ? (
-            <svg width="100%" height="100%" viewBox="0 0 900 600">
-              {/* Ребра */}
-              {ols.edges.map((edge) => {
-                const fromNode = ols.nodes.find((n) => n.id === edge.from)
-                const toNode = ols.nodes.find((n) => n.id === edge.to)
-                if (!fromNode || !toNode) return null
+        <div className="mb-3 flex gap-2">
+          <button
+            onClick={handleBuildBoard}
+            className="rounded-lg bg-orange-500 px-3 py-1.5 text-sm text-white hover:bg-orange-600"
+          >
+            ⚡ Автособрать щит
+          </button>
+          <button
+            onClick={handleExportSvg}
+            disabled={!svg}
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+          >
+            Экспорт SVG
+          </button>
+        </div>
 
-                return (
-                  <line
-                    key={edge.id}
-                    x1={fromNode.x}
-                    y1={fromNode.y}
-                    x2={toNode.x}
-                    y2={toNode.y}
-                    stroke={edge.cableType === 'power' ? '#ef4444' : edge.cableType === 'lighting' ? '#f59e0b' : '#10b981'}
-                    strokeWidth="2"
-                  />
-                )
-              })}
-
-              {/* Узлы */}
-              {ols.nodes.map((node) => (
-                <g key={node.id} transform={`translate(${node.x}, ${node.y})`}>
-                  <rect
-                    x="-40"
-                    y="-20"
-                    width="80"
-                    height="40"
-                    rx="4"
-                    fill={node.type === 'input' ? '#dc2626' : node.type === 'panel' ? '#2563eb' : node.type === 'group' ? '#f59e0b' : '#6b7280'}
-                  />
-                  <text
-                    x="0"
-                    y="5"
-                    textAnchor="middle"
-                    fill="white"
-                    fontSize="12"
-                    fontWeight="600"
-                  >
-                    {node.label}
-                  </text>
-                </g>
-              ))}
-            </svg>
+        <div className="flex-1 overflow-auto rounded border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-900">
+          {svg ? (
+            <div className="min-h-full min-w-full" dangerouslySetInnerHTML={{ __html: svg }} />
           ) : (
-            <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
-              Нет данных для схемы
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-gray-500 dark:text-gray-400">
+              <p>Нет данных для схемы.</p>
+              <p className="text-sm">Сначала сгруппируйте потребителей в линии, затем нажмите «Автособрать щит».</p>
             </div>
           )}
         </div>
