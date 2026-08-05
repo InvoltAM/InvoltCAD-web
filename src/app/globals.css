@@ -442,15 +442,15 @@ body {
 .editor-dock {
   position: absolute;
   left: 50%;
-  bottom: 14px;
+  bottom: 10px;
   transform: translateX(-50%);
   display: flex;
   align-items: flex-end;
-  gap: 8px;
-  padding: 8px 14px;
+  gap: 6px;
+  padding: 5px 10px;
   background: rgba(255, 255, 255, 0.82);
   border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 20px;
+  border-radius: 14px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255,255,255,0.6);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -470,10 +470,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.6);
   color: var(--text-secondary);
   cursor: pointer;
@@ -504,13 +504,13 @@ body {
 }
 
 .editor-dock-item .ui-icon {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
 }
 
 .editor-dock-divider {
   width: 1px;
-  height: 28px;
+  height: 22px;
   background: var(--border);
   margin: 0 2px;
   flex-shrink: 0;
@@ -519,14 +519,14 @@ body {
 
 .editor-dock-tooltip {
   position: absolute;
-  bottom: calc(100% + 10px);
+  bottom: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%) translateY(4px);
-  padding: 5px 10px;
-  border-radius: 7px;
+  padding: 4px 8px;
+  border-radius: 6px;
   background: rgba(0, 0, 0, 0.78);
   color: #fff;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   white-space: nowrap;
   opacity: 0;

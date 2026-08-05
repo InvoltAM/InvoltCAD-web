@@ -337,6 +337,15 @@
 - Добавлены unit-тесты `packages/core/templates/TemplateEngine.test.ts`.
 - Проверка: `npx tsc --noEmit`, `npm test` (39/39), `npm run build`, `npx playwright test e2e/editor.spec.ts` (17/17) — всё чисто.
 
+### UI: уменьшена нижняя панель инструментов (macOS-style dock)
+- `src/app/globals.css`:
+  - Dock: `padding` 5×10 px, `gap` 6 px, `border-radius` 14 px, `bottom` 10 px.
+  - Dock item: 34×34 px (было 42×42), `border-radius` 10 px.
+  - Иконки: 18×18 px (было 22×22).
+  - Divider: 22 px (было 28 px).
+  - Tooltip: 10 px шрифт, 4×8 px padding, 6 px radius.
+- Проверка: `npx tsc --noEmit`, `npm run build`, `npx playwright test e2e/editor.spec.ts` (17/17) — всё чисто.
+
 ## Проверки
 
 - `npm run build` — чисто.
