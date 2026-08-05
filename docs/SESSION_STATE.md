@@ -352,11 +352,9 @@
 - UI: позиция плавающих панелей сохраняется в процентах от viewport (`src/components/editor/PanelManager.ts`):
   - При увеличении окна панели, которые были справа в уменьшенном окне, остаются справа.
   - `getState` теперь сохраняет `xPercent` / `yPercent`, а `applyState` восстанавливает позицию относительно текущего размера окна.
-- UI: переработана привязка плавающих панелей к краям экрана (`src/components/editor/PanelManager.ts`):
-  - Вместо процентов сохраняется `xAnchor` (`left` / `right`) и `xOffset`.
-  - При изменении размера окна панели перепривязываются к тому краю, к которому были ближе.
-  - Добавлен `applyAnchors()` — пересчёт позиций по anchor при `resize`.
-  - `loadLayout` мигрирует старые пиксельные координаты в anchor/offset.
+- UI: улучшена видимость текста во вкладке «Слои» (`src/components/editor/LayersPanel.tsx`):
+  - Текст меток теперь использует `var(--text)` — единый стандарт для светлой и тёмной тем.
+  - Checkbox адаптирован под темы: `border-[var(--border)]`, `bg-[var(--panel-bg)]`, `text-[var(--accent)]`.
 - Проверка: `npx tsc --noEmit`, `npm run build`, `npx playwright test e2e/editor.spec.ts` (17/17) — всё чисто.
 
 ## Проверки

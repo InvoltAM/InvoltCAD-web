@@ -21,7 +21,7 @@ export default function LayersPanel() {
       {layers.map((layer) => (
         <label
           key={layer.key}
-          className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
+          className="flex items-center gap-2 text-sm text-[var(--text)]"
         >
           <input
             type="checkbox"
@@ -29,7 +29,7 @@ export default function LayersPanel() {
             onChange={(e) =>
               setLayers({ ...currentLayers, [layer.key]: e.target.checked })
             }
-            className="rounded border-gray-300"
+            className="rounded border-[var(--border)] bg-[var(--panel-bg)] text-[var(--accent)] focus:ring-[var(--accent)]"
           />
           {layer.label}
         </label>
