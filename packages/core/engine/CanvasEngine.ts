@@ -18,6 +18,7 @@ import { CommandManager } from '../editor/CommandManager';
 import { ValidationIssue } from '../rules/ValidationTypes';
 import { ThemeManager } from '../editor/ThemeManager';
 import { SheetFrameRenderer } from '../render/SheetFrameRenderer';
+import { getSheetDimensions } from '../model/Sheet';
 
 /**
  * Главный движок редактора.
@@ -175,6 +176,35 @@ export class CanvasEngine {
 
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.camera.setViewport(w, h);
+    this.updateCameraScaleLimits();
+  }
+
+  /**
+   * Динамические пределы зума: при активной рамке листа разрешаем
+   * отдаляться достаточно, чтобы вся рамка помещалась на экране с запасом.
+   * Без рамки сохраняем старые лимиты (0.02–2).
+   */
+  updateCameraScaleLimits(): void {
+    const sheet = this.plan.activeSheet;
+    if (!sheet || !this.camera.viewportWidth || !this.camera.viewportHeight) {
+      this.camera.setScaleLimits(0.02, 2);
+      return;
+    }
+
+    const dims = getSheetDimensions(sheet.pageSize, sheet.orientation);
+    const printScale = sheet.printScale || 100;
+    const wWorld = dims.width * printScale;
+    const hWorld = dims.height * printScale;
+
+    // Масштаб, при котором рамка целиком помещается во viewport с запасом 20 %
+    const fitScale = Math.min(
+      this.camera.viewportWidth / (wWorld * 1.2),
+      this.camera.viewportHeight / (hWorld * 1.2),
+    );
+
+    // Разрешаем отдалиться ещё сильнее (в 2 раза), чтобы оставался контекст
+    const minScale = Math.min(0.02, fitScale * 0.5);
+    this.camera.setScaleLimits(minScale, 2);
   }
 
   requestRender(): void {
@@ -402,6 +432,7 @@ export class CanvasEngine {
   /** Уведомить об изменении плана (autosave + render). */
   notifyChanged(): void {
     this.plan.recalcCableRoutes();
+    this.updateCameraScaleLimits();
     this.onChange?.();
     this.requestRender();
   }

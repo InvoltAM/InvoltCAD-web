@@ -19,6 +19,17 @@ export class Camera {
     this.viewportHeight = h;
   }
 
+  /** Установить пределы масштаба камеры. */
+  setScaleLimits(minScale: number, maxScale: number): void {
+    this.minScale = Math.max(0.0001, minScale);
+    this.maxScale = Math.max(this.minScale, maxScale);
+    // Если текущий масштаб вышел за новые границы — подтянуть
+    this.scale = Math.max(this.minScale, Math.min(this.maxScale, this.scale));
+  }
+
+  getMinScale(): number { return this.minScale; }
+  getMaxScale(): number { return this.maxScale; }
+
   /** Мир → Экран */
   worldToScreen(p: Vector2): Vector2 {
     return new Vector2(

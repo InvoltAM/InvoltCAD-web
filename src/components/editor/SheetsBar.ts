@@ -59,11 +59,12 @@ export class SheetsBar {
     label.textContent = name;
     btn.appendChild(label);
 
-    // Меню формата листа
-    const menuBtn = document.createElement('button');
+    // Меню формата листа (span role="button", т.к. вложенная <button> невалидна)
+    const menuBtn = document.createElement('span');
     menuBtn.className = 'sheet-tab-menu-btn';
     menuBtn.title = 'Формат листа';
-    menuBtn.type = 'button';
+    menuBtn.setAttribute('role', 'button');
+    menuBtn.tabIndex = 0;
     menuBtn.draggable = false;
     menuBtn.innerHTML = `<span class="ui-icon">${icon('dotsThreeVertical')}</span>`;
     menuBtn.addEventListener('pointerdown', e => {
@@ -73,6 +74,13 @@ export class SheetsBar {
       e.stopPropagation();
       e.preventDefault();
       this.toggleMenu(id, menuBtn);
+    });
+    menuBtn.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.toggleMenu(id, menuBtn);
+      }
     });
     btn.appendChild(menuBtn);
 

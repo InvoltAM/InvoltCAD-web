@@ -64,7 +64,7 @@ export class SheetFrameRenderer {
     ctx.font = `${12 / this.camera.scale}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    const label = `${sheet.pageSize} ${sheet.orientation === 'landscape' ? ' landscape' : ' portrait'} 1:${scale}`;
+    const label = `${sheet.pageSize} ${sheet.orientation === 'landscape' ? 'landscape' : 'portrait'} 1:${scale}`;
     ctx.fillText(label, cx, y + hWorld - 5 / this.camera.scale);
 
     ctx.restore();
