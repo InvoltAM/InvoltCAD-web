@@ -9,12 +9,6 @@ import { getSheetDimensions, Sheet } from '../model/Sheet';
  *
  * Геометрия задана в мм бумаги, затем умножается на масштаб печати printScale
  * для перевода в мировые координаты плана.
- *
- * Линии:
- *  - основная толщина S принята 0,7 мм;
- *  - внешняя рамка (формата) — 0,25 мм (≈ S/3);
- *  - внутренняя рамка — 0,7 мм (S);
- *  - линии штампа и насечки — 0,25 мм.
  */
 export class SheetFrameRenderer {
   constructor(
@@ -44,7 +38,7 @@ export class SheetFrameRenderer {
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
 
-    // Внешняя рамка (линия формата) — тонкая.
+    // Внешняя рамка (линия формата).
     ctx.lineWidth = this.strokeWidth(0.5, ps);
     ctx.setLineDash([]);
     ctx.strokeRect(x0, y0, paperW, paperH);
@@ -63,25 +57,12 @@ export class SheetFrameRenderer {
     // Угловые насечки (уголки) на внутренней рамке: отрезки 5 мм от угла.
     this.drawCornerTicks(ctx, innerX, innerY, innerW, innerH, this.mm(5, ps), ps);
 
-    // Вертикальные полосы переплёта в левом поле 20 мм.
-    this.drawBindingMargin(ctx, x0 + otherMargin, y0 + paperH - otherMargin, ps);
-
-    // Рамка для сквозной нумерации листов в правом верхнем углу внутренней рамки: 10×7 мм.
-    this.drawPageNumberBox(ctx, innerX + innerW - this.mm(10, ps), innerY, this.mm(10, ps), this.mm(7, ps), ps);
-
     // Основная надпись (штамп) 185×55 мм в правом нижнем углу внутренней рамки.
     const stampW = this.mm(185, ps);
     const stampH = this.mm(55, ps);
     const stampX = innerX + innerW - stampW;
     const stampY = innerY + innerH - stampH;
     this.renderTitleBlock(ctx, sheet, stampX, stampY, stampW, stampH);
-
-    // Подпись формата и масштаба внутри внутренней рамки сверху по центру.
-    ctx.font = `${this.mmToPx(5, ps)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    const label = `${sheet.pageSize} ${sheet.orientation === 'landscape' ? 'landscape' : 'portrait'} 1:${ps}`;
-    ctx.fillText(label, cx, innerY + this.mmToPx(2, ps));
 
     ctx.restore();
   }
@@ -111,52 +92,6 @@ export class SheetFrameRenderer {
     ctx.moveTo(x, y + h); ctx.lineTo(x + tick, y + h);
     ctx.moveTo(x, y + h); ctx.lineTo(x, y + h - tick);
     ctx.stroke();
-  }
-
-  /** Вертикальные полосы переплёта в левом поле 20 мм (подписи при сшивке). */
-  private drawBindingMargin(
-    ctx: CanvasRenderingContext2D,
-    leftX: number,
-    bottomY: number,
-    ps: number,
-  ): void {
-    // Две полосы 7×35 мм, расположенные у нижнего края левого поля.
-    // Левая полоса — "Подп. и дата", правая — "Инв. № подл.".
-    const stripW = this.mm(7, ps);
-    const stripH = this.mm(35, ps);
-    const gap = this.mm(1, ps);
-
-    ctx.lineWidth = this.strokeWidth(0.25, ps);
-    ctx.strokeRect(leftX, bottomY - stripH, stripW, stripH);
-    ctx.strokeRect(leftX + stripW + gap, bottomY - stripH, stripW, stripH);
-
-    this.drawVerticalText(ctx, 'Подп. и дата', leftX + stripW / 2, bottomY - stripH / 2, 3, ps);
-    this.drawVerticalText(ctx, 'Инв. № подл.', leftX + stripW + gap + stripW / 2, bottomY - stripH / 2, 3, ps);
-  }
-
-  /** Рамка для сквозной нумерации листов (правый верхний угол). */
-  private drawPageNumberBox(
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    ps: number,
-  ): void {
-    ctx.lineWidth = this.strokeWidth(0.25, ps);
-    ctx.strokeRect(x, y, w, h);
-
-    // Внутренняя вертикальная линия отсекает квадрат 7×7 мм слева.
-    ctx.beginPath();
-    ctx.moveTo(x + h, y);
-    ctx.lineTo(x + h, y + h);
-    ctx.stroke();
-
-    ctx.font = `${this.mmToPx(3.5, ps)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('Лист', x + h / 2, y + h / 2);
-    ctx.fillText('№', x + h + (w - h) / 2, y + h / 2);
   }
 
   /** Основная надпись (штамп) по ГОСТ 2.104-2006, форма 1. */
@@ -194,14 +129,14 @@ export class SheetFrameRenderer {
       ctx.lineTo(x + leftW, ry);
       ctx.stroke();
     }
-    // Заголовки колонок (центрируем в верхних 4 строках = 20 мм).
+    // Заголовки колонок — центрируем в первой строке (5 мм).
     ctx.font = `${this.mmToPx(3.5, ps)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const leftHeaders = ['Изм.', 'Лист', '№ докум.', 'Подпись', 'Дата'];
     cx = x;
     leftCols.forEach((cw, i) => {
-      ctx.fillText(leftHeaders[i], cx + mm(cw) / 2, y + mm(10));
+      ctx.fillText(leftHeaders[i], cx + mm(cw) / 2, y + mm(2.5));
       cx += mm(cw);
     });
 
@@ -216,10 +151,13 @@ export class SheetFrameRenderer {
     ctx.lineTo(rightX, y + h);
     ctx.stroke();
 
-    // Горизонтальные зоны по высоте: 8, 7, 15, 15, 10 мм.
-    const zoneHs = [8, 7, 15, 15, 10];
+    // Высотные зоны основного поля: 8 / 32 / 15 мм.
+    // 8 мм — № документа (зона 2 на образце),
+    // 32 мм — дата / организация / объект / наименование (зона 1),
+    // 15 мм — подписи (зона 3).
+    const mainZoneHs = [8, 32, 15];
     let zy = y;
-    for (const zh of zoneHs.slice(0, -1)) {
+    for (const zh of mainZoneHs.slice(0, -1)) {
       zy += mm(zh);
       ctx.beginPath();
       ctx.moveTo(mainX, zy);
@@ -227,41 +165,44 @@ export class SheetFrameRenderer {
       ctx.stroke();
     }
 
-    // Высоты зон (накопленные).
-    const z1 = y + mm(8);
-    const z2 = z1 + mm(7);
-    const z3 = z2 + mm(15);
-    const z4 = z3 + mm(15);
-    // const z5 = z4 + mm(10); // нижняя граница
+    const zDocTop = y;
+    const zDocBottom = y + mm(8);
+    const zMainTop = zDocBottom;
+    const zMainBottom = zMainTop + mm(32);
+    const zSignTop = zMainBottom;
 
     // --- Правая колонка ---
-    // Верхние 15 мм: Литера / Масса / Масштаб (подколонки 15/15/20 мм).
-    const rcTopY = y;
-    const rcMidY = y + mm(15);
+    // Высоты: верхняя 15 мм, средняя 25 мм, нижняя 15 мм.
+    const rcTopH = mm(15);
+    const rcBottomH = mm(15);
+    const rcMidY = y + rcTopH;
+    const rcBottomY = y + h - rcBottomH;
+
+    // Горизонтальные разделители правой колонки.
+    ctx.beginPath();
+    ctx.moveTo(rightX, rcMidY);
+    ctx.lineTo(x + w, rcMidY);
+    ctx.moveTo(rightX, rcBottomY);
+    ctx.lineTo(x + w, rcBottomY);
+    ctx.stroke();
+
+    // Подколонки правой колонки: 15 / 15 / 20 мм.
     const rcSubCols = [15, 15, 20];
     let rx = rightX;
     for (const cw of rcSubCols.slice(0, -1)) {
       rx += mm(cw);
       ctx.beginPath();
-      ctx.moveTo(rx, rcTopY);
-      ctx.lineTo(rx, rcMidY);
-      ctx.stroke();
-    }
-    // Средние 15 мм: Лист / № / Листов (подколонки 15/15/20 мм).
-    rx = rightX;
-    for (const cw of rcSubCols.slice(0, -1)) {
-      rx += mm(cw);
-      ctx.beginPath();
-      ctx.moveTo(rx, rcMidY);
+      ctx.moveTo(rx, y);
       ctx.lineTo(rx, y + h);
       ctx.stroke();
     }
-    // Горизонтальная линия, разделяющая заголовки и значения в каждой подзоне (на 5 мм).
+
+    // Горизонтальные линии, разделяющие заголовки и значения (на 5 мм от верха/низа).
     ctx.beginPath();
     ctx.moveTo(rightX, y + mm(5));
-    ctx.lineTo(rightX + rightW, y + mm(5));
-    ctx.moveTo(rightX, y + mm(20));
-    ctx.lineTo(rightX + rightW, y + mm(20));
+    ctx.lineTo(x + w, y + mm(5));
+    ctx.moveTo(rightX, rcBottomY + mm(5));
+    ctx.lineTo(x + w, rcBottomY + mm(5));
     ctx.stroke();
 
     // Метки правой колонки.
@@ -269,66 +210,63 @@ export class SheetFrameRenderer {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const rcLabelsTop = ['Литера', 'Масса', 'Масштаб'];
-    const rcLabelsMid = ['Лист', '№', 'Листов'];
+    const rcLabelsBottom = ['Лист', '№', 'Листов'];
     rx = rightX;
     rcSubCols.forEach((cw, i) => {
       ctx.fillText(rcLabelsTop[i], rx + mm(cw) / 2, y + mm(2.5));
-      ctx.fillText(rcLabelsMid[i], rx + mm(cw) / 2, y + mm(17.5));
+      ctx.fillText(rcLabelsBottom[i], rx + mm(cw) / 2, rcBottomY + mm(2.5));
       rx += mm(cw);
     });
 
     // Значения правой колонки.
     ctx.font = `${this.mmToPx(5, ps)}px sans-serif`;
     rx = rightX;
-    ctx.fillText(tb.weight || '', rx + mm(rcSubCols[0]) / 2, y + mm(10));
-    ctx.fillText(tb.weight || '', rx + mm(rcSubCols[1]) / 2, y + mm(10));
-    ctx.fillText(tb.scaleLabel || `1:${ps}`, rx + mm(rcSubCols[2]) / 2, y + mm(10));
-    ctx.fillText(tb.sheetNo || '', rx + mm(rcSubCols[0]) / 2, y + mm(25));
-    ctx.fillText(tb.docCode || '', rx + mm(rcSubCols[1]) / 2, y + mm(25));
-    ctx.fillText(tb.sheetTotal || '', rx + mm(rcSubCols[2]) / 2, y + mm(25));
+    ctx.fillText(tb.weight || '', rx + mm(rcSubCols[0]) / 2, y + mm(10));   // Литера
+    ctx.fillText(tb.weight || '', rx + mm(rcSubCols[1]) / 2, y + mm(10));   // Масса
+    ctx.fillText(tb.scaleLabel || `1:${ps}`, rx + mm(rcSubCols[2]) / 2, y + mm(10)); // Масштаб
+    ctx.fillText(tb.sheetNo || '', rx + mm(rcSubCols[0]) / 2, rcBottomY + mm(10));   // Лист
+    ctx.fillText(tb.docCode || '', rx + mm(rcSubCols[1]) / 2, rcBottomY + mm(10));    // №
+    ctx.fillText(tb.sheetTotal || '', rx + mm(rcSubCols[2]) / 2, rcBottomY + mm(10)); // Листов
 
     // --- Основное поле ---
     const mainCx = mainX + mainW / 2;
 
-    // Зона 1 (8 мм): № документа.
+    // Зона № документа (8 мм).
     ctx.font = `${this.mmToPx(3.5, ps)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('№ документа', mainCx, y + mm(3));
+    ctx.fillText('№ документа', mainCx, zDocTop + mm(2.5));
     ctx.font = `${this.mmToPx(5, ps)}px sans-serif`;
-    ctx.fillText(tb.docCode || '', mainCx, y + mm(6));
+    ctx.fillText(tb.docCode || '', mainCx, zDocTop + mm(5.5));
 
-    // Зона 2 (7 мм): дата.
+    // Зона 1 (32 мм): дата, организация, объект, наименование.
     ctx.font = `${this.mmToPx(3.5, ps)}px sans-serif`;
-    ctx.fillText('Дата', mainCx, z1 + mm(2));
-    ctx.font = `${this.mmToPx(5, ps)}px sans-serif`;
-    ctx.fillText(tb.date || '', mainCx, z1 + mm(5));
+    ctx.fillText('Дата', mainCx, zMainTop + mm(2));
+    ctx.font = `${this.mmToPx(4.5, ps)}px sans-serif`;
+    ctx.fillText(tb.date || '', mainCx, zMainTop + mm(5));
 
-    // Зона 3 (15 мм): организация и объект.
     ctx.font = `${this.mmToPx(5, ps)}px sans-serif`;
-    ctx.fillText(tb.organization || '', mainCx, z2 + mm(5));
+    ctx.fillText(tb.organization || '', mainCx, zMainTop + mm(10));
     ctx.font = `${this.mmToPx(4, ps)}px sans-serif`;
-    ctx.fillText(tb.objectName || '', mainCx, z2 + mm(10));
+    ctx.fillText(tb.objectName || '', mainCx, zMainTop + mm(15));
 
-    // Зона 4 (15 мм): наименование чертежа.
     ctx.font = `${this.mmToPx(7, ps)}px sans-serif`;
-    ctx.fillText(tb.drawingName || sheet.name || '', mainCx, z3 + mm(7.5));
+    ctx.fillText(tb.drawingName || sheet.name || '', mainCx, zMainTop + mm(23));
 
-    // Зона 5 (10 мм): подписи — 4 столбца.
-    const signTop = z4;
-    const signH = mm(10);
+    // Зона 3 (15 мм): подписи — 4 столбца.
+    const signH = mm(15);
     const signColW = mainW / 4;
     for (let i = 1; i < 4; i++) {
       const vx = mainX + signColW * i;
       ctx.beginPath();
-      ctx.moveTo(vx, signTop);
-      ctx.lineTo(vx, signTop + signH);
+      ctx.moveTo(vx, zSignTop);
+      ctx.lineTo(vx, zSignTop + signH);
       ctx.stroke();
     }
     // Горизонтальная линия подписей на 5 мм.
     ctx.beginPath();
-    ctx.moveTo(mainX, signTop + mm(5));
-    ctx.lineTo(rightX, signTop + mm(5));
+    ctx.moveTo(mainX, zSignTop + mm(5));
+    ctx.lineTo(rightX, zSignTop + mm(5));
     ctx.stroke();
 
     const signLabels = ['Разраб.', 'Пров.', 'Н. контр.', 'Утв.'];
@@ -338,12 +276,12 @@ export class SheetFrameRenderer {
     ctx.textBaseline = 'middle';
     for (let i = 0; i < 4; i++) {
       const cx_ = mainX + signColW * (i + 0.5);
-      ctx.fillText(signLabels[i], cx_, signTop + mm(2.5));
+      ctx.fillText(signLabels[i], cx_, zSignTop + mm(2.5));
     }
     ctx.font = `${this.mmToPx(5, ps)}px sans-serif`;
     for (let i = 0; i < 4; i++) {
       const cx_ = mainX + signColW * (i + 0.5);
-      ctx.fillText(signValues[i] || '', cx_, signTop + mm(7.5));
+      ctx.fillText(signValues[i] || '', cx_, zSignTop + mm(10));
     }
   }
 
@@ -354,9 +292,7 @@ export class SheetFrameRenderer {
 
   /**
    * Перевод мм бумаги в мировые единицы.
-   * 1 мм бумаги = printScale мировых единиц. Поскольку контекст уже масштабирован
-   * камерой, результат задаёт размер в мировых координатах, который на экране
-   * даст требуемый пиксельный размер.
+   * 1 мм бумаги = printScale мировых единиц.
    */
   private mmToPx(valueMm: number, printScale: number): number {
     return valueMm * printScale;
@@ -365,24 +301,5 @@ export class SheetFrameRenderer {
   /** Толщина линии в мировых единицах с минимумом 1,5 px на экране. */
   private strokeWidth(valueMm: number, printScale: number): number {
     return Math.max(1.5 / this.camera.scale, this.mmToPx(valueMm, printScale));
-  }
-
-  /** Вертикальный текст по центру точки (снизу вверх). */
-  private drawVerticalText(
-    ctx: CanvasRenderingContext2D,
-    text: string,
-    cx: number,
-    cy: number,
-    sizeMm: number,
-    ps: number,
-  ): void {
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(-Math.PI / 2);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `${this.mmToPx(sizeMm, ps)}px sans-serif`;
-    ctx.fillText(text, 0, 0);
-    ctx.restore();
   }
 }
