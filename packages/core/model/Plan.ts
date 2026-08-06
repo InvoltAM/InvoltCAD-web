@@ -9,7 +9,7 @@ import { Quadtree, buildWallQuadtree } from '../geometry/Quadtree';
 
 import { projectPointToSegment } from '../geometry/Geometry';
 
-import { Sheet, createDefaultSheets } from './Sheet';
+import { Sheet, createDefaultSheets, createEmptyTitleBlock, SheetTitleBlock } from './Sheet';
 import { CableRunData } from '../electrical/CableRunEngine';
 
 export interface PlanElectrical {
@@ -125,6 +125,7 @@ export class Plan {
       pageSize: 'A4',
       orientation: 'landscape',
       printScale: 100,
+      titleBlock: createEmptyTitleBlock(),
     };
     this.sheets.push(sheet);
     this.activeSheetId = sheet.id;
@@ -668,6 +669,7 @@ export class Plan {
         pageSize: s.pageSize,
         orientation: s.orientation,
         printScale: s.printScale,
+        titleBlock: s.titleBlock,
       })),
       activeSheetId: this.activeSheetId || this.sheets[0]?.id,
       electrical: this.electrical ?? createEmptyElectrical(),
@@ -762,6 +764,10 @@ export class Plan {
           pageSize: s.pageSize || 'A4',
           orientation: s.orientation || 'landscape',
           printScale: s.printScale ?? 100,
+          titleBlock: {
+            ...createEmptyTitleBlock(),
+            ...(s.titleBlock as Partial<SheetTitleBlock> || {}),
+          },
         };
       });
       plan.activeSheetId = data.sheets.some((s: any) => s.id === data.activeSheetId)

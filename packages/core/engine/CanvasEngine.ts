@@ -443,6 +443,24 @@ export class CanvasEngine {
     this.requestRender();
   }
 
+  /** Подогнать камеру под рамку активного листа. */
+  fitToSheet(): void {
+    const sheet = this.plan.activeSheet;
+    if (!sheet) return;
+    const dims = getSheetDimensions(sheet.pageSize, sheet.orientation);
+    const ps = sheet.printScale || 100;
+    const paperW = dims.width * ps;
+    const paperH = dims.height * ps;
+    const bounds = this.plan.getBounds(0);
+    const cx = (bounds.min.x + bounds.max.x) / 2;
+    const cy = (bounds.min.y + bounds.max.y) / 2;
+    const fitScale = Math.min(
+      this.camera.viewportWidth / (paperW * 1.2),
+      this.camera.viewportHeight / (paperH * 1.2),
+    );
+    this.camera.focusOn(new Vector2(cx, cy), Math.max(this.camera.getMinScale(), fitScale));
+  }
+
   private renderValidationMarkers(ctx: CanvasRenderingContext2D): void {
     const issues = this.editorState.get('validationIssues');
     if (!issues || issues.length === 0) return;

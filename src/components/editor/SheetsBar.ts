@@ -244,6 +244,7 @@ export class SheetsBar {
     formatSelect.addEventListener('change', () => {
       sheet.pageSize = formatSelect.value as PageSize;
       this.engine.notifyChanged();
+      this.engine.fitToSheet();
     });
     menu.appendChild(createRow('Формат', formatSelect));
 
@@ -263,6 +264,7 @@ export class SheetsBar {
     orientationSelect.addEventListener('change', () => {
       sheet.orientation = orientationSelect.value as PageOrientation;
       this.engine.notifyChanged();
+      this.engine.fitToSheet();
     });
     menu.appendChild(createRow('Ориентация', orientationSelect));
 
@@ -279,8 +281,44 @@ export class SheetsBar {
     scaleSelect.addEventListener('change', () => {
       sheet.printScale = Number(scaleSelect.value);
       this.engine.notifyChanged();
+      this.engine.fitToSheet();
     });
     menu.appendChild(createRow('Масштаб', scaleSelect));
+
+    // Разделитель
+    const divider = document.createElement('div');
+    divider.className = 'sheet-tab-menu-divider';
+    menu.appendChild(divider);
+
+    // Поля основной надписи
+    const tb = sheet.titleBlock;
+    const createInput = (label: string, value: string, key: keyof typeof tb): void => {
+      const input = document.createElement('input');
+      input.className = 'sheet-tab-menu-input';
+      input.type = 'text';
+      input.value = value;
+      input.addEventListener('change', () => {
+        (tb[key] as string) = input.value;
+        this.engine.notifyChanged();
+      });
+      input.addEventListener('keydown', e => e.stopPropagation());
+      menu.appendChild(createRow(label, input));
+    };
+
+    createInput('Организация', tb.organization, 'organization');
+    createInput('Объект', tb.objectName, 'objectName');
+    createInput('Название', tb.drawingName, 'drawingName');
+    createInput('Стадия', tb.stage, 'stage');
+    createInput('Лист', tb.sheetNo, 'sheetNo');
+    createInput('Листов', tb.sheetTotal, 'sheetTotal');
+    createInput('№ документа', tb.docCode, 'docCode');
+    createInput('Дата', tb.date, 'date');
+    createInput('Разработал', tb.designer, 'designer');
+    createInput('Проверил', tb.checker, 'checker');
+    createInput('Н. контр.', tb.normController, 'normController');
+    createInput('Утвердил', tb.approver, 'approver');
+    createInput('Масса', tb.weight ?? '', 'weight');
+    createInput('Масштаб', tb.scaleLabel ?? '', 'scaleLabel');
 
     const rect = anchor.getBoundingClientRect();
     menu.style.left = `${Math.round(rect.left)}px`;

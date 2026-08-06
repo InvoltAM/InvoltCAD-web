@@ -348,6 +348,22 @@ body {
   cursor: pointer;
 }
 
+.sheet-tab-menu-input {
+  min-width: 120px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.sheet-tab-menu-divider {
+  height: 1px;
+  margin: 8px 0;
+  background: var(--border);
+}
+
 .sheet-add {
   flex: 0 0 auto;
   width: 32px;

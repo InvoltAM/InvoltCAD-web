@@ -91,7 +91,7 @@ const light: ThemePalette = {
     validationError: '#dc2626',
     validationWarning: '#eab308',
     validationInfo: '#3b82f6',
-    sheetFrame: '#2563eb',
+    sheetFrame: '#000000',
   },
 };
 
@@ -138,7 +138,7 @@ const dark: ThemePalette = {
     validationError: '#f87171',
     validationWarning: '#fbbf24',
     validationInfo: '#60a5fa',
-    sheetFrame: '#60a5fa',
+    sheetFrame: '#ffffff',
   },
 };
 

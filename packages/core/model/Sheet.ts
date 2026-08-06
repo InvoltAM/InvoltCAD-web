@@ -9,6 +9,38 @@ import { Dimension } from './Dimension';
 export type PageSize = 'A4' | 'A3' | 'A2' | 'A1' | 'A0';
 export type PageOrientation = 'landscape' | 'portrait';
 
+/** Поля основной надписи (штампа) по ГОСТ 21.1101-2013, форма 3. */
+export interface SheetTitleBlock {
+  /** Наименование организации */
+  organization: string;
+  /** Наименование объекта */
+  objectName: string;
+  /** Наименование чертежа / листа */
+  drawingName: string;
+  /** Стадия проектирования (напр. «Р») */
+  stage: string;
+  /** Номер листа */
+  sheetNo: string;
+  /** Всего листов */
+  sheetTotal: string;
+  /** Шифр / номер документа */
+  docCode: string;
+  /** Дата */
+  date: string;
+  /** Разработал */
+  designer: string;
+  /** Проверил */
+  checker: string;
+  /** Н.контр. */
+  normController: string;
+  /** Утвердил */
+  approver: string;
+  /** Масса (необязательно) */
+  weight?: string;
+  /** Масштаб (может отличаться от printScale) */
+  scaleLabel?: string;
+}
+
 export interface Sheet {
   id: string;
   name: string;
@@ -18,6 +50,7 @@ export interface Sheet {
   pageSize: PageSize;
   orientation: PageOrientation;
   printScale: number;
+  titleBlock: SheetTitleBlock;
 }
 
 export const DEFAULT_SHEET_NAMES = [
@@ -47,6 +80,25 @@ export function getSheetDimensions(pageSize: PageSize, orientation: PageOrientat
   return { width: dim.width, height: dim.height };
 }
 
+export function createEmptyTitleBlock(): SheetTitleBlock {
+  return {
+    organization: '',
+    objectName: '',
+    drawingName: '',
+    stage: '',
+    sheetNo: '1',
+    sheetTotal: '1',
+    docCode: '',
+    date: new Date().toLocaleDateString('ru-RU'),
+    designer: '',
+    checker: '',
+    normController: '',
+    approver: '',
+    weight: '',
+    scaleLabel: '',
+  };
+}
+
 export function createSheet(name: string): Sheet {
   return {
     id: crypto.randomUUID(),
@@ -57,6 +109,7 @@ export function createSheet(name: string): Sheet {
     pageSize: 'A4',
     orientation: 'landscape',
     printScale: 100,
+    titleBlock: createEmptyTitleBlock(),
   };
 }
 
