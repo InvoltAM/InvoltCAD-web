@@ -376,6 +376,7 @@ export class SheetsBar {
       fileInput.type = 'file';
       fileInput.accept = 'image/png,image/jpeg,image/svg+xml';
       fileInput.className = 'sheet-tab-menu-file';
+      fileInput.style.display = 'none';
       fileInput.addEventListener('change', () => {
         const file = fileInput.files?.[0];
         if (!file) return;
@@ -386,6 +387,15 @@ export class SheetsBar {
           updatePreview();
         };
         reader.readAsDataURL(file);
+        fileInput.value = '';
+      });
+
+      const uploadBtn = document.createElement('button');
+      uploadBtn.type = 'button';
+      uploadBtn.textContent = 'Загрузить';
+      uploadBtn.className = 'sheet-tab-menu-btn';
+      uploadBtn.addEventListener('click', () => {
+        fileInput.click();
       });
 
       const clearBtn = document.createElement('button');
@@ -421,6 +431,7 @@ export class SheetsBar {
       const controlWrap = document.createElement('div');
       controlWrap.className = 'sheet-tab-menu-control';
       controlWrap.appendChild(fileInput);
+      controlWrap.appendChild(uploadBtn);
       controlWrap.appendChild(clearBtn);
       controlWrap.appendChild(preview);
       controlWrap.appendChild(checkbox);
