@@ -223,13 +223,13 @@ export class SheetFrameRenderer {
       }
     }
 
-    // --- Дата в столбце 4 (Подп.) строк 1–6 в формате мм.гг ---
+    // --- Дата в столбце 6 (Дата) строк 1–6 в формате мм.гг ---
     if (show.date && tb.date) {
-      const col4Center = x + this.mm(47.5, ps);
+      const col6Center = x + this.mm(60, ps);
       const dateLabel = this.formatDateMmYy(tb.date);
       for (let i = 0; i < 6; i++) {
         const rowY = y + this.mm(52.5 - i * 5, ps);
-        ctx.fillText(dateLabel, col4Center, rowY);
+        ctx.fillText(dateLabel, col6Center, rowY);
       }
     }
 
