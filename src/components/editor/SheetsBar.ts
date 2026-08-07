@@ -367,9 +367,6 @@ export class SheetsBar {
       menu.appendChild(createRow(label, controlWrap));
     };
 
-    createField('Стадия', tb.stage, 'stage', 'stage');
-    createField('Лист', tb.sheetNo, 'sheetNo', 'sheetNo');
-    createField('Листов', tb.sheetTotal, 'sheetTotal', 'sheetTotal');
     createField('Дата', tb.date, 'date', 'date');
     createField('Утвердил', tb.approver, 'approver', 'row1');
     createField('Н. контр.', tb.normController, 'normController', 'row2');
