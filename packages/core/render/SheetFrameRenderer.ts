@@ -251,7 +251,10 @@ export class SheetFrameRenderer {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `${this.mmToPx(2.5, ps)}px sans-serif`;
-    if (show.stage) ctx.fillText(tb.stage, rightSubCenters[0], rightHeaderY);
+    // Стадия — в объединённых строках 4–5 правой части (50×10 мм), по центру поля
+    if (show.stage) {
+      ctx.fillText(tb.stage, mainRightX + this.mm(25, ps), y + this.mm(35, ps));
+    }
     if (show.sheetNo) ctx.fillText(tb.sheetNo, rightSubCenters[1], rightHeaderY);
     if (show.sheetTotal) ctx.fillText(tb.sheetTotal, rightSubCenters[2], rightHeaderY);
 
