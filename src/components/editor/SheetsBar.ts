@@ -27,7 +27,9 @@ export class SheetsBar {
   }
 
   refresh(): void {
-    this.closeMenu();
+    // Если открыто меню, не пересоздаём панель — иначе интерактивные контролы
+    // (file input, textbox) теряют фокус и состояние.
+    if (this.activeMenuEl) return;
     this.element.innerHTML = '';
 
     const stampBtn = document.createElement('button');
