@@ -382,6 +382,7 @@ export class SheetsBar {
       fileInput.accept = 'image/png,image/jpeg,image/svg+xml';
       fileInput.className = 'sheet-tab-menu-file';
       fileInput.addEventListener('change', () => {
+        isChoosingFile = false;
         const file = fileInput.files?.[0];
         if (!file) return;
         const reader = new FileReader();
