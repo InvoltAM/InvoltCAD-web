@@ -180,6 +180,18 @@ export class SheetFrameRenderer {
       ctx.fillText(leftHeaders[i], hx + this.mm(leftCols[i] / 2, ps), labelY);
       hx += this.mm(leftCols[i], ps);
     }
+
+    // --- Шаг 14: заголовки правой части (строка 6 снизу, y+25..30) ---
+    const rightHeaders = ['Стадия', 'Лист', 'Листов'];
+    const rightHeaderY = y + this.mm(27.5, ps); // середина строки 6
+    const rightSubCenters = [
+      mainRightX + this.mm(7.5, ps),  // первый подстолбец 15 мм
+      rightSubX1 + this.mm(7.5, ps),  // второй подстолбец 15 мм
+      rightSubX2 + this.mm(10, ps),   // третий подстолбец 20 мм
+    ];
+    for (let i = 0; i < rightHeaders.length; i++) {
+      ctx.fillText(rightHeaders[i], rightSubCenters[i], rightHeaderY);
+    }
   }
 
   /** Перевод мм в мировые единицы. */
