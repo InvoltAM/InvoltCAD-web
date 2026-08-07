@@ -17,6 +17,14 @@ export interface SheetTitleBlock {
   objectName: string;
   /** Наименование чертежа / листа */
   drawingName: string;
+  /** № проекта / шифр */
+  projectCode: string;
+  /** Адрес объекта */
+  address: string;
+  /** Раздел */
+  section: string;
+  /** Наименование */
+  drawingTitle: string;
   /** Стадия проектирования (напр. «Р») */
   stage: string;
   /** Номер листа */
@@ -64,6 +72,10 @@ export interface TitleBlockVisibility {
   organization: boolean;
   objectName: boolean;
   drawingName: boolean;
+  projectCode: boolean;
+  address: boolean;
+  section: boolean;
+  drawingTitle: boolean;
   stage: boolean;
   sheetNo: boolean;
   sheetTotal: boolean;
@@ -135,6 +147,10 @@ export function createEmptyTitleBlock(): SheetTitleBlock {
     organization: '',
     objectName: '',
     drawingName: '',
+    projectCode: '',
+    address: '',
+    section: '',
+    drawingTitle: '',
     stage: '',
     sheetNo: '1',
     sheetTotal: '1',
@@ -158,6 +174,10 @@ export function createEmptyTitleBlock(): SheetTitleBlock {
       organization: true,
       objectName: true,
       drawingName: true,
+      projectCode: true,
+      address: true,
+      section: true,
+      drawingTitle: true,
       stage: true,
       sheetNo: true,
       sheetTotal: true,

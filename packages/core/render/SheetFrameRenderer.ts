@@ -228,23 +228,27 @@ export class SheetFrameRenderer {
       if (dateLabel) ctx.fillText(dateLabel, col6Center, rowY);
     }
 
-    // --- Графы 1-5 и 9 основного поля (70 мм + 50 мм) ---
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    const mainTextX = x + leftW + this.mm(2, ps);
-    const lineH = this.mmToPx(5, ps);
+    // --- Заполняемые поля правой части основного поля ---
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     ctx.font = `${this.mmToPx(3.5, ps)}px sans-serif`;
-    if (show.docCode && tb.docCode) {
-      ctx.fillText(tb.docCode, mainTextX, y + this.mm(2, ps));
+    // Столбец 5 (левая часть правой половины, 15 мм)
+    if (show.drawingTitle && tb.drawingTitle) {
+      // строки 1–3, центр ячейки 15×15 мм
+      ctx.fillText(tb.drawingTitle, mainRightX + this.mm(7.5, ps), y + this.mm(47.5, ps));
     }
-    if (show.organization && tb.organization) {
-      ctx.fillText(tb.organization, mainTextX, y + this.mm(7, ps));
+    if (show.section && tb.section) {
+      // строки 4–6, центр ячейки 15×15 мм
+      ctx.fillText(tb.section, mainRightX + this.mm(7.5, ps), y + this.mm(32.5, ps));
     }
-    if (show.objectName && tb.objectName) {
-      ctx.fillText(tb.objectName, mainTextX, y + this.mm(12, ps));
+    // Столбец 7 (правая часть правой половины, 20 мм)
+    if (show.address && tb.address) {
+      // строки 7–9, центр ячейки 20×15 мм
+      ctx.fillText(tb.address, mainRightX + this.mm(40, ps), y + this.mm(17.5, ps));
     }
-    if (show.drawingName && tb.drawingName) {
-      ctx.fillText(tb.drawingName, mainTextX, y + this.mm(17, ps));
+    if (show.projectCode && tb.projectCode) {
+      // строки 10–11, центр ячейки 20×10 мм
+      ctx.fillText(tb.projectCode, mainRightX + this.mm(40, ps), y + this.mm(5, ps));
     }
 
     // --- Правая часть: Стадия ---
