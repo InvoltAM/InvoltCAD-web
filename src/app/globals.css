@@ -378,10 +378,30 @@ body {
 }
 
 .sheet-tab-menu-file {
-  max-width: 140px;
-  font-size: 11px;
-  color: var(--text);
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
   cursor: pointer;
+}
+
+.sheet-tab-menu-upload {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-bg);
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.sheet-tab-menu-upload:hover {
+  background: var(--hover-bg);
 }
 
 .sheet-tab-menu-btn {

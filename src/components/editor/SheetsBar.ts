@@ -333,6 +333,8 @@ export class SheetsBar {
     };
 
     const tb = sheet.titleBlock;
+    let isChoosingFile = false;
+
     const createField = (
       label: string,
       value: string,
@@ -377,7 +379,6 @@ export class SheetsBar {
       fileInput.type = 'file';
       fileInput.accept = 'image/png,image/jpeg,image/svg+xml';
       fileInput.className = 'sheet-tab-menu-file';
-      fileInput.style.display = 'none';
       fileInput.addEventListener('change', () => {
         const file = fileInput.files?.[0];
         if (!file) return;
@@ -391,13 +392,13 @@ export class SheetsBar {
         fileInput.value = '';
       });
 
-      const uploadBtn = document.createElement('button');
-      uploadBtn.type = 'button';
-      uploadBtn.textContent = 'Загрузить';
-      uploadBtn.className = 'sheet-tab-menu-btn';
-      uploadBtn.addEventListener('click', () => {
-        fileInput.click();
+      const uploadLabel = document.createElement('label');
+      uploadLabel.className = 'sheet-tab-menu-upload';
+      uploadLabel.textContent = 'Загрузить';
+      uploadLabel.addEventListener('click', () => {
+        isChoosingFile = true;
       });
+      uploadLabel.appendChild(fileInput);
 
       const clearBtn = document.createElement('button');
       clearBtn.type = 'button';
@@ -431,8 +432,7 @@ export class SheetsBar {
 
       const controlWrap = document.createElement('div');
       controlWrap.className = 'sheet-tab-menu-control';
-      controlWrap.appendChild(fileInput);
-      controlWrap.appendChild(uploadBtn);
+      controlWrap.appendChild(uploadLabel);
       controlWrap.appendChild(clearBtn);
       controlWrap.appendChild(preview);
       controlWrap.appendChild(checkbox);
@@ -466,15 +466,20 @@ export class SheetsBar {
 
     this.activeMenuEl = menu;
 
+    menu.addEventListener('mousedown', () => {
+      if (isChoosingFile) isChoosingFile = false;
+    });
+
     this.outsideClickHandler = (e: MouseEvent) => {
+      if (isChoosingFile) return;
       if (!menu.contains(e.target as Node)) {
         this.closeMenu();
       }
     };
-    // Закрываем по mousedown, чтобы меню оставалось открытым после закрытия file chooser.
+    // Закрываем по mousedown, но игнорируем событие во время выбора файла.
     setTimeout(() => {
       if (this.outsideClickHandler) {
-        document.addEventListener('mousedown', this.outsideClickHandler, { once: true });
+        document.addEventListener('mousedown', this.outsideClickHandler);
       }
     }, 0);
   }
