@@ -305,10 +305,11 @@ export class SheetsBar {
         this.closeMenu();
       }
     };
-    // Закрываем на следующем тике, чтобы текущий click не сразу закрыл меню
+    // Закрываем по mousedown на следующем тике, чтобы текущий click не сразу закрыл меню.
+    // mousedown выбран вместо click, чтобы меню не закрывалось при закрытии системного file chooser.
     setTimeout(() => {
       if (this.outsideClickHandler) {
-        document.addEventListener('click', this.outsideClickHandler, { once: true });
+        document.addEventListener('mousedown', this.outsideClickHandler, { once: true });
       }
     }, 0);
   }
@@ -470,15 +471,17 @@ export class SheetsBar {
         this.closeMenu();
       }
     };
+    // Закрываем по mousedown, чтобы меню оставалось открытым после закрытия file chooser.
     setTimeout(() => {
       if (this.outsideClickHandler) {
-        document.addEventListener('click', this.outsideClickHandler, { once: true });
+        document.addEventListener('mousedown', this.outsideClickHandler, { once: true });
       }
     }, 0);
   }
 
   private closeMenu(): void {
     if (this.outsideClickHandler) {
+      document.removeEventListener('mousedown', this.outsideClickHandler);
       document.removeEventListener('click', this.outsideClickHandler);
       this.outsideClickHandler = null;
     }
