@@ -100,6 +100,7 @@ export class SheetFrameRenderer {
    * - Левая группа учёта изменений: 10+10+10+10+15+10 = 65 мм.
    * - Основное поле: 120 мм (70 мм левая часть + 50 мм правая часть).
    * - Высотные зоны основного поля: 10+15+10+15+5 = 55 мм.
+   * - Правая верхняя зона (Стадия/Лист/Листов) объединена в один блок 50×25 мм.
    */
   private renderTitleBlock(
     ctx: CanvasRenderingContext2D,
@@ -132,21 +133,25 @@ export class SheetFrameRenderer {
       ctx.stroke();
     }
 
-    // 11 горизонтальных строк по 5 мм в левой группе.
-    ctx.lineWidth = this.strokeWidth(0.35, ps);
-    for (let r = 1; r < 11; r++) {
-      const ry = y + mm(5 * r);
+    // Горизонтальные разделители левой группы совпадают с зонами основного поля.
+    const rowHs = [10, 15, 10, 15, 5]; // сумма 55
+    let accY = y;
+    const rowLines: number[] = [];
+    for (const rh of rowHs.slice(0, -1)) {
+      accY += mm(rh);
+      rowLines.push(accY);
       ctx.beginPath();
-      ctx.moveTo(x, ry);
-      ctx.lineTo(x + leftW, ry);
+      ctx.moveTo(x, accY);
+      ctx.lineTo(x + leftW, accY);
       ctx.stroke();
     }
+    // rowLines = [y+10, y+25, y+35, y+50]
 
-    // Заголовки колонок — первая строка (5 мм).
+    // Заголовки колонок — первая строка (10 мм), по центру.
     this.setFont(ctx, 3.5, ps);
     cx = x;
     leftCols.forEach((cw, i) => {
-      this.fillCentered(ctx, leftHeaders[i], cx + mm(cw) / 2, y + mm(2.5));
+      this.fillCentered(ctx, leftHeaders[i], cx + mm(cw) / 2, y + mm(5));
       cx += mm(cw);
     });
 
@@ -157,22 +162,29 @@ export class SheetFrameRenderer {
     const rightX = mainX + leftPartW; // x + 135
 
     // Вертикальная граница левая/правая части основного поля.
+    // Не затрагивает верхнюю зону (1) — она на всю ширину 120 мм.
     ctx.lineWidth = this.strokeWidth(0.35, ps);
     ctx.beginPath();
-    ctx.moveTo(rightX, y);
+    ctx.moveTo(rightX, y + mm(10));
     ctx.lineTo(rightX, y + mm(50)); // до нижней границы рабочих зон
     ctx.stroke();
 
     // Горизонтальные разделители основного поля.
-    const rowYs = [mm(10), mm(25), mm(35), mm(50)]; // относительно y
-    for (const dy of rowYs) {
-      ctx.beginPath();
-      ctx.moveTo(mainX, y + dy);
-      ctx.lineTo(x + w, y + dy);
-      ctx.stroke();
-    }
+    // y+10, y+35, y+50 — на всю ширину основного поля.
+    // y+25 — только левая часть (70 мм), чтобы правая верхняя зона была единым блоком 50×25.
+    const y10 = y + mm(10);
+    const y25 = y + mm(25);
+    const y35 = y + mm(35);
+    const y50 = y + mm(50);
 
-    // Вертикальные разделители правой части (15+15+20) только в зонах 2–3.
+    ctx.beginPath();
+    ctx.moveTo(mainX, y10); ctx.lineTo(x + w, y10);
+    ctx.moveTo(mainX, y35); ctx.lineTo(x + w, y35);
+    ctx.moveTo(mainX, y50); ctx.lineTo(x + w, y50);
+    ctx.moveTo(mainX, y25); ctx.lineTo(rightX, y25);
+    ctx.stroke();
+
+    // Вертикальные разделители правой верхней зоны (15+15+20) внутри блока 50×25.
     const rightSubCols = [15, 15, 20];
     let rx = rightX;
     for (const cw of rightSubCols.slice(0, -1)) {
@@ -229,8 +241,7 @@ export class SheetFrameRenderer {
       this.fillCentered(ctx, signValues[i] || '', cx_, signTop + mm(10));
     }
 
-    // --- Правая часть основного поля (50 мм) ---
-    // Заголовки верхней зоны (стадия, лист, листов) — высота 5 мм внутри зоны 2.
+    // --- Правая верхняя зона (50×25): Стадия / Лист / Листов ---
     const rightLabels = ['Стадия', 'Лист', 'Листов'];
     const rightValues = [tb.stage, tb.sheetNo, tb.sheetTotal];
     this.setFont(ctx, 3.5, ps);
@@ -240,15 +251,15 @@ export class SheetFrameRenderer {
       rx += mm(cw);
     });
 
-    // Значения стадии, листа, листов — зона 3 (высота 10).
+    // Значения — в центре объединённого блока 50×25.
     this.setFont(ctx, 4.5, ps);
     rx = rightX;
     rightSubCols.forEach((cw, i) => {
-      this.fillCentered(ctx, rightValues[i] || '', rx + mm(cw) / 2, y + mm(30));
+      this.fillCentered(ctx, rightValues[i] || '', rx + mm(cw) / 2, y + mm(22.5));
       rx += mm(cw);
     });
 
-    // Зона 9 (правая нижняя, 50×15): масштаб.
+    // --- Правая нижняя зона 9 (50×15): масштаб ---
     this.setFont(ctx, 3.5, ps);
     this.fillCentered(ctx, 'Масштаб', rightX + mm(25), signTop + mm(2.5));
     this.setFont(ctx, 4.5, ps);
