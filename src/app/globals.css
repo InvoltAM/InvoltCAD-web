@@ -377,6 +377,36 @@ body {
   background: var(--border);
 }
 
+.sheet-tab-menu-file {
+  max-width: 140px;
+  font-size: 11px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.sheet-tab-menu-btn {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-bg);
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.sheet-tab-menu-btn:hover {
+  background: var(--hover-bg);
+}
+
+.sheet-tab-menu-logo-preview {
+  max-width: 40px;
+  max-height: 24px;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  display: none;
+}
+
 .sheet-add {
   flex: 0 0 auto;
   width: 32px;

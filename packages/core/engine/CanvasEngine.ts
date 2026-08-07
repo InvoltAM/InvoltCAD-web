@@ -83,7 +83,7 @@ export class CanvasEngine {
     this.cableRenderer = new CableRenderer(plan, this.camera, this.editorState, this.themeManager);
     this.roomRenderer = new RoomRenderer(plan, this.camera, this.themeManager);
     this.wallDimensionRenderer = new WallDimensionRenderer(plan, this.camera, this.themeManager);
-    this.sheetFrameRenderer = new SheetFrameRenderer(plan, this.camera, this.themeManager);
+    this.sheetFrameRenderer = new SheetFrameRenderer(plan, this.camera, this.themeManager, () => this.requestRender());
 
     this.input = new InputManager(canvas, this.camera);
     this.setupInput();

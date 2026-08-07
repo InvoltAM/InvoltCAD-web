@@ -367,10 +367,77 @@ export class SheetsBar {
       menu.appendChild(createRow(label, controlWrap));
     };
 
+    const createCompanyLogoField = (): void => {
+      const label = document.createElement('span');
+      label.className = 'sheet-tab-menu-label';
+      label.textContent = 'Логотип';
+
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'image/png,image/jpeg,image/svg+xml';
+      fileInput.className = 'sheet-tab-menu-file';
+      fileInput.addEventListener('change', () => {
+        const file = fileInput.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          tb.companyLogo = String(reader.result);
+          this.engine.notifyChanged();
+          updatePreview();
+        };
+        reader.readAsDataURL(file);
+      });
+
+      const clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.textContent = 'Удалить';
+      clearBtn.className = 'sheet-tab-menu-btn';
+      clearBtn.addEventListener('click', () => {
+        tb.companyLogo = '';
+        fileInput.value = '';
+        this.engine.notifyChanged();
+        updatePreview();
+      });
+
+      const preview = document.createElement('img');
+      preview.className = 'sheet-tab-menu-logo-preview';
+      const updatePreview = () => {
+        preview.src = tb.companyLogo || '';
+        preview.style.display = tb.companyLogo ? 'block' : 'none';
+      };
+      updatePreview();
+
+      const checkbox = document.createElement('input');
+      checkbox.className = 'sheet-tab-menu-check';
+      checkbox.type = 'checkbox';
+      checkbox.checked = tb.show.company;
+      checkbox.title = 'Показать в штампе';
+      checkbox.addEventListener('change', () => {
+        tb.show.company = checkbox.checked;
+        this.engine.notifyChanged();
+      });
+      checkbox.addEventListener('click', e => e.stopPropagation());
+
+      const controlWrap = document.createElement('div');
+      controlWrap.className = 'sheet-tab-menu-control';
+      controlWrap.appendChild(fileInput);
+      controlWrap.appendChild(clearBtn);
+      controlWrap.appendChild(preview);
+      controlWrap.appendChild(checkbox);
+
+      const row = document.createElement('div');
+      row.className = 'sheet-tab-menu-row';
+      row.appendChild(label);
+      row.appendChild(controlWrap);
+      menu.appendChild(row);
+    };
+
     createField('№ проекта / Шифр', tb.projectCode, 'projectCode', 'projectCode');
     createField('Адрес', tb.address, 'address', 'address');
     createField('Раздел', tb.section, 'section', 'section');
     createField('Наименование', tb.drawingTitle, 'drawingTitle', 'drawingTitle');
+    createField('Компания', tb.company, 'company', 'company');
+    createCompanyLogoField();
     createField('Стадия', tb.stage, 'stage', 'stage');
     createField('Дата', tb.date, 'date', 'date');
     createField('Утвердил', tb.approver, 'approver', 'row1');

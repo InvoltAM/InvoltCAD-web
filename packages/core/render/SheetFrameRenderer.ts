@@ -8,10 +8,15 @@ import { getSheetDimensions } from '../model/Sheet';
  * Шаг 2: каркас 185×55 мм + 11 строк по 5 мм + левая группа столбцов 10+10+10+10+15+10 мм.
  */
 export class SheetFrameRenderer {
+  /** Кэш загруженных логотипов компаний (data URL → Image). */
+  private static logoCache = new Map<string, HTMLImageElement>();
+
   constructor(
     private plan: Plan,
     private camera: Camera,
     private themeManager: ThemeManager,
+    /** Колбэк для запроса перерисовки после загрузки логотипа. */
+    private onRenderRequest: () => void = () => {},
   ) {}
 
   render(ctx: CanvasRenderingContext2D): void {
@@ -281,6 +286,64 @@ export class SheetFrameRenderer {
     if (show.scaleLabel && tb.scaleLabel) {
       ctx.fillText(tb.scaleLabel, mainRightX + this.mm(40, ps), bottomY);
     }
+
+    // --- Компания / логотип (нижнее правое поле, строки 1–3, 50×15 мм) ---
+    if (show.company) {
+      const companyX = mainRightX;
+      const companyY = y + this.mm(40, ps);
+      const companyW = this.mm(50, ps);
+      const companyH = this.mm(15, ps);
+      if (tb.companyLogo) {
+        this.renderCompanyLogo(ctx, tb.companyLogo, companyX, companyY, companyW, companyH);
+      } else if (tb.company) {
+        ctx.font = `${this.mmToPx(3.5, ps)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(tb.company, companyX + companyW / 2, companyY + companyH / 2);
+      }
+    }
+  }
+
+  /**
+   * Рисует логотип компании в заданном прямоугольнике с сохранением пропорций.
+   */
+  private renderCompanyLogo(
+    ctx: CanvasRenderingContext2D,
+    url: string,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+  ): void {
+    let img = SheetFrameRenderer.logoCache.get(url);
+    if (!img) {
+      img = new Image();
+      img.onload = () => {
+        // Запрашиваем перерисовку, когда логотип загружен.
+        this.onRenderRequest();
+      };
+      img.onerror = () => {
+        SheetFrameRenderer.logoCache.delete(url);
+      };
+      img.src = url;
+      SheetFrameRenderer.logoCache.set(url, img);
+      return;
+    }
+    if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
+      return;
+    }
+    const imgRatio = img.naturalWidth / img.naturalHeight;
+    const boxRatio = w / h;
+    let drawW = w;
+    let drawH = h;
+    if (imgRatio > boxRatio) {
+      drawH = w / imgRatio;
+    } else {
+      drawW = h * imgRatio;
+    }
+    const drawX = x + (w - drawW) / 2;
+    const drawY = y + (h - drawH) / 2;
+    ctx.drawImage(img, drawX, drawY, drawW, drawH);
   }
 
   /** Форматирует дату в мм.гг (например 08.26). */

@@ -35,6 +35,10 @@ export interface SheetTitleBlock {
   docCode: string;
   /** Дата */
   date: string;
+  /** Название компании / организация */
+  company: string;
+  /** Data URL логотипа компании */
+  companyLogo: string;
   /** Разработал */
   designer: string;
   /** Подпись Разработал */
@@ -89,6 +93,7 @@ export interface TitleBlockVisibility {
   reviewer: boolean;
   weight: boolean;
   scaleLabel: boolean;
+  company: boolean;
   /** Видимость строки 1 (Утвердил) */
   row1: boolean;
   /** Видимость строки 2 (Н.контр.) */
@@ -170,6 +175,8 @@ export function createEmptyTitleBlock(): SheetTitleBlock {
     signatureReviewer: '',
     weight: '',
     scaleLabel: '',
+    company: '',
+    companyLogo: '',
     show: {
       organization: true,
       objectName: true,
@@ -191,6 +198,7 @@ export function createEmptyTitleBlock(): SheetTitleBlock {
       reviewer: true,
       weight: true,
       scaleLabel: true,
+      company: true,
       row1: true,
       row2: true,
       row3: true,
