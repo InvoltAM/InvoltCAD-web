@@ -337,6 +337,13 @@ export class SheetsBar {
     const tb = sheet.titleBlock;
     let isChoosingFile = false;
 
+    // Штамп общий для всех листов проекта: изменения применяются ко всем sheets.
+    const syncTitleBlock = (mutator: (block: SheetTitleBlock) => void): void => {
+      for (const s of this.plan.sheets) {
+        mutator(s.titleBlock);
+      }
+    };
+
     const createField = (
       label: string,
       value: string,
@@ -348,7 +355,9 @@ export class SheetsBar {
       input.type = 'text';
       input.value = value;
       input.addEventListener('change', () => {
-        (tb[textKey] as string) = input.value;
+        syncTitleBlock(block => {
+          (block[textKey] as string) = input.value;
+        });
         this.engine.notifyChanged();
       });
       input.addEventListener('keydown', e => e.stopPropagation());
@@ -359,7 +368,9 @@ export class SheetsBar {
       checkbox.checked = tb.show[showKey];
       checkbox.title = 'Показать в штампе';
       checkbox.addEventListener('change', () => {
-        tb.show[showKey] = checkbox.checked;
+        syncTitleBlock(block => {
+          block.show[showKey] = checkbox.checked;
+        });
         this.engine.notifyChanged();
       });
       checkbox.addEventListener('click', e => e.stopPropagation());
@@ -381,13 +392,17 @@ export class SheetsBar {
       fileInput.type = 'file';
       fileInput.accept = 'image/png,image/jpeg,image/svg+xml';
       fileInput.className = 'sheet-tab-menu-file';
+      fileInput.style.display = 'none';
       fileInput.addEventListener('change', () => {
         isChoosingFile = false;
         const file = fileInput.files?.[0];
         if (!file) return;
         const reader = new FileReader();
         reader.onload = () => {
-          tb.companyLogo = String(reader.result);
+          const dataUrl = String(reader.result);
+          syncTitleBlock(block => {
+            block.companyLogo = dataUrl;
+          });
           this.engine.notifyChanged();
           updatePreview();
         };
@@ -395,20 +410,23 @@ export class SheetsBar {
         fileInput.value = '';
       });
 
-      const uploadLabel = document.createElement('label');
-      uploadLabel.className = 'sheet-tab-menu-upload';
-      uploadLabel.textContent = 'Загрузить';
-      uploadLabel.addEventListener('click', () => {
+      const uploadBtn = document.createElement('button');
+      uploadBtn.type = 'button';
+      uploadBtn.textContent = 'Загрузить';
+      uploadBtn.className = 'sheet-tab-menu-btn';
+      uploadBtn.addEventListener('click', () => {
         isChoosingFile = true;
+        fileInput.click();
       });
-      uploadLabel.appendChild(fileInput);
 
       const clearBtn = document.createElement('button');
       clearBtn.type = 'button';
       clearBtn.textContent = 'Удалить';
       clearBtn.className = 'sheet-tab-menu-btn';
       clearBtn.addEventListener('click', () => {
-        tb.companyLogo = '';
+        syncTitleBlock(block => {
+          block.companyLogo = '';
+        });
         fileInput.value = '';
         this.engine.notifyChanged();
         updatePreview();
@@ -428,14 +446,17 @@ export class SheetsBar {
       checkbox.checked = tb.show.company;
       checkbox.title = 'Показать в штампе';
       checkbox.addEventListener('change', () => {
-        tb.show.company = checkbox.checked;
+        syncTitleBlock(block => {
+          block.show.company = checkbox.checked;
+        });
         this.engine.notifyChanged();
       });
       checkbox.addEventListener('click', e => e.stopPropagation());
 
       const controlWrap = document.createElement('div');
       controlWrap.className = 'sheet-tab-menu-control';
-      controlWrap.appendChild(uploadLabel);
+      controlWrap.appendChild(fileInput);
+      controlWrap.appendChild(uploadBtn);
       controlWrap.appendChild(clearBtn);
       controlWrap.appendChild(preview);
       controlWrap.appendChild(checkbox);
