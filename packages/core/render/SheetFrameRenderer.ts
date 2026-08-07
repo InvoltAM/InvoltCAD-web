@@ -231,9 +231,9 @@ export class SheetFrameRenderer {
     // --- Заполняемые поля основного поля ---
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = `${this.mmToPx(3.5, ps)}px sans-serif`;
     // Левая часть основного поля (70 мм)
     const mainLeftCenter = x + leftW + this.mm(35, ps);
+    ctx.font = `${this.mmToPx(3.5, ps)}px sans-serif`;
     if (show.drawingTitle && tb.drawingTitle) {
       // строки 1–3, центр ячейки 70×15 мм
       ctx.fillText(tb.drawingTitle, mainLeftCenter, y + this.mm(47.5, ps));
@@ -242,7 +242,8 @@ export class SheetFrameRenderer {
       // строки 4–6, центр ячейки 70×15 мм
       ctx.fillText(tb.section, mainLeftCenter, y + this.mm(32.5, ps));
     }
-    // Правая часть основного поля (50 мм)
+    // Правая часть основного поля (50 мм) — узкие ячейки, шрифт поменьше
+    ctx.font = `${this.mmToPx(2.5, ps)}px sans-serif`;
     if (show.address && tb.address) {
       // строки 7–9, центр ячейки 20×15 мм (столбец 7)
       ctx.fillText(tb.address, mainRightX + this.mm(40, ps), y + this.mm(17.5, ps));
