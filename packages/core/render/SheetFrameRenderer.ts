@@ -197,10 +197,13 @@ export class SheetFrameRenderer {
     const show = tb.show;
 
     // --- Некорректируемые подписи в объединённых столбцах 1–2 левой группы ---
-    // Строки 2, 3, 6 (снизу); ячейки 20 мм wide (10+10), центрируем в x+10.
+    // Строки 1–6 (снизу); ячейки 20 мм wide (10+10), центрируем в x+10.
     const leftMergedCenter = x + this.mm(10, ps);
+    if (show.approver) ctx.fillText('Утвердил', leftMergedCenter, y + this.mm(52.5, ps));     // строка 1
     if (show.normController) ctx.fillText('Н.контр.', leftMergedCenter, y + this.mm(47.5, ps)); // строка 2
     if (show.gip) ctx.fillText('ГИП', leftMergedCenter, y + this.mm(42.5, ps));               // строка 3
+    if (show.checker) ctx.fillText('Проверил', leftMergedCenter, y + this.mm(37.5, ps));    // строка 4
+    if (show.reviewer) ctx.fillText('Согласовал', leftMergedCenter, y + this.mm(32.5, ps));   // строка 5
     if (show.designer) ctx.fillText('Разраб.', leftMergedCenter, y + this.mm(27.5, ps));       // строка 6
 
     // --- Заполняемые поля фамилий в объединённых столбцах 3–4 (столбец 2) ---
@@ -211,12 +214,22 @@ export class SheetFrameRenderer {
       { value: tb.gip, show: show.gip },                 // строка 3
       { value: tb.checker, show: show.checker },         // строка 4
       { value: tb.reviewer, show: show.reviewer },       // строка 5
-      { value: tb.designer, show: show.designer },         // строка 6
+      { value: tb.designer, show: show.designer },       // строка 6
     ];
     for (let i = 0; i < 6; i++) {
       const rowY = y + this.mm(52.5 - i * 5, ps);
       if (col2Rows[i].show && col2Rows[i].value) {
         ctx.fillText(col2Rows[i].value, col2Center, rowY);
+      }
+    }
+
+    // --- Дата в столбце 4 (Подп.) строк 1–6 в формате мм.гг ---
+    if (show.date && tb.date) {
+      const col4Center = x + this.mm(47.5, ps);
+      const dateLabel = this.formatDateMmYy(tb.date);
+      for (let i = 0; i < 6; i++) {
+        const rowY = y + this.mm(52.5 - i * 5, ps);
+        ctx.fillText(dateLabel, col4Center, rowY);
       }
     }
 
@@ -255,6 +268,18 @@ export class SheetFrameRenderer {
     if (show.scaleLabel && tb.scaleLabel) {
       ctx.fillText(tb.scaleLabel, mainRightX + this.mm(40, ps), bottomY);
     }
+  }
+
+  /** Форматирует дату в мм.гг (например 08.26). */
+  private formatDateMmYy(dateStr: string): string {
+    const parts = dateStr.split(/[.\\/-]/);
+    if (parts.length >= 3) {
+      const mm = parts[1]?.padStart(2, '0') ?? '';
+      const yy = parts[2]?.slice(-2) ?? '';
+      return `${mm}.${yy}`;
+    }
+    // Если формат уже мм.гг или не распарсился — оставляем как есть
+    return dateStr;
   }
 
   /** Перевод мм в мировые единицы. */
