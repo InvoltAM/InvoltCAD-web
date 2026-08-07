@@ -97,10 +97,10 @@ export class SheetFrameRenderer {
   /**
    * Основная надпись по ГОСТ Р 21.101-2020, приложение Ж, форма 3.
    * Штамп 185×55 мм.
-   * - Левая группа учёта изменений: 10+10+10+10+15+10 = 65 мм.
+   * - Левая группа учёта изменений: 10+10+10+10+15+10 = 65 мм (11 строк по 5 мм).
    * - Основное поле: 120 мм (70 мм левая часть + 50 мм правая часть).
    * - Высотные зоны основного поля: 10+15+10+15+5 = 55 мм.
-   * - Правая верхняя зона (Стадия/Лист/Листов) объединена в один блок 50×25 мм.
+   * - Правая верхняя зона: Стадия / Лист / Листов (15+15+20 мм).
    */
   private renderTitleBlock(
     ctx: CanvasRenderingContext2D,
@@ -133,25 +133,21 @@ export class SheetFrameRenderer {
       ctx.stroke();
     }
 
-    // Горизонтальные разделители левой группы совпадают с зонами основного поля.
-    const rowHs = [10, 15, 10, 15, 5]; // сумма 55
-    let accY = y;
-    const rowLines: number[] = [];
-    for (const rh of rowHs.slice(0, -1)) {
-      accY += mm(rh);
-      rowLines.push(accY);
+    // 11 горизонтальных строк по 5 мм в левой группе.
+    ctx.lineWidth = this.strokeWidth(0.35, ps);
+    for (let r = 1; r < 11; r++) {
+      const ry = y + mm(5 * r);
       ctx.beginPath();
-      ctx.moveTo(x, accY);
-      ctx.lineTo(x + leftW, accY);
+      ctx.moveTo(x, ry);
+      ctx.lineTo(x + leftW, ry);
       ctx.stroke();
     }
-    // rowLines = [y+10, y+25, y+35, y+50]
 
-    // Заголовки колонок — первая строка (10 мм), по центру.
+    // Заголовки колонок — первая строка (5 мм), по центру.
     this.setFont(ctx, 3.5, ps);
     cx = x;
     leftCols.forEach((cw, i) => {
-      this.fillCentered(ctx, leftHeaders[i], cx + mm(cw) / 2, y + mm(5));
+      this.fillCentered(ctx, leftHeaders[i], cx + mm(cw) / 2, y + mm(2.5));
       cx += mm(cw);
     });
 
@@ -169,22 +165,16 @@ export class SheetFrameRenderer {
     ctx.lineTo(rightX, y + mm(50)); // до нижней границы рабочих зон
     ctx.stroke();
 
-    // Горизонтальные разделители основного поля.
-    // y+10, y+35, y+50 — на всю ширину основного поля.
-    // y+25 — только левая часть (70 мм), чтобы правая верхняя зона была единым блоком 50×25.
-    const y10 = y + mm(10);
-    const y25 = y + mm(25);
-    const y35 = y + mm(35);
-    const y50 = y + mm(50);
+    // Горизонтальные разделители основного поля: y+10, y+25, y+35, y+50.
+    const rowLines = [mm(10), mm(25), mm(35), mm(50)];
+    for (const dy of rowLines) {
+      ctx.beginPath();
+      ctx.moveTo(mainX, y + dy);
+      ctx.lineTo(x + w, y + dy);
+      ctx.stroke();
+    }
 
-    ctx.beginPath();
-    ctx.moveTo(mainX, y10); ctx.lineTo(x + w, y10);
-    ctx.moveTo(mainX, y35); ctx.lineTo(x + w, y35);
-    ctx.moveTo(mainX, y50); ctx.lineTo(x + w, y50);
-    ctx.moveTo(mainX, y25); ctx.lineTo(rightX, y25);
-    ctx.stroke();
-
-    // Вертикальные разделители правой верхней зоны (15+15+20) внутри блока 50×25.
+    // Вертикальные разделители правой верхней зоны (15+15+20) — зоны 2 и 3.
     const rightSubCols = [15, 15, 20];
     let rx = rightX;
     for (const cw of rightSubCols.slice(0, -1)) {
@@ -241,9 +231,10 @@ export class SheetFrameRenderer {
       this.fillCentered(ctx, signValues[i] || '', cx_, signTop + mm(10));
     }
 
-    // --- Правая верхняя зона (50×25): Стадия / Лист / Листов ---
+    // --- Правая верхняя зона: Стадия / Лист / Листов ---
     const rightLabels = ['Стадия', 'Лист', 'Листов'];
     const rightValues = [tb.stage, tb.sheetNo, tb.sheetTotal];
+    // Заголовки — в верхних 5 мм зоны 2.
     this.setFont(ctx, 3.5, ps);
     rx = rightX;
     rightSubCols.forEach((cw, i) => {
@@ -251,11 +242,11 @@ export class SheetFrameRenderer {
       rx += mm(cw);
     });
 
-    // Значения — в центре объединённого блока 50×25.
+    // Значения — в зоне 3 (высота 10).
     this.setFont(ctx, 4.5, ps);
     rx = rightX;
     rightSubCols.forEach((cw, i) => {
-      this.fillCentered(ctx, rightValues[i] || '', rx + mm(cw) / 2, y + mm(22.5));
+      this.fillCentered(ctx, rightValues[i] || '', rx + mm(cw) / 2, y + mm(30));
       rx += mm(cw);
     });
 
