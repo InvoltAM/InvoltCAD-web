@@ -74,6 +74,10 @@ export class SheetFrameRenderer {
     ctx.lineWidth = this.strokeWidth(0.7, ps);
     ctx.strokeRect(x, y, w, h);
 
+    // Базовые настройки текста по умолчанию
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
     // Левая группа столбцов: 10+10+10+10+15+10 = 65 мм.
     const leftCols = [10, 10, 10, 10, 15, 10];
     const leftW = this.mm(leftCols.reduce((a, b) => a + b, 0), ps);
@@ -242,21 +246,22 @@ export class SheetFrameRenderer {
       // строки 4–6, центр ячейки 70×15 мм
       ctx.fillText(tb.section, mainLeftCenter, y + this.mm(32.5, ps));
     }
-    // Правая часть основного поля (50 мм)
-    const col7Center = mainRightX + this.mm(40, ps);
+    // Основное поле справа от левой группы (120 мм) — объединённые ячейки для
+    // «Адрес» (строки 7–9) и «№ проекта / Шифр» (строки 10–11).
+    const mainFieldCenter = x + leftW + this.mm(60, ps);
     if (show.address && tb.address) {
+      ctx.font = `${this.mmToPx(2.5, ps)}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = `${this.mmToPx(2.5, ps)}px sans-serif`;
-      // строки 7–9, центр ячейки 20×15 мм (столбец 7)
-      ctx.fillText(tb.address, col7Center, y + this.mm(17.5, ps));
+      // строки 7–9, центр ячейки 120×15 мм
+      ctx.fillText(tb.address, mainFieldCenter, y + this.mm(17.5, ps));
     }
     if (show.projectCode && tb.projectCode) {
+      ctx.font = `${this.mmToPx(3.5, ps)}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = `${this.mmToPx(3.5, ps)}px sans-serif`;
-      // строки 10–11, центр ячейки 20×10 мм (столбец 7)
-      ctx.fillText(tb.projectCode, col7Center, y + this.mm(5, ps));
+      // строки 10–11, центр ячейки 120×10 мм
+      ctx.fillText(tb.projectCode, mainFieldCenter, y + this.mm(5, ps));
     }
 
     // --- Правая часть: Стадия ---
