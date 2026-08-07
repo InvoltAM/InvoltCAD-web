@@ -168,6 +168,23 @@ export class SheetFrameRenderer {
         ctx.stroke();
       }
     }
+
+    // --- Шаг 1 надписей: заголовки левой группы (строка 7 снизу, y+20..25) ---
+    const leftHeaders = ['Изм.', 'Кол.уч.', 'Лист', '№док.', 'Подп.', 'Дата'];
+    const labelY = y + this.mm(22.5, ps); // середина строки 7
+    ctx.font = `${this.mmToPx(2.5, ps)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    let hx = x;
+    for (let i = 0; i < leftCols.length; i++) {
+      ctx.fillText(leftHeaders[i], hx + this.mm(leftCols[i] / 2, ps), labelY);
+      hx += this.mm(leftCols[i], ps);
+    }
+  }
+
+  /** Перевод мм в мировые единицы. */
+  private mmToPx(valueMm: number, printScale: number): number {
+    return valueMm * printScale;
   }
 
   /** Перевод мм в мировые единицы с учётом масштаба печати. */
