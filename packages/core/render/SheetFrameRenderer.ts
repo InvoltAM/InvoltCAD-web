@@ -196,41 +196,36 @@ export class SheetFrameRenderer {
     const tb = this.plan.activeSheet.titleBlock;
     const show = tb.show;
 
-    // --- Некорректируемые подписи в объединённых столбцах 1–2 левой группы ---
-    // Строки 1–6 (снизу); ячейки 20 мм wide (10+10), центрируем в x+10.
+    // --- Строки 1–6 левой группы (роль / фамилия / подпись / дата) ---
+    // Все 6 строк управляются флагами show.row1..show.row6.
     const leftMergedCenter = x + this.mm(10, ps);
-    if (show.approver) ctx.fillText('Утвердил', leftMergedCenter, y + this.mm(52.5, ps));     // строка 1
-    if (show.normController) ctx.fillText('Н.контр.', leftMergedCenter, y + this.mm(47.5, ps)); // строка 2
-    if (show.gip) ctx.fillText('ГИП', leftMergedCenter, y + this.mm(42.5, ps));               // строка 3
-    if (show.checker) ctx.fillText('Проверил', leftMergedCenter, y + this.mm(37.5, ps));    // строка 4
-    if (show.reviewer) ctx.fillText('Согласовал', leftMergedCenter, y + this.mm(32.5, ps));   // строка 5
-    if (show.designer) ctx.fillText('Разраб.', leftMergedCenter, y + this.mm(27.5, ps));       // строка 6
-
-    // --- Заполняемые поля фамилий в объединённых столбцах 3–4 (столбец 2) ---
     const col2Center = x + this.mm(30, ps);
-    const col2Rows: Array<{ value: string; show: boolean }> = [
-      { value: tb.approver, show: show.approver },       // строка 1
-      { value: tb.normController, show: show.normController }, // строка 2
-      { value: tb.gip, show: show.gip },                 // строка 3
-      { value: tb.checker, show: show.checker },         // строка 4
-      { value: tb.reviewer, show: show.reviewer },       // строка 5
-      { value: tb.designer, show: show.designer },       // строка 6
-    ];
-    for (let i = 0; i < 6; i++) {
-      const rowY = y + this.mm(52.5 - i * 5, ps);
-      if (col2Rows[i].show && col2Rows[i].value) {
-        ctx.fillText(col2Rows[i].value, col2Center, rowY);
-      }
-    }
+    const col3Center = x + this.mm(47.5, ps);
+    const col6Center = x + this.mm(60, ps);
+    const dateLabel = show.date && tb.date ? this.formatDateMmYy(tb.date) : '';
 
-    // --- Дата в столбце 6 (Дата) строк 1–6 в формате мм.гг ---
-    if (show.date && tb.date) {
-      const col6Center = x + this.mm(60, ps);
-      const dateLabel = this.formatDateMmYy(tb.date);
-      for (let i = 0; i < 6; i++) {
-        const rowY = y + this.mm(52.5 - i * 5, ps);
-        ctx.fillText(dateLabel, col6Center, rowY);
-      }
+    const rows: Array<{
+      show: boolean;
+      role: string;
+      name: string;
+      signature: string;
+    }> = [
+      { show: show.row1, role: 'Утвердил', name: tb.approver, signature: tb.signatureApprover },
+      { show: show.row2, role: 'Н.контр.', name: tb.normController, signature: tb.signatureNormController },
+      { show: show.row3, role: 'ГИП', name: tb.gip, signature: tb.signatureGip },
+      { show: show.row4, role: 'Проверил', name: tb.checker, signature: tb.signatureChecker },
+      { show: show.row5, role: 'Согласовал', name: tb.reviewer, signature: tb.signatureReviewer },
+      { show: show.row6, role: 'Разраб.', name: tb.designer, signature: tb.signatureDesigner },
+    ];
+
+    for (let i = 0; i < 6; i++) {
+      const row = rows[i];
+      if (!row.show) continue;
+      const rowY = y + this.mm(52.5 - i * 5, ps);
+      ctx.fillText(row.role, leftMergedCenter, rowY);
+      if (row.name) ctx.fillText(row.name, col2Center, rowY);
+      if (row.signature) ctx.fillText(row.signature, col3Center, rowY);
+      if (dateLabel) ctx.fillText(dateLabel, col6Center, rowY);
     }
 
     // --- Графы 1-5 и 9 основного поля (70 мм + 50 мм) ---

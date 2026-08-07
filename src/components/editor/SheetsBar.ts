@@ -371,12 +371,12 @@ export class SheetsBar {
     createField('Лист', tb.sheetNo, 'sheetNo', 'sheetNo');
     createField('Листов', tb.sheetTotal, 'sheetTotal', 'sheetTotal');
     createField('Дата', tb.date, 'date', 'date');
-    createField('Утвердил', tb.approver, 'approver', 'approver');
-    createField('Н. контр.', tb.normController, 'normController', 'normController');
-    createField('ГИП', tb.gip, 'gip', 'gip');
-    createField('Проверил', tb.checker, 'checker', 'checker');
-    createField('Согласовал', tb.reviewer, 'reviewer', 'reviewer');
-    createField('Разработал', tb.designer, 'designer', 'designer');
+    createField('Утвердил', tb.approver, 'approver', 'row1');
+    createField('Н. контр.', tb.normController, 'normController', 'row2');
+    createField('ГИП', tb.gip, 'gip', 'row3');
+    createField('Проверил', tb.checker, 'checker', 'row4');
+    createField('Согласовал', tb.reviewer, 'reviewer', 'row5');
+    createField('Разработал', tb.designer, 'designer', 'row6');
 
     const rect = anchor.getBoundingClientRect();
     menu.style.left = `${Math.round(rect.left)}px`;

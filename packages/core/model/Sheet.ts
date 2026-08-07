@@ -29,16 +29,28 @@ export interface SheetTitleBlock {
   date: string;
   /** Разработал */
   designer: string;
+  /** Подпись Разработал */
+  signatureDesigner: string;
   /** Проверил */
   checker: string;
+  /** Подпись Проверил */
+  signatureChecker: string;
   /** Н.контр. */
   normController: string;
+  /** Подпись Н.контр. */
+  signatureNormController: string;
   /** ГИП */
   gip: string;
+  /** Подпись ГИП */
+  signatureGip: string;
   /** Утвердил */
   approver: string;
+  /** Подпись Утвердил */
+  signatureApprover: string;
   /** Согласовал */
   reviewer: string;
+  /** Подпись Согласовал */
+  signatureReviewer: string;
   /** Масса (необязательно) */
   weight?: string;
   /** Масштаб (может отличаться от printScale) */
@@ -65,6 +77,18 @@ export interface TitleBlockVisibility {
   reviewer: boolean;
   weight: boolean;
   scaleLabel: boolean;
+  /** Видимость строки 1 (Утвердил) */
+  row1: boolean;
+  /** Видимость строки 2 (Н.контр.) */
+  row2: boolean;
+  /** Видимость строки 3 (ГИП) */
+  row3: boolean;
+  /** Видимость строки 4 (Проверил) */
+  row4: boolean;
+  /** Видимость строки 5 (Согласовал) */
+  row5: boolean;
+  /** Видимость строки 6 (Разработал) */
+  row6: boolean;
 }
 
 export interface Sheet {
@@ -117,11 +141,17 @@ export function createEmptyTitleBlock(): SheetTitleBlock {
     docCode: '',
     date: new Date().toLocaleDateString('ru-RU'),
     designer: '',
+    signatureDesigner: '',
     checker: '',
+    signatureChecker: '',
     normController: '',
+    signatureNormController: '',
     gip: '',
+    signatureGip: '',
     approver: '',
+    signatureApprover: '',
     reviewer: '',
+    signatureReviewer: '',
     weight: '',
     scaleLabel: '',
     show: {
@@ -141,6 +171,12 @@ export function createEmptyTitleBlock(): SheetTitleBlock {
       reviewer: true,
       weight: true,
       scaleLabel: true,
+      row1: true,
+      row2: true,
+      row3: true,
+      row4: true,
+      row5: true,
+      row6: true,
     },
   };
 }
