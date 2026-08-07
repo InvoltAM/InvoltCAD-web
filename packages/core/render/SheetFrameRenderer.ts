@@ -192,6 +192,13 @@ export class SheetFrameRenderer {
     for (let i = 0; i < rightHeaders.length; i++) {
       ctx.fillText(rightHeaders[i], rightSubCenters[i], rightHeaderY);
     }
+
+    // --- Некорректируемые подписи в объединённых столбцах 1–2 левой группы ---
+    // Строки 2, 3, 6 (снизу); ячейки 20 мм wide (10+10), центрируем в x+10.
+    const leftMergedCenter = x + this.mm(10, ps);
+    ctx.fillText('Н.контр.', leftMergedCenter, y + this.mm(47.5, ps)); // строка 2
+    ctx.fillText('ГИП', leftMergedCenter, y + this.mm(42.5, ps));      // строка 3
+    ctx.fillText('Разраб.', leftMergedCenter, y + this.mm(27.5, ps));   // строка 6
   }
 
   /** Перевод мм в мировые единицы. */
