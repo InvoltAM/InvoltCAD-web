@@ -193,12 +193,68 @@ export class SheetFrameRenderer {
       ctx.fillText(rightHeaders[i], rightSubCenters[i], rightHeaderY);
     }
 
+    const tb = this.plan.activeSheet.titleBlock;
+    const show = tb.show;
+
     // --- Некорректируемые подписи в объединённых столбцах 1–2 левой группы ---
     // Строки 2, 3, 6 (снизу); ячейки 20 мм wide (10+10), центрируем в x+10.
     const leftMergedCenter = x + this.mm(10, ps);
-    ctx.fillText('Н.контр.', leftMergedCenter, y + this.mm(47.5, ps)); // строка 2
-    ctx.fillText('ГИП', leftMergedCenter, y + this.mm(42.5, ps));      // строка 3
-    ctx.fillText('Разраб.', leftMergedCenter, y + this.mm(27.5, ps));   // строка 6
+    if (show.normController) ctx.fillText('Н.контр.', leftMergedCenter, y + this.mm(47.5, ps)); // строка 2
+    if (show.gip) ctx.fillText('ГИП', leftMergedCenter, y + this.mm(42.5, ps));               // строка 3
+    if (show.designer) ctx.fillText('Разраб.', leftMergedCenter, y + this.mm(27.5, ps));       // строка 6
+
+    // --- Заполняемые поля фамилий в объединённых столбцах 3–4 (столбец 2) ---
+    const col2Center = x + this.mm(30, ps);
+    const col2Rows: Array<{ value: string; show: boolean }> = [
+      { value: tb.approver, show: show.approver },       // строка 1
+      { value: tb.normController, show: show.normController }, // строка 2
+      { value: tb.gip, show: show.gip },                 // строка 3
+      { value: tb.checker, show: show.checker },         // строка 4
+      { value: tb.reviewer, show: show.reviewer },       // строка 5
+      { value: tb.designer, show: show.designer },         // строка 6
+    ];
+    for (let i = 0; i < 6; i++) {
+      const rowY = y + this.mm(52.5 - i * 5, ps);
+      if (col2Rows[i].show && col2Rows[i].value) {
+        ctx.fillText(col2Rows[i].value, col2Center, rowY);
+      }
+    }
+
+    // --- Графы 1-5 и 9 основного поля (70 мм + 50 мм) ---
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    const mainTextX = x + leftW + this.mm(2, ps);
+    const lineH = this.mmToPx(5, ps);
+    ctx.font = `${this.mmToPx(3.5, ps)}px sans-serif`;
+    if (show.docCode && tb.docCode) {
+      ctx.fillText(tb.docCode, mainTextX, y + this.mm(2, ps));
+    }
+    if (show.organization && tb.organization) {
+      ctx.fillText(tb.organization, mainTextX, y + this.mm(7, ps));
+    }
+    if (show.objectName && tb.objectName) {
+      ctx.fillText(tb.objectName, mainTextX, y + this.mm(12, ps));
+    }
+    if (show.drawingName && tb.drawingName) {
+      ctx.fillText(tb.drawingName, mainTextX, y + this.mm(17, ps));
+    }
+
+    // --- Правая часть: Стадия, Лист, Листов ---
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${this.mmToPx(2.5, ps)}px sans-serif`;
+    if (show.stage) ctx.fillText(tb.stage, rightSubCenters[0], rightHeaderY);
+    if (show.sheetNo) ctx.fillText(tb.sheetNo, rightSubCenters[1], rightHeaderY);
+    if (show.sheetTotal) ctx.fillText(tb.sheetTotal, rightSubCenters[2], rightHeaderY);
+
+    // --- Масса и масштаб (графы 24-25) ---
+    const bottomY = y + this.mm(52.5, ps);
+    if (show.weight && tb.weight) {
+      ctx.fillText(tb.weight, mainRightX + this.mm(25, ps), bottomY);
+    }
+    if (show.scaleLabel && tb.scaleLabel) {
+      ctx.fillText(tb.scaleLabel, mainRightX + this.mm(40, ps), bottomY);
+    }
   }
 
   /** Перевод мм в мировые единицы. */

@@ -33,12 +33,38 @@ export interface SheetTitleBlock {
   checker: string;
   /** Н.контр. */
   normController: string;
+  /** ГИП */
+  gip: string;
   /** Утвердил */
   approver: string;
+  /** Согласовал */
+  reviewer: string;
   /** Масса (необязательно) */
   weight?: string;
   /** Масштаб (может отличаться от printScale) */
   scaleLabel?: string;
+  /** Видимость полей основной надписи */
+  show: TitleBlockVisibility;
+}
+
+/** Флаги видимости каждой графы основной надписи. */
+export interface TitleBlockVisibility {
+  organization: boolean;
+  objectName: boolean;
+  drawingName: boolean;
+  stage: boolean;
+  sheetNo: boolean;
+  sheetTotal: boolean;
+  docCode: boolean;
+  date: boolean;
+  designer: boolean;
+  checker: boolean;
+  normController: boolean;
+  gip: boolean;
+  approver: boolean;
+  reviewer: boolean;
+  weight: boolean;
+  scaleLabel: boolean;
 }
 
 export interface Sheet {
@@ -93,9 +119,29 @@ export function createEmptyTitleBlock(): SheetTitleBlock {
     designer: '',
     checker: '',
     normController: '',
+    gip: '',
     approver: '',
+    reviewer: '',
     weight: '',
     scaleLabel: '',
+    show: {
+      organization: true,
+      objectName: true,
+      drawingName: true,
+      stage: true,
+      sheetNo: true,
+      sheetTotal: true,
+      docCode: true,
+      date: true,
+      designer: true,
+      checker: true,
+      normController: true,
+      gip: true,
+      approver: true,
+      reviewer: true,
+      weight: true,
+      scaleLabel: true,
+    },
   };
 }
 

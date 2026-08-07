@@ -1,6 +1,6 @@
 import { Plan } from '@core/model/Plan';
 import { CanvasEngine } from '@core/engine/CanvasEngine';
-import { PageSize, PageOrientation, PAGE_SIZES } from '@core/model/Sheet';
+import { PageSize, PageOrientation, PAGE_SIZES, SheetTitleBlock, TitleBlockVisibility } from '@core/model/Sheet';
 import { icon } from './icons';
 
 /**
@@ -30,6 +30,12 @@ export class SheetsBar {
     this.closeMenu();
     this.element.innerHTML = '';
 
+    const stampBtn = document.createElement('button');
+    stampBtn.className = 'sheet-stamp-btn';
+    stampBtn.title = 'Штамп';
+    stampBtn.innerHTML = `<span class="ui-icon">${icon('stamp')}</span>`;
+    stampBtn.addEventListener('click', () => this.openStampMenu(stampBtn));
+
     const tabs = document.createElement('div');
     tabs.className = 'sheets-bar-tabs';
 
@@ -43,6 +49,7 @@ export class SheetsBar {
     addBtn.innerHTML = `<span class="ui-icon">${icon('zoomIn')}</span>`;
     addBtn.addEventListener('click', () => this.addSheet());
 
+    this.element.appendChild(stampBtn);
     this.element.appendChild(tabs);
     this.element.appendChild(addBtn);
   }
@@ -285,41 +292,6 @@ export class SheetsBar {
     });
     menu.appendChild(createRow('Масштаб', scaleSelect));
 
-    // Разделитель
-    const divider = document.createElement('div');
-    divider.className = 'sheet-tab-menu-divider';
-    menu.appendChild(divider);
-
-    // Поля основной надписи
-    const tb = sheet.titleBlock;
-    const createInput = (label: string, value: string, key: keyof typeof tb): void => {
-      const input = document.createElement('input');
-      input.className = 'sheet-tab-menu-input';
-      input.type = 'text';
-      input.value = value;
-      input.addEventListener('change', () => {
-        (tb[key] as string) = input.value;
-        this.engine.notifyChanged();
-      });
-      input.addEventListener('keydown', e => e.stopPropagation());
-      menu.appendChild(createRow(label, input));
-    };
-
-    createInput('Организация', tb.organization, 'organization');
-    createInput('Объект', tb.objectName, 'objectName');
-    createInput('Название', tb.drawingName, 'drawingName');
-    createInput('Стадия', tb.stage, 'stage');
-    createInput('Лист', tb.sheetNo, 'sheetNo');
-    createInput('Листов', tb.sheetTotal, 'sheetTotal');
-    createInput('№ документа', tb.docCode, 'docCode');
-    createInput('Дата', tb.date, 'date');
-    createInput('Разработал', tb.designer, 'designer');
-    createInput('Проверил', tb.checker, 'checker');
-    createInput('Н. контр.', tb.normController, 'normController');
-    createInput('Утвердил', tb.approver, 'approver');
-    createInput('Масса', tb.weight ?? '', 'weight');
-    createInput('Масштаб', tb.scaleLabel ?? '', 'scaleLabel');
-
     const rect = anchor.getBoundingClientRect();
     menu.style.left = `${Math.round(rect.left)}px`;
     menu.style.top = `${Math.round(rect.bottom + 6)}px`;
@@ -334,6 +306,90 @@ export class SheetsBar {
       }
     };
     // Закрываем на следующем тике, чтобы текущий click не сразу закрыл меню
+    setTimeout(() => {
+      if (this.outsideClickHandler) {
+        document.addEventListener('click', this.outsideClickHandler, { once: true });
+      }
+    }, 0);
+  }
+
+  private openStampMenu(anchor: HTMLElement): void {
+    this.closeMenu();
+
+    const sheet = this.plan.activeSheet;
+    const menu = document.createElement('div');
+    menu.className = 'sheet-tab-menu stamp-menu';
+
+    const createRow = (label: string, control: HTMLElement): HTMLDivElement => {
+      const row = document.createElement('div');
+      row.className = 'sheet-tab-menu-row';
+      const labelEl = document.createElement('span');
+      labelEl.className = 'sheet-tab-menu-label';
+      labelEl.textContent = label;
+      row.appendChild(labelEl);
+      row.appendChild(control);
+      return row;
+    };
+
+    const tb = sheet.titleBlock;
+    const createField = (
+      label: string,
+      value: string,
+      textKey: keyof SheetTitleBlock,
+      showKey: keyof TitleBlockVisibility,
+    ): void => {
+      const input = document.createElement('input');
+      input.className = 'sheet-tab-menu-input';
+      input.type = 'text';
+      input.value = value;
+      input.addEventListener('change', () => {
+        (tb[textKey] as string) = input.value;
+        this.engine.notifyChanged();
+      });
+      input.addEventListener('keydown', e => e.stopPropagation());
+
+      const checkbox = document.createElement('input');
+      checkbox.className = 'sheet-tab-menu-check';
+      checkbox.type = 'checkbox';
+      checkbox.checked = tb.show[showKey];
+      checkbox.title = 'Показать в штампе';
+      checkbox.addEventListener('change', () => {
+        tb.show[showKey] = checkbox.checked;
+        this.engine.notifyChanged();
+      });
+      checkbox.addEventListener('click', e => e.stopPropagation());
+
+      const controlWrap = document.createElement('div');
+      controlWrap.className = 'sheet-tab-menu-control';
+      controlWrap.appendChild(input);
+      controlWrap.appendChild(checkbox);
+
+      menu.appendChild(createRow(label, controlWrap));
+    };
+
+    createField('Стадия', tb.stage, 'stage', 'stage');
+    createField('Лист', tb.sheetNo, 'sheetNo', 'sheetNo');
+    createField('Листов', tb.sheetTotal, 'sheetTotal', 'sheetTotal');
+    createField('Дата', tb.date, 'date', 'date');
+    createField('Утвердил', tb.approver, 'approver', 'approver');
+    createField('Н. контр.', tb.normController, 'normController', 'normController');
+    createField('ГИП', tb.gip, 'gip', 'gip');
+    createField('Проверил', tb.checker, 'checker', 'checker');
+    createField('Согласовал', tb.reviewer, 'reviewer', 'reviewer');
+    createField('Разработал', tb.designer, 'designer', 'designer');
+
+    const rect = anchor.getBoundingClientRect();
+    menu.style.left = `${Math.round(rect.left)}px`;
+    menu.style.top = `${Math.round(rect.bottom + 6)}px`;
+    document.body.appendChild(menu);
+
+    this.activeMenuEl = menu;
+
+    this.outsideClickHandler = (e: MouseEvent) => {
+      if (!menu.contains(e.target as Node)) {
+        this.closeMenu();
+      }
+    };
     setTimeout(() => {
       if (this.outsideClickHandler) {
         document.addEventListener('click', this.outsideClickHandler, { once: true });

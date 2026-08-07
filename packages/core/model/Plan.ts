@@ -755,6 +755,7 @@ export class Plan {
       // Новый формат: листы с собственными устройствами/кабелями/размерами
       plan.sheets = data.sheets.map((s: any) => {
         const devices = devicesFromJSON(s.devices);
+        const defaultTb = createEmptyTitleBlock();
         return {
           id: s.id || crypto.randomUUID(),
           name: s.name || 'Лист',
@@ -765,8 +766,12 @@ export class Plan {
           orientation: s.orientation || 'landscape',
           printScale: s.printScale ?? 100,
           titleBlock: {
-            ...createEmptyTitleBlock(),
+            ...defaultTb,
             ...(s.titleBlock as Partial<SheetTitleBlock> || {}),
+            show: {
+              ...defaultTb.show,
+              ...(s.titleBlock?.show || {}),
+            },
           },
         };
       });
