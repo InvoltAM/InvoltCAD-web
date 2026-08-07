@@ -247,7 +247,7 @@ export class SheetFrameRenderer {
       ctx.fillText(tb.drawingName, mainTextX, y + this.mm(17, ps));
     }
 
-    // --- Правая часть: Стадия, Лист, Листов ---
+    // --- Правая часть: Стадия ---
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `${this.mmToPx(2.5, ps)}px sans-serif`;
@@ -255,8 +255,6 @@ export class SheetFrameRenderer {
     if (show.stage) {
       ctx.fillText(tb.stage, mainRightX + this.mm(7.5, ps), y + this.mm(35, ps));
     }
-    if (show.sheetNo) ctx.fillText(tb.sheetNo, rightSubCenters[1], rightHeaderY);
-    if (show.sheetTotal) ctx.fillText(tb.sheetTotal, rightSubCenters[2], rightHeaderY);
 
     // --- Масса и масштаб (графы 24-25) ---
     const bottomY = y + this.mm(52.5, ps);
