@@ -3,8 +3,9 @@ export type IconName =
   | 'properties' | 'layers' | 'spec' | 'menu' | 'collapseDown' | 'collapseUp'
   | 'undo' | 'redo' | 'zoomIn' | 'zoomOut' | 'save' | 'exportPng' | 'exportXlsx' | 'exportSvg' | 'print' | 'import' | 'clear'
   | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects'
+  | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects'
   | 'rooms' | 'estimates' | 'invoices' | 'documents' | 'catalog' | 'marking' | 'automation' | 'templates'
-  | 'dotsThreeVertical' | 'stamp';
+  | 'dotsThreeVertical' | 'stamp' | 'exportDxf' | 'exportPdf';
 
 const MAP: Record<IconName, string> = {
   wall: 'wall',
@@ -29,6 +30,8 @@ const MAP: Record<IconName, string> = {
   exportPng: 'image',
   exportXlsx: 'table',
   exportSvg: 'file-svg',
+  exportDxf: 'file-cad',
+  exportPdf: 'file-pdf',
   print: 'printer',
   import: 'upload',
   clear: 'trash',

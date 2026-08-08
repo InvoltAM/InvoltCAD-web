@@ -168,23 +168,29 @@ export default function Toolbar() {
   const handleImport = () => {
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = '.json,application/json,.dxf'
+    input.accept = '.json,application/json,.dxf,.pdf,.dwg'
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
+      const ext = file.name.toLowerCase().split('.').pop()
       try {
-        const text = await file.text()
         const engine = engineRef.current
         if (!engine) return
 
-        if (file.name.toLowerCase().endsWith('.dxf')) {
+        if (ext === 'dxf') {
+          const text = await file.text()
           const { importDxf } = await import('@core/io/DxfImporter')
           const plan = importDxf(text)
           engine.plan = plan
           engine.notifyChanged()
           engine.requestRender()
           alert('DXF импортирован')
+        } else if (ext === 'pdf') {
+          alert('Импорт PDF в качестве подложки пока не реализован. Конвертируйте PDF в DXF или используйте его как растровое изображение вручную.')
+        } else if (ext === 'dwg') {
+          alert('Импорт DWG напрямую не поддерживается в браузере. Сохраните файл в формате DXF и импортируйте его.')
         } else {
+          const text = await file.text()
           const data = JSON.parse(text)
           const res = await fetch('/api/projects', {
             method: 'POST',

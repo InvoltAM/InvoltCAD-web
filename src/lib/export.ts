@@ -22,3 +22,12 @@ export async function exportSvg(engine: CanvasEngine): Promise<void> {
   const { exportToSvg } = await import('@core/io/SvgExporter');
   exportToSvg(engine.plan, 'involtcad-plan.svg');
 }
+
+export async function exportDxf(engine: CanvasEngine): Promise<void> {
+  const { exportToDxf } = await import('@core/io/DxfExporter');
+  exportToDxf(engine.plan, 'involtcad-plan.dxf');
+}
+
+export function exportPdf(engine: CanvasEngine, themeManager: ThemeManager): void {
+  exportPrint(engine, themeManager);
+}

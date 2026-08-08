@@ -3,7 +3,7 @@ import { CanvasEngine } from '@core/engine/CanvasEngine';
 import { ThemeManager } from '@core/editor/ThemeManager';
 import { PageSize, PageOrientation, PAGE_SIZES, Sheet, SheetTitleBlock, TitleBlockVisibility } from '@core/model/Sheet';
 import { projectSync } from '@/lib/projects/sync';
-import { exportPng, exportXlsx, exportSvg, exportPrint } from '@/lib/export';
+import { exportPng, exportXlsx, exportSvg, exportPrint, exportDxf, exportPdf } from '@/lib/export';
 import { icon, IconName } from './icons';
 
 /**
@@ -625,14 +625,20 @@ export class SheetsBar {
       return btn;
     };
 
+    menu.appendChild(createItem('Экспорт PDF', 'exportPdf', () => {
+      exportPdf(this.engine, this.themeManager);
+    }));
+    menu.appendChild(createItem('Экспорт DXF', 'exportDxf', () => {
+      exportDxf(this.engine);
+    }));
+    menu.appendChild(createItem('Экспорт SVG', 'exportSvg', () => {
+      exportSvg(this.engine);
+    }));
     menu.appendChild(createItem('Экспорт PNG', 'exportPng', () => {
       exportPng(this.engine, this.themeManager);
     }));
     menu.appendChild(createItem('Экспорт XLSX', 'exportXlsx', () => {
       exportXlsx(this.engine);
-    }));
-    menu.appendChild(createItem('Экспорт SVG', 'exportSvg', () => {
-      exportSvg(this.engine);
     }));
 
     const rect = anchor.getBoundingClientRect();
