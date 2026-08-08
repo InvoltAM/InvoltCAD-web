@@ -3,7 +3,7 @@ import { CanvasEngine } from '@core/engine/CanvasEngine';
 import { ThemeManager } from '@core/editor/ThemeManager';
 import { PageSize, PageOrientation, PAGE_SIZES, SheetTitleBlock, TitleBlockVisibility } from '@core/model/Sheet';
 import { projectSync } from '@/lib/projects/sync';
-import { exportPng, exportXlsx, exportSvg } from '@/lib/export';
+import { exportPng, exportXlsx, exportSvg, exportPrint } from '@/lib/export';
 import { icon, IconName } from './icons';
 
 /**
@@ -49,6 +49,14 @@ export class SheetsBar {
       }
     });
 
+    const printBtn = document.createElement('button');
+    printBtn.className = 'sheet-stamp-btn';
+    printBtn.title = 'Печать / PDF';
+    printBtn.innerHTML = `<span class="ui-icon">${icon('print')}</span>`;
+    printBtn.addEventListener('click', () => {
+      exportPrint(this.engine, this.themeManager);
+    });
+
     const exportBtn = document.createElement('button');
     exportBtn.className = 'sheet-stamp-btn';
     exportBtn.title = 'Экспорт';
@@ -87,6 +95,7 @@ export class SheetsBar {
     addBtn.addEventListener('click', () => this.addSheet());
 
     this.element.appendChild(saveBtn);
+    this.element.appendChild(printBtn);
     this.element.appendChild(exportBtn);
     this.element.appendChild(stampBtn);
     this.element.appendChild(tabs);

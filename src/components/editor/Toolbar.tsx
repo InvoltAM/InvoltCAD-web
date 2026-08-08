@@ -6,7 +6,6 @@ import { useEditor } from './EditorContext'
 import type { ToolName } from '@core/tools/ToolManager'
 import { Vector2 } from '@core/geometry/Vector2'
 import { projectSync } from '@/lib/projects/sync'
-import { PrintExporter } from '@core/io/PrintExporter'
 import { icon } from './icons'
 
 interface DockTool {
@@ -159,13 +158,6 @@ export default function Toolbar() {
     const next = !orthoMode
     setOrthoMode(next)
     engineRef.current?.editorState.set('orthoMode', next)
-  }
-
-  const handlePrint = () => {
-    const engine = engineRef.current
-    if (!engine) return
-    const exporter = new PrintExporter(engine.plan, engine.editorState, themeManagerRef.current!)
-    exporter.print({ title: 'План помещения' })
   }
 
   const handleImport = () => {
@@ -412,9 +404,6 @@ export default function Toolbar() {
         </div>
 
         <div className="project-sidebar-bottom">
-          <button onClick={handlePrint} className="project-sidebar-btn" title="Печать / PDF">
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('print') }} />
-          </button>
           <button onClick={handleImport} className="project-sidebar-btn" title="Импорт JSON (Ctrl+O)">
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('import') }} />
           </button>
