@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+html, body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#app {
+  transform: scale(var(--ui-scale, 1));
+  transform-origin: 0 0;
+  width: calc(100vw / var(--ui-scale, 1));
+  height: calc(100vh / var(--ui-scale, 1));
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -742,6 +755,36 @@ body {
 
 .panels-menu-item:hover {
   background: var(--hover-bg);
+}
+
+/* Компактный режим плавающих панелей */
+.compact .float-panel {
+  width: 240px;
+}
+
+.compact .float-panel-header {
+  padding: 6px 10px;
+  gap: 6px;
+}
+
+.compact .float-panel-body {
+  padding: 8px;
+}
+
+.compact .float-panel-title {
+  font-size: 11px;
+}
+
+.compact .float-panel-header .ui-icon {
+  font-size: 14px;
+}
+
+.compact .project-sidebar {
+  width: 48px;
+}
+
+.compact .project-sidebar-btn .ui-icon {
+  font-size: 18px;
 }
 
 .panels-menu-check {

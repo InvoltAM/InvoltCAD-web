@@ -78,6 +78,11 @@ export default function Toolbar() {
   const dockRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    document.documentElement.style.setProperty('--ui-scale', String(uiScale))
+    document.documentElement.classList.toggle('compact', compactPanels)
+  }, [uiScale, compactPanels])
+
+  useEffect(() => {
     if (!panelMenuOpen) return
     setPanelItems(panelManagerRef.current?.list() ?? [])
     const onDocClick = (e: MouseEvent) => {

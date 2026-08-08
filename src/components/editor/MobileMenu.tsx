@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useCadStore } from '@/stores/cadStore'
 
 export default function MobileMenu() {
@@ -11,6 +11,11 @@ export default function MobileMenu() {
   const setUiScale = useCadStore((s) => s.setUiScale)
   const compactPanels = useCadStore((s) => s.compactPanels)
   const setCompactPanels = useCadStore((s) => s.setCompactPanels)
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--ui-scale', String(uiScale))
+    document.documentElement.classList.toggle('compact', compactPanels)
+  }, [uiScale, compactPanels])
 
   const handleToggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark'
