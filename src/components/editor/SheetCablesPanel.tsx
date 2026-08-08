@@ -5,7 +5,6 @@ import { useEditor } from './EditorContext'
 import { useCadStore } from '@/stores/cadStore'
 import { Cable } from '@core/model/Cable'
 import { Plan } from '@core/model/Plan'
-import { CABLE_TYPES } from '@core/model/Cable'
 
 interface CableView {
   cable: Cable
@@ -115,45 +114,38 @@ export default function SheetCablesPanel() {
             data-cable-id={cable.id}
             onClick={() => handleSelectCable(cable)}
             className={[
-              'rounded border p-2 text-sm cursor-pointer transition-colors',
+              'grid grid-cols-[auto_1fr_1fr_70px] items-center gap-2 rounded border px-2 py-1.5 text-sm cursor-pointer transition-colors',
               selected
                 ? 'border-[var(--accent)] bg-[var(--accent)]/10'
                 : 'border-[var(--border)] hover:bg-[var(--hover-bg)]',
             ].join(' ')}
           >
-            <div className="flex items-center gap-2 mb-1">
-              <input
-                type="checkbox"
-                checked={cable.visible !== false}
-                onChange={() => handleToggleVisible(cable)}
-                onClick={(e) => e.stopPropagation()}
-                className="rounded border-[var(--border)] bg-[var(--panel-bg)] text-[var(--accent)] focus:ring-[var(--accent)]"
-              />
-              <span className="font-medium text-[var(--text)] truncate">
-                {CABLE_TYPES[cable.type]} {cable.crossSection} мм²
-              </span>
-              <span className="ml-auto text-[var(--text-muted)] whitespace-nowrap">
-                {formatLength(cable)}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="text"
-                value={cable.brand ?? ''}
-                onChange={(e) => handleUpdateBrand(cable, e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-                placeholder="Марка"
-                className="w-full px-1.5 py-1 text-xs rounded border border-[var(--border)] bg-[var(--panel-bg)] text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
-              />
-              <input
-                type="text"
-                value={marking}
-                onChange={(e) => handleUpdateMarking(cable, e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-                placeholder="Маркировка"
-                className="w-full px-1.5 py-1 text-xs rounded border border-[var(--border)] bg-[var(--panel-bg)] text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
-              />
-            </div>
+            <input
+              type="checkbox"
+              checked={cable.visible !== false}
+              onChange={() => handleToggleVisible(cable)}
+              onClick={(e) => e.stopPropagation()}
+              className="rounded border-[var(--border)] bg-[var(--panel-bg)] text-[var(--accent)] focus:ring-[var(--accent)]"
+            />
+            <input
+              type="text"
+              value={marking}
+              onChange={(e) => handleUpdateMarking(cable, e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              placeholder="Маркировка"
+              className="w-full min-w-0 px-1.5 py-1 text-xs rounded border border-[var(--border)] bg-[var(--panel-bg)] text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+            />
+            <input
+              type="text"
+              value={cable.brand ?? ''}
+              onChange={(e) => handleUpdateBrand(cable, e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              placeholder="Марка"
+              className="w-full min-w-0 px-1.5 py-1 text-xs rounded border border-[var(--border)] bg-[var(--panel-bg)] text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+            />
+            <span className="text-right text-[var(--text-muted)] text-xs whitespace-nowrap">
+              {formatLength(cable)}
+            </span>
           </div>
         )
       })}
