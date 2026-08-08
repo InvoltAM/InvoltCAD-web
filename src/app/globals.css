@@ -668,6 +668,15 @@ body {
   align-self: center;
 }
 
+.sheets-bar-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--border);
+  margin: 0 2px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
 .editor-dock-tooltip {
   position: absolute;
   bottom: calc(100% + 8px);

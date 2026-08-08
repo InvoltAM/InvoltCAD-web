@@ -94,9 +94,13 @@ export class SheetsBar {
     addBtn.innerHTML = `<span class="ui-icon">${icon('zoomIn')}</span>`;
     addBtn.addEventListener('click', () => this.addSheet());
 
+    const divider = document.createElement('div');
+    divider.className = 'sheets-bar-divider';
+
     this.element.appendChild(saveBtn);
     this.element.appendChild(printBtn);
     this.element.appendChild(exportBtn);
+    this.element.appendChild(divider);
     this.element.appendChild(stampBtn);
     this.element.appendChild(tabs);
     this.element.appendChild(addBtn);
