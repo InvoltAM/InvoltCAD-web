@@ -6,6 +6,7 @@ export interface PanelConfig {
   icon: string;
   body: HTMLElement;
   width?: number;
+  menuVisible?: boolean;
 }
 
 interface PanelState {
@@ -717,12 +718,14 @@ export class PanelManager {
   }
 
   list(): Array<{ id: string; title: string; icon: string; visible: boolean }> {
-    return this.panels.map(p => ({
-      id: p.id,
-      title: p.config.title,
-      icon: p.config.icon,
-      visible: !p.closed,
-    }));
+    return this.panels
+      .filter(p => p.config.menuVisible !== false)
+      .map(p => ({
+        id: p.id,
+        title: p.config.title,
+        icon: p.config.icon,
+        visible: !p.closed,
+      }));
   }
 
   destroy(): void {
