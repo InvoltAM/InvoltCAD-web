@@ -162,17 +162,6 @@ export default function Toolbar() {
     engineRef.current?.editorState.set('orthoMode', next)
   }
 
-  const handleSave = async () => {
-    const engine = engineRef.current
-    if (!engine) return
-    try {
-      await projectSync.saveProject(engine.plan)
-      alert('Проект сохранён')
-    } catch {
-      alert('Ошибка сохранения проекта')
-    }
-  }
-
   const handleExportPng = () => {
     const engine = engineRef.current
     if (!engine) return
@@ -445,9 +434,6 @@ export default function Toolbar() {
         </div>
 
         <div className="project-sidebar-bottom">
-          <button onClick={handleSave} className="project-sidebar-btn" title="Сохранить (Ctrl+S)">
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('save') }} />
-          </button>
           <button onClick={handleExportPng} className="project-sidebar-btn" title="Экспорт PNG">
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('exportPng') }} />
           </button>

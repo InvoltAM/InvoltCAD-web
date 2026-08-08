@@ -1,6 +1,7 @@
 import { Plan } from '@core/model/Plan';
 import { CanvasEngine } from '@core/engine/CanvasEngine';
 import { PageSize, PageOrientation, PAGE_SIZES, SheetTitleBlock, TitleBlockVisibility } from '@core/model/Sheet';
+import { projectSync } from '@/lib/projects/sync';
 import { icon } from './icons';
 
 /**
@@ -32,6 +33,19 @@ export class SheetsBar {
     if (this.activeMenuEl) return;
     this.element.innerHTML = '';
 
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'sheet-stamp-btn';
+    saveBtn.title = 'Сохранить (Ctrl+S)';
+    saveBtn.innerHTML = `<span class="ui-icon">${icon('save')}</span>`;
+    saveBtn.addEventListener('click', async () => {
+      try {
+        await projectSync.saveProject(this.engine.plan);
+        alert('Проект сохранён');
+      } catch {
+        alert('Ошибка сохранения проекта');
+      }
+    });
+
     const stampBtn = document.createElement('button');
     stampBtn.className = 'sheet-stamp-btn';
     stampBtn.title = 'Штамп';
@@ -57,6 +71,7 @@ export class SheetsBar {
     addBtn.innerHTML = `<span class="ui-icon">${icon('zoomIn')}</span>`;
     addBtn.addEventListener('click', () => this.addSheet());
 
+    this.element.appendChild(saveBtn);
     this.element.appendChild(stampBtn);
     this.element.appendChild(tabs);
     this.element.appendChild(addBtn);
