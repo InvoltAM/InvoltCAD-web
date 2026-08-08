@@ -257,7 +257,14 @@ export default function Toolbar() {
   const getDockScale = useCallback(
     (id: string) => {
       if (!hoveredDockId) return 1
-      const allIds = [...drawingTools.map((t) => t.name), 'panels', 'validation', 'theme'] as string[]
+      const allIds = [
+        ...drawingTools.map((t) => t.name),
+        'undo',
+        'redo',
+        'panels',
+        'validation',
+        'theme',
+      ] as string[]
       const idx = allIds.indexOf(id)
       const hoverIdx = allIds.indexOf(hoveredDockId)
       if (idx === -1 || hoverIdx === -1) return 1
@@ -271,6 +278,18 @@ export default function Toolbar() {
   )
 
   const dockActions: DockAction[] = [
+    {
+      id: 'undo',
+      label: 'Отменить',
+      icon: icon('undo'),
+      onClick: handleUndo,
+    },
+    {
+      id: 'redo',
+      label: 'Повторить',
+      icon: icon('redo'),
+      onClick: handleRedo,
+    },
     {
       id: 'panels',
       label: 'Панели',
@@ -397,12 +416,6 @@ export default function Toolbar() {
         </div>
 
         <div className="project-sidebar-bottom">
-          <button onClick={handleUndo} className="project-sidebar-btn" title="Отменить (Ctrl+Z)">
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('undo') }} />
-          </button>
-          <button onClick={handleRedo} className="project-sidebar-btn" title="Повторить (Ctrl+Y)">
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('redo') }} />
-          </button>
           <button onClick={() => handleZoom(1.25)} className="project-sidebar-btn" title="Приблизить">
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('zoomIn') }} />
           </button>
