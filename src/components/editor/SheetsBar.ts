@@ -91,7 +91,7 @@ export class SheetsBar {
     const addBtn = document.createElement('button');
     addBtn.className = 'sheet-add';
     addBtn.title = 'Добавить лист';
-    addBtn.innerHTML = `<span class="ui-icon">${icon('zoomIn')}</span>`;
+    addBtn.innerHTML = `<span class="ui-icon">${icon('plus')}</span>`;
     addBtn.addEventListener('click', () => this.addSheet());
 
     const divider = document.createElement('div');

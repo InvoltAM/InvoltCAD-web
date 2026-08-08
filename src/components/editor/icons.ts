@@ -5,7 +5,7 @@ export type IconName =
   | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects'
   | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects'
   | 'rooms' | 'estimates' | 'invoices' | 'documents' | 'catalog' | 'marking' | 'automation' | 'templates'
-  | 'dotsThreeVertical' | 'stamp' | 'exportDxf' | 'exportPdf';
+  | 'dotsThreeVertical' | 'stamp' | 'exportDxf' | 'exportPdf' | 'plus';
 
 const MAP: Record<IconName, string> = {
   wall: 'wall',
@@ -55,6 +55,7 @@ const MAP: Record<IconName, string> = {
   templates: 'copy',
   dotsThreeVertical: 'dots-three-vertical',
   stamp: 'stamp',
+  plus: 'plus',
 };
 
 export function icon(name: IconName): string {
