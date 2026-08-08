@@ -330,7 +330,7 @@ export default function Toolbar() {
             title="Кабельный журнал"
           >
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('cable') }} />
-            <span className="project-sidebar-label">Кабели</span>
+            <span className="project-sidebar-label">КЖ</span>
           </button>
           <button
             onClick={handleToggleOls}
