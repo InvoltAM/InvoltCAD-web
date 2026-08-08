@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useEditor } from './EditorContext'
 import { useCadStore } from '@/stores/cadStore'
-import { Cable } from '@core/model/Cable'
+import { Cable, STANDARD_CABLE_BRANDS, STANDARD_CABLE_SECTIONS } from '@core/model/Cable'
 import { Plan } from '@core/model/Plan'
 
 interface CableView {
@@ -78,6 +78,14 @@ export default function SheetCablesPanel() {
     engine.requestRender()
   }
 
+  const handleUpdateSection = (cable: Cable, value: number) => {
+    const engine = engineRef.current
+    if (!engine) return
+    cable.crossSection = value
+    engine.notifyChanged()
+    engine.requestRender()
+  }
+
   const handleUpdateMarking = (cable: Cable, value: string) => {
     const engine = engineRef.current
     if (!engine) return
@@ -114,7 +122,7 @@ export default function SheetCablesPanel() {
             data-cable-id={cable.id}
             onClick={() => handleSelectCable(cable)}
             className={[
-              'grid grid-cols-[auto_0.8fr_1.7fr_40px_45px] items-center gap-2 rounded border px-2 py-1.5 text-sm cursor-pointer transition-colors',
+              'grid grid-cols-[auto_0.8fr_1.7fr_55px_45px] items-center gap-2 rounded border px-2 py-1.5 text-sm cursor-pointer transition-colors',
               selected
                 ? 'border-[var(--accent)] bg-[var(--accent)]/10'
                 : 'border-[var(--border)] hover:bg-[var(--hover-bg)]',
@@ -135,17 +143,29 @@ export default function SheetCablesPanel() {
               placeholder="Маркировка"
               className="w-full min-w-0 px-1.5 py-1 text-xs rounded border border-[var(--border)] bg-[var(--panel-bg)] text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
             />
-            <input
-              type="text"
+            <select
               value={cable.brand ?? ''}
               onChange={(e) => handleUpdateBrand(cable, e.target.value)}
               onClick={(e) => e.stopPropagation()}
-              placeholder="Марка"
-              className="w-full min-w-0 px-1.5 py-1 text-xs rounded border border-[var(--border)] bg-[var(--panel-bg)] text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
-            />
-            <span className="text-center text-[var(--text)] text-xs whitespace-nowrap">
-              {cable.crossSection}
-            </span>
+              onMouseDown={(e) => e.stopPropagation()}
+              className="w-full min-w-0 px-1 py-1 text-xs rounded border border-[var(--border)] bg-[var(--panel-bg)] text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+            >
+              <option value="">—</option>
+              {STANDARD_CABLE_BRANDS.map((brand) => (
+                <option key={brand} value={brand}>{brand}</option>
+              ))}
+            </select>
+            <select
+              value={cable.crossSection}
+              onChange={(e) => handleUpdateSection(cable, Number(e.target.value))}
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="w-full min-w-0 px-1 py-1 text-xs rounded border border-[var(--border)] bg-[var(--panel-bg)] text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+            >
+              {STANDARD_CABLE_SECTIONS.map((section) => (
+                <option key={section} value={section}>{section}</option>
+              ))}
+            </select>
             <span className="text-right text-[var(--text-muted)] text-xs whitespace-nowrap">
               {formatLength(cable)}
             </span>

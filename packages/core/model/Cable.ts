@@ -26,6 +26,28 @@ export const DEFAULT_CABLE: { type: CableType; crossSection: number; visible: bo
   marking: '',
 };
 
+/** Стандартные марки кабеля для выпадающего списка. */
+export const STANDARD_CABLE_BRANDS: string[] = [
+  'ВВГнг(A)-LS',
+  'ВВГнг-LS',
+  'ВВГнг(A)-FRLS',
+  'ВВГнг-FRLS',
+  'ВВГнг(A)-HFRLS',
+  'ВВГнг-HFRLS',
+  'КГВВГнг(А)-FRLS',
+  'КГВВГнг(А)-HFRLS',
+  'NYM',
+  'ПВС',
+  'ШВВП',
+  'КГ',
+  'КГ-ХЛ',
+];
+
+/** Стандартные сечения кабеля, мм². */
+export const STANDARD_CABLE_SECTIONS: number[] = [
+  0.5, 0.75, 1, 1.5, 2.5, 4, 6, 10, 16, 25, 35, 50, 70, 95,
+];
+
 export const CABLE_TYPES: Record<CableType, string> = {
   power: 'Силовой',
   lighting: 'Освещение',
