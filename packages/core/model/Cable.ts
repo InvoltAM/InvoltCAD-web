@@ -13,11 +13,17 @@ export interface Cable {
   totalLength?: number; // длина с запасом, мм
   route: Vector2[];     // точки маршрута кабеля
   circuitId?: string;   // привязка к линии/цепи щита
+  visible?: boolean;    // видимость на чертеже
+  brand?: string;       // марка кабеля
+  marking?: string;     // маркировка линии
 }
 
-export const DEFAULT_CABLE: { type: CableType; crossSection: number } = {
+export const DEFAULT_CABLE: { type: CableType; crossSection: number; visible: boolean; brand: string; marking: string } = {
   type: 'power',
   crossSection: 2.5,
+  visible: true,
+  brand: '',
+  marking: '',
 };
 
 export const CABLE_TYPES: Record<CableType, string> = {

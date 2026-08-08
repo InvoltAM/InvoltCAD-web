@@ -33,6 +33,7 @@ export class CableRenderer {
     const rect = this.camera.visibleRect(0.1);
 
     for (const cable of this.plan.cables) {
+      if (cable.visible === false) continue;
       const from = this.plan.findDevice(cable.fromDeviceId);
       const to = this.plan.findDevice(cable.toDeviceId);
       if (!from || !to) continue;

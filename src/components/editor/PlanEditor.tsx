@@ -24,6 +24,7 @@ import ValidationPanel from './ValidationPanel'
 import MobileMenu from './MobileMenu'
 import ProjectsPanel from './ProjectsPanel'
 import CableJournalPanel from './CableJournalPanel'
+import SheetCablesPanel from './SheetCablesPanel'
 import OlsPanel from './OlsPanel'
 import PanelEditor from './PanelEditor'
 import RoomsPanel from './RoomsPanel'
@@ -49,8 +50,9 @@ export default function PlanEditor() {
     layers: HTMLElement | null
     spec: HTMLElement | null
     cableJournal: HTMLElement | null
+    sheetCables: HTMLElement | null
     validation: HTMLElement | null
-  }>({ property: null, layers: null, spec: null, cableJournal: null, validation: null })
+  }>({ property: null, layers: null, spec: null, cableJournal: null, sheetCables: null, validation: null })
 
   const currentTool = useCadStore((s) => s.currentTool)
   const theme = useCadStore((s) => s.theme)
@@ -164,6 +166,7 @@ export default function PlanEditor() {
       const layersBody = document.createElement('div')
       const specBody = document.createElement('div')
       const cableJournalBody = document.createElement('div')
+      const sheetCablesBody = document.createElement('div')
       const validationBody = document.createElement('div')
 
       panelManagerRef.current = new PanelManager(
@@ -171,7 +174,8 @@ export default function PlanEditor() {
           { id: 'properties', title: 'Свойства', icon: icon('properties'), body: propertyBody },
           { id: 'layers', title: 'Слои', icon: icon('layers'), body: layersBody },
           { id: 'spec', title: 'Спецификация', icon: icon('spec'), body: specBody },
-          { id: 'cableJournal', title: 'Кабели', icon: icon('cable'), body: cableJournalBody },
+          { id: 'cableJournal', title: 'Кабельный журнал', icon: icon('cable'), body: cableJournalBody },
+          { id: 'sheetCables', title: 'Кабели', icon: icon('cable'), body: sheetCablesBody },
           { id: 'validation', title: 'Проверка', icon: icon('properties'), body: validationBody },
         ],
         app,
@@ -184,13 +188,14 @@ export default function PlanEditor() {
         layers: layersBody,
         spec: specBody,
         cableJournal: cableJournalBody,
+        sheetCables: sheetCablesBody,
         validation: validationBody,
       })
     }
 
     return () => {
       unsubscribe()
-      setPanelBodies({ property: null, layers: null, spec: null, cableJournal: null, validation: null })
+      setPanelBodies({ property: null, layers: null, spec: null, cableJournal: null, sheetCables: null, validation: null })
       engine.destroy()
       engineRef.current = null
       panelManagerRef.current?.destroy()
@@ -288,6 +293,7 @@ export default function PlanEditor() {
         {panelBodies.layers && createPortal(<LayersPanel />, panelBodies.layers)}
         {panelBodies.spec && createPortal(<SpecPanel />, panelBodies.spec)}
         {panelBodies.cableJournal && createPortal(<CableJournalPanel />, panelBodies.cableJournal)}
+        {panelBodies.sheetCables && createPortal(<SheetCablesPanel />, panelBodies.sheetCables)}
         {panelBodies.validation && createPortal(<ValidationPanel />, panelBodies.validation)}
       </div>
     </EditorProvider>

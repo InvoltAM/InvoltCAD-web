@@ -635,6 +635,9 @@ export class Plan {
       totalLength: c.totalLength,
       route: c.route.map(p => ({ x: p.x, y: p.y })),
       circuitId: c.circuitId,
+      visible: c.visible ?? true,
+      brand: c.brand ?? '',
+      marking: c.marking ?? '',
     }));
     const dimensionsToJSON = (dimensions: Dimension[]) => dimensions.map(d => ({
       id: d.id,
@@ -736,6 +739,9 @@ export class Plan {
         totalLength: c.totalLength,
         route,
         circuitId: c.circuitId,
+        visible: c.visible ?? true,
+        brand: c.brand ?? '',
+        marking: c.marking ?? '',
       };
     });
 
