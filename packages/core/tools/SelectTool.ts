@@ -59,6 +59,16 @@ export class SelectTool implements Tool {
   private activeRoomVertex: DragRoomVertex | null = null;
   private dragDeviceName: DragDeviceName | null = null;
   private dragDevice: DragDevice | null = null;
+  private selectionBox: {
+    startWorld: Vector2;
+    currentWorld: Vector2;
+    startScreen: Vector2;
+    currentScreen: Vector2;
+  } | null = null;
+  private pointerDownOnEmpty = false;
+  private hasDragged = false;
+  private pointerDownScreen = new Vector2(0, 0);
+  private pointerDownWorld = new Vector2(0, 0);
 
   constructor(
     private canvas: CanvasEngine,
@@ -71,6 +81,9 @@ export class SelectTool implements Tool {
   }
 
   onPointerDown(e: InputEvent): void {
+    this.selectionBox = null;
+    this.pointerDownOnEmpty = false;
+
     const hitDeviceName = this.hitTestDeviceName(e.screenPoint);
     const hitDevice = this.hitTestDevice(e.screenPoint);
     const hitCable = this.hitTestCable(e.screenPoint);
@@ -138,15 +151,36 @@ export class SelectTool implements Tool {
       if (hitRoom !== null) {
         this.clearSelection();
         this.canvas.setSelectedRoom(hitRoom);
+        this.dragOpening = null;
+        this.dragRoomVertex = null;
       } else {
-        this.clearSelection();
+        this.startSelectionBox(e);
       }
-      this.dragOpening = null;
-      this.dragRoomVertex = null;
     }
   }
 
   onPointerMove(e: InputEvent): void {
+    if (this.pointerDownOnEmpty) {
+      const dist = e.screenPoint.distanceTo(this.pointerDownScreen);
+      if (!this.selectionBox && dist > 4) {
+        this.selectionBox = {
+          startWorld: this.pointerDownWorld.clone(),
+          currentWorld: e.worldPoint.clone(),
+          startScreen: this.pointerDownScreen.clone(),
+          currentScreen: e.screenPoint.clone(),
+        };
+        this.hasDragged = true;
+        this.clearSelection();
+      }
+      if (this.selectionBox) {
+        this.selectionBox.currentWorld = e.worldPoint.clone();
+        this.selectionBox.currentScreen = e.screenPoint.clone();
+        this.canvas.setGhost(ctx => this.drawSelectionBox(ctx));
+        this.canvas.requestRender();
+      }
+      return;
+    }
+
     if (this.dragDevice) {
       const { device, wall } = this.dragDevice;
       // Привязка работает и при перетаскивании: позиция идёт через snap
@@ -301,6 +335,24 @@ export class SelectTool implements Tool {
       this.dragRoomVertex = null;
       this.canvas.notifyChanged();
     }
+
+    if (this.selectionBox) {
+      this.finalizeSelectionBox();
+      this.selectionBox = null;
+      this.pointerDownOnEmpty = false;
+      this.canvas.setGhost(null);
+      this.canvas.notifyChanged();
+      return;
+    }
+
+    if (this.pointerDownOnEmpty) {
+      this.clearSelection();
+      this.pointerDownOnEmpty = false;
+      this.canvas.setGhost(null);
+      this.canvas.notifyChanged();
+      return;
+    }
+
     this.dragOpening = null;
   }
 
@@ -623,5 +675,217 @@ export class SelectTool implements Tool {
       if (intersect) inside = !inside;
     }
     return inside;
+  }
+
+  private startSelectionBox(e: InputEvent): void {
+    this.pointerDownOnEmpty = true;
+    this.hasDragged = false;
+    this.pointerDownScreen = e.screenPoint.clone();
+    this.pointerDownWorld = e.worldPoint.clone();
+  }
+
+  private drawSelectionBox(ctx: CanvasRenderingContext2D): void {
+    if (!this.selectionBox) return;
+    const { startWorld, currentWorld, startScreen, currentScreen } = this.selectionBox;
+    const minX = Math.min(startWorld.x, currentWorld.x);
+    const minY = Math.min(startWorld.y, currentWorld.y);
+    const w = Math.abs(currentWorld.x - startWorld.x);
+    const h = Math.abs(currentWorld.y - startWorld.y);
+    const isWindow = currentScreen.x >= startScreen.x;
+    ctx.fillStyle = isWindow ? 'rgba(0, 200, 0, 0.08)' : 'rgba(200, 0, 0, 0.08)';
+    ctx.strokeStyle = isWindow ? 'rgba(0, 160, 0, 0.8)' : 'rgba(160, 0, 0, 0.8)';
+    ctx.lineWidth = 2 / this.canvas.camera.scale;
+    ctx.fillRect(minX, minY, w, h);
+    ctx.strokeRect(minX, minY, w, h);
+  }
+
+  private finalizeSelectionBox(): void {
+    const box = this.getSelectionBox();
+    const isWindow = this.selectionBox!.currentScreen.x >= this.selectionBox!.startScreen.x;
+    const selected = this.selectByBox(box, isWindow);
+    if (selected) {
+      this.applySelection(selected);
+    }
+  }
+
+  private selectByBox(
+    box: { min: Vector2; max: Vector2 },
+    isWindow: boolean,
+  ): { type: 'wall' | 'opening' | 'device' | 'cable' | 'dimension' | 'room'; id: string | number } | null {
+    for (const device of this.plan.devices) {
+      if (this.deviceInBox(device, box, isWindow)) return { type: 'device', id: device.id };
+    }
+    for (const wall of this.plan.walls) {
+      for (const opening of wall.openings) {
+        if (this.openingInBox(opening, wall, box, isWindow)) return { type: 'opening', id: opening.id };
+      }
+    }
+    for (const wall of this.plan.walls) {
+      if (this.wallInBox(wall, box, isWindow)) return { type: 'wall', id: wall.id };
+    }
+    for (const dim of this.plan.dimensions) {
+      if (this.dimensionInBox(dim, box, isWindow)) return { type: 'dimension', id: dim.id };
+    }
+    for (const cable of this.plan.cables) {
+      if (this.cableInBox(cable, box, isWindow)) return { type: 'cable', id: cable.id };
+    }
+    const rooms = this.plan.getRooms();
+    for (let i = 0; i < rooms.length; i++) {
+      if (this.roomInBox(rooms[i], box, isWindow)) return { type: 'room', id: i };
+    }
+    return null;
+  }
+
+  private applySelection(
+    sel: { type: 'wall' | 'opening' | 'device' | 'cable' | 'dimension' | 'room'; id: string | number },
+  ): void {
+    this.clearSelection();
+    switch (sel.type) {
+      case 'wall':
+        this.canvas.setSelectedWall(sel.id as string);
+        break;
+      case 'opening':
+        this.canvas.setSelectedOpening(sel.id as string);
+        break;
+      case 'device':
+        this.canvas.setSelectedDevice(sel.id as string);
+        break;
+      case 'cable':
+        this.canvas.setSelectedCable(sel.id as string);
+        break;
+      case 'dimension':
+        this.canvas.setSelectedDimension(sel.id as string);
+        break;
+      case 'room':
+        this.canvas.setSelectedRoom(sel.id as number);
+        break;
+    }
+  }
+
+  private getSelectionBox(): { min: Vector2; max: Vector2 } {
+    const { startWorld, currentWorld } = this.selectionBox!;
+    return {
+      min: new Vector2(Math.min(startWorld.x, currentWorld.x), Math.min(startWorld.y, currentWorld.y)),
+      max: new Vector2(Math.max(startWorld.x, currentWorld.x), Math.max(startWorld.y, currentWorld.y)),
+    };
+  }
+
+  private pointInBox(p: Vector2, box: { min: Vector2; max: Vector2 }): boolean {
+    return p.x >= box.min.x && p.x <= box.max.x && p.y >= box.min.y && p.y <= box.max.y;
+  }
+
+  private lineIntersectsBox(a: Vector2, b: Vector2, box: { min: Vector2; max: Vector2 }): boolean {
+    if (this.pointInBox(a, box) || this.pointInBox(b, box)) return true;
+    const corners = [
+      box.min,
+      new Vector2(box.max.x, box.min.y),
+      box.max,
+      new Vector2(box.min.x, box.max.y),
+    ];
+    for (let i = 0; i < 4; i++) {
+      if (this.segmentsIntersect(a, b, corners[i], corners[(i + 1) % 4])) return true;
+    }
+    return false;
+  }
+
+  private segmentsIntersect(a1: Vector2, a2: Vector2, b1: Vector2, b2: Vector2): boolean {
+    const d1 = a2.sub(a1).cross(b1.sub(a1));
+    const d2 = a2.sub(a1).cross(b2.sub(a1));
+    const d3 = b2.sub(b1).cross(a1.sub(b1));
+    const d4 = b2.sub(b1).cross(a2.sub(b1));
+    if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+      return true;
+    }
+    return false;
+  }
+
+  private deviceInBox(
+    device: import('../model/Device').Device,
+    box: { min: Vector2; max: Vector2 },
+    isWindow: boolean,
+  ): boolean {
+    const globalIconScale = this.canvas.editorState.get('deviceIconScale') ?? 1;
+    const item = findDeviceCatalogItem(device.type);
+    const baseSizeMm = item ? Math.max(item.width, item.height) : 600;
+    const sizeWorld = baseSizeMm * globalIconScale * getDeviceIconScale(device);
+    const halfWorld = sizeWorld / 2;
+    const pos = this.plan.deviceWorldPosition(device);
+    const wall = this.plan.findWall(device.wallId);
+    let iconPos = pos;
+    if (wall) {
+      const dir = wallDirection(wall);
+      const n = dir.perpendicular();
+      iconPos = pos.add(n.scale(halfWorld * device.side));
+    }
+    return this.pointInBox(iconPos, box);
+  }
+
+  private openingInBox(
+    opening: Opening,
+    wall: Wall,
+    box: { min: Vector2; max: Vector2 },
+    isWindow: boolean,
+  ): boolean {
+    const len = wallLength(wall);
+    if (len === 0) return false;
+    const dir = wallDirection(wall);
+    const center = wall.a.add(dir.scale(opening.t * len));
+    return this.pointInBox(center, box);
+  }
+
+  private wallInBox(wall: Wall, box: { min: Vector2; max: Vector2 }, isWindow: boolean): boolean {
+    const aInside = this.pointInBox(wall.a, box);
+    const bInside = this.pointInBox(wall.b, box);
+    if (isWindow) return aInside && bInside;
+    return aInside || bInside || this.lineIntersectsBox(wall.a, wall.b, box);
+  }
+
+  private dimensionInBox(
+    dim: import('../model/Dimension').Dimension,
+    box: { min: Vector2; max: Vector2 },
+    isWindow: boolean,
+  ): boolean {
+    const aInside = this.pointInBox(dim.a, box);
+    const bInside = this.pointInBox(dim.b, box);
+    if (isWindow) return aInside && bInside;
+    return aInside || bInside || this.lineIntersectsBox(dim.a, dim.b, box);
+  }
+
+  private cableInBox(
+    cable: import('../model/Cable').Cable,
+    box: { min: Vector2; max: Vector2 },
+    isWindow: boolean,
+  ): boolean {
+    if (cable.route.length === 0) return false;
+    if (isWindow) {
+      return cable.route.every(p => this.pointInBox(p, box));
+    }
+    for (let i = 1; i < cable.route.length; i++) {
+      const a = cable.route[i - 1];
+      const b = cable.route[i];
+      if (this.pointInBox(a, box) || this.pointInBox(b, box) || this.lineIntersectsBox(a, b, box)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private roomInBox(
+    room: { polygon: Vector2[]; holes: Vector2[][] },
+    box: { min: Vector2; max: Vector2 },
+    isWindow: boolean,
+  ): boolean {
+    const center = this.polygonCentroid(room.polygon);
+    return this.pointInBox(center, box);
+  }
+
+  private polygonCentroid(polygon: Vector2[]): Vector2 {
+    let x = 0;
+    let y = 0;
+    for (const p of polygon) {
+      x += p.x;
+      y += p.y;
+    }
+    return new Vector2(x / polygon.length, y / polygon.length);
   }
 }
