@@ -1,7 +1,7 @@
 import { Plan } from '@core/model/Plan';
 import { CanvasEngine } from '@core/engine/CanvasEngine';
 import { ThemeManager } from '@core/editor/ThemeManager';
-import { PageSize, PageOrientation, PAGE_SIZES, SheetTitleBlock, TitleBlockVisibility } from '@core/model/Sheet';
+import { PageSize, PageOrientation, PAGE_SIZES, Sheet, SheetTitleBlock, TitleBlockVisibility } from '@core/model/Sheet';
 import { projectSync } from '@/lib/projects/sync';
 import { exportPng, exportXlsx, exportSvg, exportPrint } from '@/lib/export';
 import { icon, IconName } from './icons';
@@ -273,6 +273,16 @@ export class SheetsBar {
     this.openMenu(sheetId, anchor);
   }
 
+  private applyAutoNumbering(sheet: Sheet): void {
+    const index = this.plan.sheets.findIndex(s => s.id === sheet.id);
+    if (index === -1) return;
+    const base = parseInt(sheet.titleBlock.sheetNo, 10);
+    if (Number.isNaN(base)) return;
+    for (let i = index + 1; i < this.plan.sheets.length; i++) {
+      this.plan.sheets[i].titleBlock.sheetNo = String(base + (i - index));
+    }
+  }
+
   private openMenu(sheetId: string, anchor: HTMLElement): void {
     const sheet = this.plan.sheets.find(s => s.id === sheetId);
     if (!sheet) return;
@@ -350,6 +360,9 @@ export class SheetsBar {
     sheetNoInput.value = sheet.titleBlock.sheetNo;
     sheetNoInput.addEventListener('change', () => {
       sheet.titleBlock.sheetNo = sheetNoInput.value;
+      if (sheet.titleBlock.autoNumbering) {
+        this.applyAutoNumbering(sheet);
+      }
       this.engine.notifyChanged();
     });
     sheetNoInput.addEventListener('keydown', e => e.stopPropagation());
@@ -365,6 +378,21 @@ export class SheetsBar {
     });
     sheetTotalInput.addEventListener('keydown', e => e.stopPropagation());
     menu.appendChild(createRow('Листов', sheetTotalInput));
+
+    const autoNumberingCheckbox = document.createElement('input');
+    autoNumberingCheckbox.className = 'sheet-tab-menu-check';
+    autoNumberingCheckbox.type = 'checkbox';
+    autoNumberingCheckbox.checked = sheet.titleBlock.autoNumbering;
+    autoNumberingCheckbox.title = 'Автонумеровать следующие листы';
+    autoNumberingCheckbox.addEventListener('change', () => {
+      sheet.titleBlock.autoNumbering = autoNumberingCheckbox.checked;
+      if (sheet.titleBlock.autoNumbering) {
+        this.applyAutoNumbering(sheet);
+      }
+      this.engine.notifyChanged();
+    });
+    autoNumberingCheckbox.addEventListener('click', e => e.stopPropagation());
+    menu.appendChild(createRow('Автонумерация', autoNumberingCheckbox));
 
     const rect = anchor.getBoundingClientRect();
     menu.style.left = `${Math.round(rect.left)}px`;

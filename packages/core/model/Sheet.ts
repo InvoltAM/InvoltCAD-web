@@ -31,6 +31,8 @@ export interface SheetTitleBlock {
   sheetNo: string;
   /** Всего листов */
   sheetTotal: string;
+  /** Автонумерация следующих листов от этого листа */
+  autoNumbering: boolean;
   /** Шифр / номер документа */
   docCode: string;
   /** Дата */
@@ -159,6 +161,7 @@ export function createEmptyTitleBlock(): SheetTitleBlock {
     stage: '',
     sheetNo: '1',
     sheetTotal: '1',
+    autoNumbering: false,
     docCode: '',
     date: new Date().toLocaleDateString('ru-RU'),
     designer: '',
