@@ -1,8 +1,10 @@
 import { Plan } from '@core/model/Plan';
 import { CanvasEngine } from '@core/engine/CanvasEngine';
+import { ThemeManager } from '@core/editor/ThemeManager';
 import { PageSize, PageOrientation, PAGE_SIZES, SheetTitleBlock, TitleBlockVisibility } from '@core/model/Sheet';
 import { projectSync } from '@/lib/projects/sync';
-import { icon } from './icons';
+import { exportPng, exportXlsx, exportSvg } from '@/lib/export';
+import { icon, IconName } from './icons';
 
 /**
  * Горизонтальная панель листов проекта сверху экрана.
@@ -19,6 +21,7 @@ export class SheetsBar {
   constructor(
     private plan: Plan,
     private engine: CanvasEngine,
+    private themeManager: ThemeManager,
     parent: HTMLElement,
   ) {
     this.element = document.createElement('div');
@@ -43,6 +46,18 @@ export class SheetsBar {
         alert('Проект сохранён');
       } catch {
         alert('Ошибка сохранения проекта');
+      }
+    });
+
+    const exportBtn = document.createElement('button');
+    exportBtn.className = 'sheet-stamp-btn';
+    exportBtn.title = 'Экспорт';
+    exportBtn.innerHTML = `<span class="ui-icon">${icon('exportSvg')}</span>`;
+    exportBtn.addEventListener('click', () => {
+      if (this.activeMenuEl && this.activeMenuEl.classList.contains('export-menu')) {
+        this.closeMenu();
+      } else {
+        this.openExportMenu(exportBtn);
       }
     });
 
@@ -72,6 +87,7 @@ export class SheetsBar {
     addBtn.addEventListener('click', () => this.addSheet());
 
     this.element.appendChild(saveBtn);
+    this.element.appendChild(exportBtn);
     this.element.appendChild(stampBtn);
     this.element.appendChild(tabs);
     this.element.appendChild(addBtn);
@@ -525,6 +541,52 @@ export class SheetsBar {
     setTimeout(() => {
       if (this.outsideClickHandler) {
         document.addEventListener('mousedown', this.outsideClickHandler);
+      }
+    }, 0);
+  }
+
+  private openExportMenu(anchor: HTMLElement): void {
+    this.closeMenu();
+
+    const menu = document.createElement('div');
+    menu.className = 'sheet-tab-menu export-menu';
+
+    const createItem = (label: string, iconName: IconName, action: () => void): HTMLButtonElement => {
+      const btn = document.createElement('button');
+      btn.className = 'sheet-tab-menu-item';
+      btn.innerHTML = `<span class="ui-icon">${icon(iconName)}</span><span>${label}</span>`;
+      btn.addEventListener('click', () => {
+        action();
+        this.closeMenu();
+      });
+      return btn;
+    };
+
+    menu.appendChild(createItem('Экспорт PNG', 'exportPng', () => {
+      exportPng(this.engine, this.themeManager);
+    }));
+    menu.appendChild(createItem('Экспорт XLSX', 'exportXlsx', () => {
+      exportXlsx(this.engine);
+    }));
+    menu.appendChild(createItem('Экспорт SVG', 'exportSvg', () => {
+      exportSvg(this.engine);
+    }));
+
+    const rect = anchor.getBoundingClientRect();
+    menu.style.left = `${Math.round(rect.left)}px`;
+    menu.style.top = `${Math.round(rect.bottom + 6)}px`;
+    document.body.appendChild(menu);
+
+    this.activeMenuEl = menu;
+
+    this.outsideClickHandler = (e: MouseEvent) => {
+      if (!menu.contains(e.target as Node)) {
+        this.closeMenu();
+      }
+    };
+    setTimeout(() => {
+      if (this.outsideClickHandler) {
+        document.addEventListener('mousedown', this.outsideClickHandler, { once: true });
       }
     }, 0);
   }

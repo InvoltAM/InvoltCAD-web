@@ -1,0 +1,18 @@
+import { CanvasEngine } from '@core/engine/CanvasEngine';
+import { ThemeManager } from '@core/editor/ThemeManager';
+import { PngExporter } from '@core/io/PngExporter';
+
+export function exportPng(engine: CanvasEngine, themeManager: ThemeManager): void {
+  const exporter = new PngExporter(engine.plan, engine.editorState, themeManager);
+  exporter.export({ filename: 'involtcad-plan.png', title: 'План помещения' });
+}
+
+export async function exportXlsx(engine: CanvasEngine): Promise<void> {
+  const { exportToXlsx } = await import('@core/io/XlsxExporter');
+  await exportToXlsx(engine.plan, 'involtcad-spec.xlsx');
+}
+
+export async function exportSvg(engine: CanvasEngine): Promise<void> {
+  const { exportToSvg } = await import('@core/io/SvgExporter');
+  exportToSvg(engine.plan, 'involtcad-plan.svg');
+}

@@ -6,7 +6,6 @@ import { useEditor } from './EditorContext'
 import type { ToolName } from '@core/tools/ToolManager'
 import { Vector2 } from '@core/geometry/Vector2'
 import { projectSync } from '@/lib/projects/sync'
-import { PngExporter } from '@core/io/PngExporter'
 import { PrintExporter } from '@core/io/PrintExporter'
 import { icon } from './icons'
 
@@ -160,27 +159,6 @@ export default function Toolbar() {
     const next = !orthoMode
     setOrthoMode(next)
     engineRef.current?.editorState.set('orthoMode', next)
-  }
-
-  const handleExportPng = () => {
-    const engine = engineRef.current
-    if (!engine) return
-    const exporter = new PngExporter(engine.plan, engine.editorState, themeManagerRef.current!)
-    exporter.export({ filename: 'involtcad-plan.png', title: 'План помещения' })
-  }
-
-  const handleExportXlsx = async () => {
-    const engine = engineRef.current
-    if (!engine) return
-    const { exportToXlsx } = await import('@core/io/XlsxExporter')
-    await exportToXlsx(engine.plan, 'involtcad-spec.xlsx')
-  }
-
-  const handleExportSvg = async () => {
-    const engine = engineRef.current
-    if (!engine) return
-    const { exportToSvg } = await import('@core/io/SvgExporter')
-    exportToSvg(engine.plan, 'involtcad-plan.svg')
   }
 
   const handlePrint = () => {
@@ -434,15 +412,6 @@ export default function Toolbar() {
         </div>
 
         <div className="project-sidebar-bottom">
-          <button onClick={handleExportPng} className="project-sidebar-btn" title="Экспорт PNG">
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('exportPng') }} />
-          </button>
-          <button onClick={handleExportXlsx} className="project-sidebar-btn" title="Экспорт XLSX">
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('exportXlsx') }} />
-          </button>
-          <button onClick={handleExportSvg} className="project-sidebar-btn" title="Экспорт SVG">
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('exportSvg') }} />
-          </button>
           <button onClick={handlePrint} className="project-sidebar-btn" title="Печать / PDF">
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('print') }} />
           </button>

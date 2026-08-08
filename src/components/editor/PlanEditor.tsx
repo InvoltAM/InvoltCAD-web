@@ -157,7 +157,7 @@ export default function PlanEditor() {
     const app = document.getElementById('app')
     if (app) {
       // Сначала создаём панель листов, чтобы PanelManager мог избегать её области
-      sheetsBarRef.current = new SheetsBar(plan, engine, app)
+      sheetsBarRef.current = new SheetsBar(plan, engine, themeManager, app)
 
       // Создаём тела плавающих панелей
       const propertyBody = document.createElement('div')
