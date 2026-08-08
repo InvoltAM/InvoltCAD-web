@@ -171,7 +171,7 @@ export default function PlanEditor() {
           { id: 'properties', title: 'Свойства', icon: icon('properties'), body: propertyBody },
           { id: 'layers', title: 'Слои', icon: icon('layers'), body: layersBody },
           { id: 'spec', title: 'Спецификация', icon: icon('spec'), body: specBody },
-          { id: 'cableJournal', title: 'Кабельный журнал', icon: icon('cable'), body: cableJournalBody },
+          { id: 'cableJournal', title: 'Кабели', icon: icon('cable'), body: cableJournalBody },
           { id: 'validation', title: 'Проверка', icon: icon('properties'), body: validationBody },
         ],
         app,
