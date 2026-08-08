@@ -261,6 +261,10 @@ export default function Toolbar() {
         ...drawingTools.map((t) => t.name),
         'undo',
         'redo',
+        'zoomOut',
+        'zoomIn',
+        'clear',
+        'ortho',
         'panels',
         'validation',
         'theme',
@@ -289,6 +293,31 @@ export default function Toolbar() {
       label: 'Повторить',
       icon: icon('redo'),
       onClick: handleRedo,
+    },
+    {
+      id: 'zoomOut',
+      label: 'Отдалить',
+      icon: icon('zoomOut'),
+      onClick: () => handleZoom(0.8),
+    },
+    {
+      id: 'zoomIn',
+      label: 'Приблизить',
+      icon: icon('zoomIn'),
+      onClick: () => handleZoom(1.25),
+    },
+    {
+      id: 'clear',
+      label: 'Очистить план',
+      icon: icon('clear'),
+      onClick: handleClear,
+    },
+    {
+      id: 'ortho',
+      label: 'Орто',
+      icon: icon('ortho'),
+      active: orthoMode,
+      onClick: handleToggleOrtho,
     },
     {
       id: 'panels',
@@ -416,12 +445,6 @@ export default function Toolbar() {
         </div>
 
         <div className="project-sidebar-bottom">
-          <button onClick={() => handleZoom(1.25)} className="project-sidebar-btn" title="Приблизить">
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('zoomIn') }} />
-          </button>
-          <button onClick={() => handleZoom(0.8)} className="project-sidebar-btn" title="Отдалить">
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('zoomOut') }} />
-          </button>
           <button onClick={handleSave} className="project-sidebar-btn" title="Сохранить (Ctrl+S)">
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('save') }} />
           </button>
@@ -439,16 +462,6 @@ export default function Toolbar() {
           </button>
           <button onClick={handleImport} className="project-sidebar-btn" title="Импорт JSON (Ctrl+O)">
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('import') }} />
-          </button>
-          <button onClick={handleClear} className="project-sidebar-btn" title="Очистить план">
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('clear') }} />
-          </button>
-          <button
-            onClick={handleToggleOrtho}
-            className={`project-sidebar-btn ${orthoMode ? 'active' : ''}`}
-            title={orthoMode ? 'Орто: вкл' : 'Орто: выкл (Shift — временно)'}
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('ortho') }} />
           </button>
           <button onClick={handleCycleUiScale} className="project-sidebar-btn" title={`Масштаб UI ${uiScale}×`}>
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('uiScale') }} />
