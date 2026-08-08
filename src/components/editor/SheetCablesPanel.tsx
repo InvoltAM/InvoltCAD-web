@@ -114,7 +114,7 @@ export default function SheetCablesPanel() {
             data-cable-id={cable.id}
             onClick={() => handleSelectCable(cable)}
             className={[
-              'grid grid-cols-[auto_1fr_1fr_70px] items-center gap-2 rounded border px-2 py-1.5 text-sm cursor-pointer transition-colors',
+              'grid grid-cols-[auto_1.5fr_1fr_70px] items-center gap-2 rounded border px-2 py-1.5 text-sm cursor-pointer transition-colors',
               selected
                 ? 'border-[var(--accent)] bg-[var(--accent)]/10'
                 : 'border-[var(--border)] hover:bg-[var(--hover-bg)]',

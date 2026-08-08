@@ -84,6 +84,20 @@ body {
   z-index: 100;
 }
 
+.float-panel[data-panel="sheetCables"] {
+  width: 360px;
+}
+
+@media (max-width: 1023px) {
+  .float-panel[data-panel="sheetCables"] {
+    width: min(360px, calc(100vw - 24px));
+  }
+}
+
+.compact .float-panel[data-panel="sheetCables"] {
+  width: 320px;
+}
+
 .float-panel-header {
   display: flex;
   align-items: center;

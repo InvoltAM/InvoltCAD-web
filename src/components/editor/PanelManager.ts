@@ -5,6 +5,7 @@ export interface PanelConfig {
   title: string;
   icon: string;
   body: HTMLElement;
+  width?: number;
 }
 
 interface PanelState {
@@ -52,6 +53,10 @@ class Panel {
 
   get id(): string {
     return this.config.id;
+  }
+
+  get preferredWidth(): number {
+    return this.config.width ?? PANEL_WIDTH;
   }
 
   private render(): HTMLDivElement {
@@ -321,7 +326,7 @@ export class PanelManager {
       this.panels.push(panel);
       this.parent.appendChild(panel.element);
 
-      const state = saved[config.id] ?? this.defaultState(i);
+      const state = saved[config.id] ?? this.defaultState(panel, i);
       panel.applyState(state);
       panel.element.style.zIndex = String(this.zCounter++);
     });
@@ -430,8 +435,6 @@ export class PanelManager {
 
     const avoid = this.avoidRect();
     let y = avoid ? avoid.bottom + AVOID_MARGIN : 60;
-    const effectiveWidth = Math.max(window.innerWidth, PANEL_WIDTH + 32);
-    const x = Math.max(16, effectiveWidth - PANEL_WIDTH - 16);
 
     const visible = this.panels
       .filter((p) => !p.closed)
@@ -441,6 +444,9 @@ export class PanelManager {
 
     for (const panel of visible) {
       panel.clearSize();
+      const width = panel.preferredWidth;
+      const effectiveWidth = Math.max(window.innerWidth, width + 32);
+      const x = Math.max(16, effectiveWidth - width - 16);
       panel.setPosition(x, y);
       y += panel.element.offsetHeight + PANEL_GAP;
     }
@@ -566,12 +572,13 @@ export class PanelManager {
   }
 
   /** Раскладка по умолчанию: столбик у правого края, ниже панели листов. */
-  private defaultState(index: number): PanelState {
+  private defaultState(panel: Panel, index: number): PanelState {
     const avoid = this.avoidRect();
     const top = avoid ? avoid.bottom + AVOID_MARGIN : 60;
     const headerH = 33;
     const bodyH = 260;
-    const x = window.innerWidth - PANEL_WIDTH - 16;
+    const width = panel.preferredWidth;
+    const x = window.innerWidth - width - 16;
     return {
       x,
       y: top + index * (headerH + bodyH + 12),
