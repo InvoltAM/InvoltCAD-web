@@ -36,7 +36,13 @@ export class SheetsBar {
     stampBtn.className = 'sheet-stamp-btn';
     stampBtn.title = 'Штамп';
     stampBtn.innerHTML = `<span class="ui-icon">${icon('stamp')}</span>`;
-    stampBtn.addEventListener('click', () => this.openStampMenu(stampBtn));
+    stampBtn.addEventListener('click', () => {
+      if (this.activeMenuEl && this.activeMenuEl.classList.contains('stamp-menu')) {
+        this.closeMenu();
+      } else {
+        this.openStampMenu(stampBtn);
+      }
+    });
 
     const tabs = document.createElement('div');
     tabs.className = 'sheets-bar-tabs';
