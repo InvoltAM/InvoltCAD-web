@@ -85,17 +85,17 @@ body {
 }
 
 .float-panel[data-panel="sheetCables"] {
-  width: 360px;
+  width: 400px;
 }
 
 @media (max-width: 1023px) {
   .float-panel[data-panel="sheetCables"] {
-    width: min(360px, calc(100vw - 24px));
+    width: min(400px, calc(100vw - 24px));
   }
 }
 
 .compact .float-panel[data-panel="sheetCables"] {
-  width: 320px;
+  width: 360px;
 }
 
 .float-panel-header {

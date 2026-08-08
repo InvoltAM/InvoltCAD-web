@@ -92,7 +92,7 @@ export default function SheetCablesPanel() {
 
   const formatLength = (cable: Cable) => {
     const meters = (cable.totalLength ?? cable.length) / 1000
-    return `${meters.toFixed(2)} м`
+    return `${meters.toFixed(1)} м`
   }
 
   if (cables.length === 0) {
@@ -114,7 +114,7 @@ export default function SheetCablesPanel() {
             data-cable-id={cable.id}
             onClick={() => handleSelectCable(cable)}
             className={[
-              'grid grid-cols-[auto_1.5fr_1fr_70px] items-center gap-2 rounded border px-2 py-1.5 text-sm cursor-pointer transition-colors',
+              'grid grid-cols-[auto_0.8fr_1.7fr_40px_45px] items-center gap-2 rounded border px-2 py-1.5 text-sm cursor-pointer transition-colors',
               selected
                 ? 'border-[var(--accent)] bg-[var(--accent)]/10'
                 : 'border-[var(--border)] hover:bg-[var(--hover-bg)]',
@@ -143,6 +143,9 @@ export default function SheetCablesPanel() {
               placeholder="Марка"
               className="w-full min-w-0 px-1.5 py-1 text-xs rounded border border-[var(--border)] bg-[var(--panel-bg)] text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
             />
+            <span className="text-center text-[var(--text)] text-xs whitespace-nowrap">
+              {cable.crossSection}
+            </span>
             <span className="text-right text-[var(--text-muted)] text-xs whitespace-nowrap">
               {formatLength(cable)}
             </span>
