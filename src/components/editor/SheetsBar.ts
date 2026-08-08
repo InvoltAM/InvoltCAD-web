@@ -344,6 +344,28 @@ export class SheetsBar {
     });
     menu.appendChild(createRow('Масштаб', scaleSelect));
 
+    const sheetNoInput = document.createElement('input');
+    sheetNoInput.className = 'sheet-tab-menu-input';
+    sheetNoInput.type = 'text';
+    sheetNoInput.value = sheet.titleBlock.sheetNo;
+    sheetNoInput.addEventListener('change', () => {
+      sheet.titleBlock.sheetNo = sheetNoInput.value;
+      this.engine.notifyChanged();
+    });
+    sheetNoInput.addEventListener('keydown', e => e.stopPropagation());
+    menu.appendChild(createRow('Лист', sheetNoInput));
+
+    const sheetTotalInput = document.createElement('input');
+    sheetTotalInput.className = 'sheet-tab-menu-input';
+    sheetTotalInput.type = 'text';
+    sheetTotalInput.value = sheet.titleBlock.sheetTotal;
+    sheetTotalInput.addEventListener('change', () => {
+      sheet.titleBlock.sheetTotal = sheetTotalInput.value;
+      this.engine.notifyChanged();
+    });
+    sheetTotalInput.addEventListener('keydown', e => e.stopPropagation());
+    menu.appendChild(createRow('Листов', sheetTotalInput));
+
     const rect = anchor.getBoundingClientRect();
     menu.style.left = `${Math.round(rect.left)}px`;
     menu.style.top = `${Math.round(rect.bottom + 6)}px`;

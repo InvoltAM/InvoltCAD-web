@@ -269,13 +269,21 @@ export class SheetFrameRenderer {
       ctx.fillText(tb.projectCode, mainFieldCenter, y + this.mm(5, ps));
     }
 
-    // --- Правая часть: Стадия ---
+    // --- Правая часть: Стадия, Лист, Листов ---
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `${this.mmToPx(2.5, ps)}px sans-serif`;
     // Стадия — в объединённых строках 4–5 левого подстолбца правой части (15×10 мм), по центру
     if (show.stage) {
       ctx.fillText(tb.stage, mainRightX + this.mm(7.5, ps), y + this.mm(35, ps));
+    }
+    // Номер листа — в объединённых строках 4–5 среднего подстолбца (15×10 мм)
+    if (show.sheetNo && tb.sheetNo) {
+      ctx.fillText(tb.sheetNo, rightSubX1 + this.mm(7.5, ps), y + this.mm(35, ps));
+    }
+    // Всего листов — в объединённых строках 4–5 правого подстолбца (20×10 мм)
+    if (show.sheetTotal && tb.sheetTotal) {
+      ctx.fillText(tb.sheetTotal, rightSubX2 + this.mm(10, ps), y + this.mm(35, ps));
     }
 
     // --- Масса и масштаб (графы 24-25) ---
