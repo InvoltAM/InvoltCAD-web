@@ -54,6 +54,8 @@ export class CanvasEngine {
   private resizeHandler: () => void;
   private keydownHandler!: (e: KeyboardEvent) => void;
   private themeUnsubscribe: (() => void) | null = null;
+  private layersUnsubscribe: (() => void) | null = null;
+  private snapUnsubscribe: (() => void) | null = null;
 
   onChange?: () => void;
 
@@ -102,6 +104,10 @@ export class CanvasEngine {
     // Перерисовка при смене темы
     this.themeUnsubscribe = this.themeManager.subscribe(() => this.requestRender());
 
+    // Перерисовка при изменении настроек слоёв/привязки
+    this.layersUnsubscribe = this.editorState.subscribe('layers', () => this.requestRender());
+    this.snapUnsubscribe = this.editorState.subscribe('snap', () => this.requestRender());
+
     this.requestRender();
   }
 
@@ -114,6 +120,8 @@ export class CanvasEngine {
     window.removeEventListener('resize', this.resizeHandler);
     window.removeEventListener('keydown', this.keydownHandler);
     this.themeUnsubscribe?.();
+    this.layersUnsubscribe?.();
+    this.snapUnsubscribe?.();
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 

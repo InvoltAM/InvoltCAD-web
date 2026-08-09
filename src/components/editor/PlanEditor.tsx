@@ -85,6 +85,8 @@ export default function PlanEditor() {
     engine.editorState.set('windowWidth', initial.windowWidth)
     engine.editorState.set('defaultCableType', initial.defaultCableType)
     engine.editorState.set('defaultCableSection', initial.defaultCableSection)
+    engine.editorState.set('layers', initial.layers)
+    engine.editorState.set('snap', initial.snap)
 
     // Подписка на изменения cadStore, чтобы инструменты всегда видели актуальные значения
     const syncKeys: Array<keyof typeof initial & string> = [
@@ -96,6 +98,8 @@ export default function PlanEditor() {
       'windowWidth',
       'defaultCableType',
       'defaultCableSection',
+      'layers',
+      'snap',
     ]
     const unsubscribe = useCadStore.subscribe((state, prevState) => {
       for (const key of syncKeys) {
