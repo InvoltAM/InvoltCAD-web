@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useEditor } from './EditorContext'
-import { useCadStore } from '@/stores/cadStore'
 import { Plan } from '@core/model/Plan'
 import { CableRunData, buildCableRuns } from '@core/electrical/CableRunEngine'
 import { RoomData, buildRoomData, ConsumerData } from '@core/electrical/RoomConsumerEngine'
@@ -24,7 +23,6 @@ interface JournalRow extends CableRunData {
 
 export default function CableJournalPanel() {
   const { engineRef } = useEditor()
-  const setCableJournalOpen = useCadStore((s) => s.setCableJournalOpen)
   const [plan, setPlan] = useState<Plan | null>(null)
   const [activeTab, setActiveTab] = useState<TabKey>('standard')
 
@@ -128,10 +126,11 @@ export default function CableJournalPanel() {
   return (
     <div className="flex h-full flex-col text-sm">
       <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--panel-bg)] px-3 py-2">
-        <div className="font-medium text-[var(--text)]">Кабельный журнал</div>
         <div className="flex items-center gap-2">
           <TabButton active={activeTab === 'standard'} onClick={() => setActiveTab('standard')} label="КЖ" />
           <TabButton active={activeTab === 'gost'} onClick={() => setActiveTab('gost')} label="КЖ по ГОСТ" />
+        </div>
+        <div className="flex items-center gap-2">
           <button
             onClick={recalc}
             className="rounded border border-[var(--accent)] bg-[var(--accent)]/10 px-2 py-1 text-xs text-[var(--accent)] hover:bg-[var(--accent)]/20"
@@ -145,13 +144,6 @@ export default function CableJournalPanel() {
             title="Печать кабельного журнала на листе А3 с рамкой и штампом"
           >
             Печать А3
-          </button>
-          <button
-            onClick={() => setCableJournalOpen(false)}
-            className="flex h-6 w-6 items-center justify-center rounded text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text)]"
-            title="Закрыть"
-          >
-            ×
           </button>
         </div>
       </div>

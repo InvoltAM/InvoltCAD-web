@@ -6,7 +6,9 @@ export interface PanelConfig {
   icon: string;
   body: HTMLElement;
   width?: number;
+  height?: number;
   menuVisible?: boolean;
+  onVisibilityChange?: (visible: boolean) => void;
 }
 
 interface PanelState {
@@ -28,7 +30,7 @@ const BASE_Z = 100;
 const AVOID_MARGIN = 8;
 const MIN_VIEWPORT_WIDTH = 400;
 const MIN_PANEL_WIDTH = 240;
-const MAX_PANEL_WIDTH = 600;
+const MAX_PANEL_WIDTH = 1200;
 const MIN_PANEL_HEIGHT = 120;
 
 /**
@@ -240,6 +242,7 @@ class Panel {
   setClosed(closed: boolean): void {
     this.closed = closed;
     this.element.style.display = closed ? 'none' : '';
+    this.config.onVisibilityChange?.(!closed);
     if (this.manager.isLayoutReady()) {
       this.manager.reflowColumns();
     }
@@ -444,10 +447,10 @@ export class PanelManager {
       .map((o) => o.p);
 
     for (const panel of visible) {
-      panel.clearSize();
       const width = panel.preferredWidth;
       const effectiveWidth = Math.max(window.innerWidth, width + 32);
       const x = Math.max(16, effectiveWidth - width - 16);
+      panel.setSize(width, panel.element.offsetHeight);
       panel.setPosition(x, y);
       y += panel.element.offsetHeight + PANEL_GAP;
     }
@@ -577,16 +580,18 @@ export class PanelManager {
     const avoid = this.avoidRect();
     const top = avoid ? avoid.bottom + AVOID_MARGIN : 60;
     const headerH = 33;
-    const bodyH = 260;
-    const width = panel.preferredWidth;
+    const bodyH = panel.config.height ?? 260;
+    const width = Math.min(panel.preferredWidth, window.innerWidth - 32);
     const x = window.innerWidth - width - 16;
     return {
       x,
       y: top + index * (headerH + bodyH + 12),
       xAnchor: 'right',
       xOffset: 16,
-      collapsed: index > 0,
+      collapsed: index > 0 && panel.config.menuVisible !== false,
       closed: false,
+      w: width,
+      h: bodyH,
     };
   }
 

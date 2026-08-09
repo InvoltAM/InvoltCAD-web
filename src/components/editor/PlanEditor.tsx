@@ -51,7 +51,8 @@ export default function PlanEditor() {
     spec: HTMLElement | null
     sheetCables: HTMLElement | null
     validation: HTMLElement | null
-  }>({ property: null, layers: null, spec: null, sheetCables: null, validation: null })
+    cableJournal: HTMLElement | null
+  }>({ property: null, layers: null, spec: null, sheetCables: null, validation: null, cableJournal: null })
 
   const currentTool = useCadStore((s) => s.currentTool)
   const theme = useCadStore((s) => s.theme)
@@ -61,7 +62,6 @@ export default function PlanEditor() {
   const selectedCableId = useCadStore((s) => s.selectedCableId)
   const selectedDimensionId = useCadStore((s) => s.selectedDimensionId)
   const selectedRoomIndex = useCadStore((s) => s.selectedRoomIndex)
-  const cableJournalOpen = useCadStore((s) => s.cableJournalOpen)
 
   // Инициализация движка
   useEffect(() => {
@@ -171,6 +171,7 @@ export default function PlanEditor() {
       const specBody = document.createElement('div')
       const sheetCablesBody = document.createElement('div')
       const validationBody = document.createElement('div')
+      const cableJournalBody = document.createElement('div')
 
       panelManagerRef.current = new PanelManager(
         [
@@ -179,10 +180,23 @@ export default function PlanEditor() {
           { id: 'spec', title: 'Спецификация листа', icon: icon('spec'), body: specBody },
           { id: 'sheetCables', title: 'Кабели', icon: icon('cable'), body: sheetCablesBody, width: 400 },
           { id: 'validation', title: 'Проверка', icon: icon('properties'), body: validationBody },
+          {
+            id: 'cableJournal',
+            title: 'Кабельный журнал',
+            icon: icon('cable'),
+            body: cableJournalBody,
+            width: 1200,
+            height: 500,
+            menuVisible: false,
+            onVisibilityChange: (visible) => useCadStore.getState().setCableJournalOpen(visible),
+          },
         ],
         app,
         sheetsBarRef.current.element
       )
+
+      // Кабельный журнал по умолчанию скрыт, открывается только кнопкой КЖ
+      panelManagerRef.current.hide('cableJournal')
 
       // Рендерим React-компоненты внутри плавающих панелей через порталы
       setPanelBodies({
@@ -191,12 +205,13 @@ export default function PlanEditor() {
         spec: specBody,
         sheetCables: sheetCablesBody,
         validation: validationBody,
+        cableJournal: cableJournalBody,
       })
     }
 
     return () => {
       unsubscribe()
-      setPanelBodies({ property: null, layers: null, spec: null, sheetCables: null, validation: null })
+      setPanelBodies({ property: null, layers: null, spec: null, sheetCables: null, validation: null, cableJournal: null })
       engine.destroy()
       engineRef.current = null
       panelManagerRef.current?.destroy()
@@ -295,11 +310,7 @@ export default function PlanEditor() {
         {panelBodies.spec && createPortal(<SpecPanel />, panelBodies.spec)}
         {panelBodies.sheetCables && createPortal(<SheetCablesPanel />, panelBodies.sheetCables)}
         {panelBodies.validation && createPortal(<ValidationPanel />, panelBodies.validation)}
-        {cableJournalOpen && (
-          <div className="fixed bottom-0 left-0 right-0 z-40 flex max-h-[60vh] flex-col border-t border-[var(--border)] bg-[var(--panel-bg)] shadow-2xl" data-cable-journal>
-            <CableJournalPanel />
-          </div>
-        )}
+        {panelBodies.cableJournal && createPortal(<CableJournalPanel />, panelBodies.cableJournal)}
       </div>
     </EditorProvider>
   )

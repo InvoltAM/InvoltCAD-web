@@ -67,7 +67,6 @@ export default function Toolbar() {
   const templatesOpen = useCadStore((s) => s.templatesOpen)
   const setTemplatesOpen = useCadStore((s) => s.setTemplatesOpen)
   const cableJournalOpen = useCadStore((s) => s.cableJournalOpen)
-  const setCableJournalOpen = useCadStore((s) => s.setCableJournalOpen)
   const { engineRef, themeManagerRef, panelManagerRef } = useEditor()
 
   const [panelMenuOpen, setPanelMenuOpen] = useState(false)
@@ -106,7 +105,7 @@ export default function Toolbar() {
   }
 
   const handleToggleCableJournal = () => {
-    setCableJournalOpen(!cableJournalOpen)
+    panelManagerRef.current?.toggle('cableJournal')
   }
 
   const handleToggleOls = () => {
