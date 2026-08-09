@@ -7,6 +7,7 @@ import { Plan } from '@core/model/Plan'
 import { CableRunData, buildCableRuns } from '@core/electrical/CableRunEngine'
 import { RoomData, buildRoomData, ConsumerData } from '@core/electrical/RoomConsumerEngine'
 import { DEFAULT_DEVICE_NAMES } from '@core/model/Device'
+import { printCableJournal, CableJournalPrintRow } from '@/lib/cableJournalPrint'
 
 type TabKey = 'standard' | 'gost'
 
@@ -48,6 +49,29 @@ export default function CableJournalPanel() {
     engineRef.current?.notifyChanged()
     engineRef.current?.requestRender()
     setPlan(p)
+  }
+
+  const handlePrint = () => {
+    if (!plan) return
+    const printRows: CableJournalPrintRow[] = rows.map((row) => ({
+      idx: row.idx,
+      circuitName: row.circuitName,
+      brand: row.brand,
+      section: row.section,
+      routeM: row.routeM,
+      rise: row.rise,
+      fall: row.fall,
+      totalM: row.totalM,
+      panel: '—',
+      autoNo: row.circuitName,
+      roomName: row.roomName,
+      consumerName: row.consumerName,
+    }))
+    printCableJournal({
+      title: 'Кабельный журнал',
+      rows: printRows,
+      titleBlock: plan.activeSheet?.titleBlock,
+    })
   }
 
   const runs = useMemo(() => {
@@ -113,6 +137,13 @@ export default function CableJournalPanel() {
             title="Пересчитать длины и привязать к линиям"
           >
             Обновить
+          </button>
+          <button
+            onClick={handlePrint}
+            className="rounded border border-[var(--text-secondary)] bg-[var(--hover-bg)] px-2 py-1 text-xs text-[var(--text)] hover:bg-[var(--border)]"
+            title="Печать кабельного журнала на листе А3 с рамкой и штампом"
+          >
+            Печать А3
           </button>
           <button
             onClick={() => setCableJournalOpen(false)}
