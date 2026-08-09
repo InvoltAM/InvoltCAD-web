@@ -131,18 +131,18 @@ export default function CableJournalPanel() {
               <thead>
                 <tr>
                   <th rowSpan={2} className="col-narrow">№ п/п</th>
-                  <th rowSpan={2}>Маркировка группы</th>
+                  <th rowSpan={2} className="col-group">№гр.</th>
                   <th rowSpan={2}>Марка кабеля</th>
-                  <th rowSpan={2}>S, мм²</th>
+                  <th rowSpan={2} className="col-section">S, мм²</th>
                   <th colSpan={4}>Длина, м</th>
                   <th colSpan={2}>Начало</th>
                   <th colSpan={2}>Конец</th>
                 </tr>
                 <tr>
-                  <th>черт.</th>
-                  <th>подъём</th>
-                  <th>спуск</th>
-                  <th>общая</th>
+                  <th className="col-length">черт.</th>
+                  <th className="col-length">подъём</th>
+                  <th className="col-length">спуск</th>
+                  <th className="col-length">общая</th>
                   <th>щит</th>
                   <th>группа</th>
                   <th>пом.</th>
@@ -160,13 +160,13 @@ export default function CableJournalPanel() {
                   rows.map((row) => (
                     <tr key={row.id}>
                       <td className="col-narrow">{row.idx}</td>
-                      <td>{row.circuitName}</td>
+                      <td className="col-group">{row.circuitName}</td>
                       <td>{row.brand}</td>
-                      <td>{row.section}</td>
-                      <td>{row.routeM.toFixed(2)}</td>
-                      <td>{row.rise.toFixed(2)}</td>
-                      <td>{row.fall.toFixed(2)}</td>
-                      <td>{row.totalM.toFixed(2)}</td>
+                      <td className="col-section">{row.section}</td>
+                      <td className="col-length">{row.routeM.toFixed(2)}</td>
+                      <td className="col-length">{row.rise.toFixed(2)}</td>
+                      <td className="col-length">{row.fall.toFixed(2)}</td>
+                      <td className="col-length">{row.totalM.toFixed(2)}</td>
                       <td>—</td>
                       <td>{row.circuitName}</td>
                       <td>{row.roomName}</td>
