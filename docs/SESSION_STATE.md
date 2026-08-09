@@ -1,3 +1,44 @@
+# Сессия разработки — 2026-08-09 (исправление мультивыделения рамкой)
+
+## Текущий контекст
+
+Работа ведётся в репозитории **InvoltCAD-web**, ветка `main`.
+Последний коммит: `d8b7fc6 fix(select): мультивыделение рамкой — все объекты внутри рамки теперь выделяются`.
+Dev-сервер Next.js перезапущен и работает на `http://localhost:3003/editor`.
+
+## Что сделано в этой сессии
+
+### Исправлено выделение рамкой: теперь выделяются все объекты, попавшие в рамку
+
+- Проблема: `SelectTool.selectByBox` возвращал только первый попавший объект, поэтому при выделении рамкой выбирался один элемент, даже если в рамку попадало несколько.
+- Решение: полноценное мультивыделение.
+- В `packages/core/editor/EditorState.ts`:
+  - Добавлены массивы выделенных идентификаторов: `selectedWallIds`, `selectedOpeningIds`, `selectedDeviceIds`, `selectedCableIds`, `selectedDimensionIds`, `selectedRoomIndices`.
+- В `packages/core/engine/CanvasEngine.ts`:
+  - Добавлены методы `setSelectedWalls`, `setSelectedOpenings`, `setSelectedDevices`, `setSelectedCables`, `setSelectedDimensions`, `setSelectedRooms` для установки мультивыделения.
+  - Старые методы `setSelectedWall`/`setSelectedDevice`/... сохранены для обратной совместимости и теперь синхронизируют массивы.
+- В `packages/core/render/*`:
+  - Все рендереры (WallRenderer, OpeningRenderer, DeviceRenderer, CableRenderer, DimensionRenderer, RoomRenderer) переписаны на подсветку нескольких выделенных объектов по массивам ID.
+- В `packages/core/tools/SelectTool.ts`:
+  - `selectByBox` теперь возвращает все объекты каждого типа, попавшие в рамку.
+  - Реализованы корректные логики window (слева направо, только полностью внутри) и crossing (справа налево, пересечение/частичное попадание).
+  - Для устройств и проёмов выделение теперь учитывает реальные границы иконки/проёма, а не только центральную точку.
+  - `applySelection` применяет мультивыделение через новые методы CanvasEngine.
+  - Исправлен `segmentsIntersect` — добавлена обработка коллинеарных пересечений.
+- В `src/components/editor/PlanEditor.tsx`:
+  - Синхронизация `engine -> cadStore` переведена на массивы выделения; cadStore обновляется только при одиночном выделении (чтобы не конфликтовать с мультивыделением рамкой).
+- В `packages/core/io/PngExporter.ts`:
+  - Обновлены вызовы рендереров на новые методы с массивами.
+
+### Проверки
+
+- `npx tsc --noEmit` — чисто.
+- `npm test` — 39/39 тестов проходят.
+- Dev-сервер Next.js перезапущен и работает на `http://localhost:3003/editor`.
+- Страница редактора загружается без ошибок в консоли.
+
+---
+
 # Сессия разработки — 2026-08-09 (колонка «Прол.» в кабельном журнале)
 
 ## Текущий контекст
