@@ -271,16 +271,29 @@ export default function PlanEditor() {
   }, [selectedWallId, selectedOpeningId, selectedDeviceId, selectedCableId, selectedDimensionId, selectedRoomIndex])
 
   // Синхронизация выделения engine -> cadStore (чтобы панели реагировали на клики в canvas)
+  // Для мультивыделения рамкой обновляем cadStore только если выбран не более чем один объект данного типа.
   useEffect(() => {
     const engine = engineRef.current
     if (!engine) return
     const subs = [
-      engine.editorState.subscribe('selectedWallId', (id) => useCadStore.getState().setSelectedWall(id)),
-      engine.editorState.subscribe('selectedOpeningId', (id) => useCadStore.getState().setSelectedOpening(id)),
-      engine.editorState.subscribe('selectedDeviceId', (id) => useCadStore.getState().setSelectedDevice(id)),
-      engine.editorState.subscribe('selectedCableId', (id) => useCadStore.getState().setSelectedCable(id)),
-      engine.editorState.subscribe('selectedDimensionId', (id) => useCadStore.getState().setSelectedDimension(id)),
-      engine.editorState.subscribe('selectedRoomIndex', (idx) => useCadStore.getState().setSelectedRoom(idx)),
+      engine.editorState.subscribe('selectedWallIds', (ids) => {
+        if (ids.length <= 1) useCadStore.getState().setSelectedWall(ids[0] ?? null)
+      }),
+      engine.editorState.subscribe('selectedOpeningIds', (ids) => {
+        if (ids.length <= 1) useCadStore.getState().setSelectedOpening(ids[0] ?? null)
+      }),
+      engine.editorState.subscribe('selectedDeviceIds', (ids) => {
+        if (ids.length <= 1) useCadStore.getState().setSelectedDevice(ids[0] ?? null)
+      }),
+      engine.editorState.subscribe('selectedCableIds', (ids) => {
+        if (ids.length <= 1) useCadStore.getState().setSelectedCable(ids[0] ?? null)
+      }),
+      engine.editorState.subscribe('selectedDimensionIds', (ids) => {
+        if (ids.length <= 1) useCadStore.getState().setSelectedDimension(ids[0] ?? null)
+      }),
+      engine.editorState.subscribe('selectedRoomIndices', (indices) => {
+        if (indices.length <= 1) useCadStore.getState().setSelectedRoom(indices[0] ?? null)
+      }),
     ]
     return () => subs.forEach((unsub) => unsub())
   }, [])

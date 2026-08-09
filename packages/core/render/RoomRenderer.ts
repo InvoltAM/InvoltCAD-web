@@ -10,7 +10,7 @@ const HANDLE_WORLD_THRESHOLD = 5; // мм
  * Для выделенной комнаты рисуются маркеры её угловых точек (концы стен).
  */
 export class RoomRenderer {
-  private selectedRoomIndex: number | null = null;
+  private selectedRoomIndices: number[] = [];
 
   constructor(
     private plan: Plan,
@@ -18,8 +18,12 @@ export class RoomRenderer {
     private themeManager: ThemeManager,
   ) {}
 
-  setSelectedRoom(index: number | null): void {
-    this.selectedRoomIndex = index;
+  setSelectedRoomIndices(indices: number[]): void {
+    this.selectedRoomIndices = indices;
+  }
+
+  private isRoomSelected(index: number): boolean {
+    return this.selectedRoomIndices.includes(index);
   }
 
   render(ctx: CanvasRenderingContext2D): void {
@@ -41,7 +45,7 @@ export class RoomRenderer {
       const poly = room.polygon;
       if (poly.length < 3) continue;
 
-      const selected = i === this.selectedRoomIndex;
+      const selected = this.isRoomSelected(i);
 
       ctx.beginPath();
       this.addPolygonToPath(ctx, poly);

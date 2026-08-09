@@ -16,7 +16,7 @@ const CATEGORY_THEME_KEY: Record<string, ThemeColorKey> = {
 };
 
 export class DeviceRenderer {
-  private selectedDeviceId: string | null = null;
+  private selectedDeviceIds: string[] = [];
 
   constructor(
     private plan: Plan,
@@ -25,8 +25,12 @@ export class DeviceRenderer {
     private themeManager?: ThemeManager,
   ) {}
 
-  setSelectedDevice(id: string | null): void {
-    this.selectedDeviceId = id;
+  setSelectedDeviceIds(ids: string[]): void {
+    this.selectedDeviceIds = ids;
+  }
+
+  private isDeviceSelected(device: Device): boolean {
+    return this.selectedDeviceIds.includes(device.id);
   }
 
   private getColor(category: string): string {
@@ -98,7 +102,7 @@ export class DeviceRenderer {
       angle += device.rotation ?? 0;
 
       const color = this.getColor(item?.category ?? device.type);
-      const selected = this.selectedDeviceId === device.id;
+      const selected = this.isDeviceSelected(device);
 
       ctx.save();
       ctx.translate(iconPos.x, iconPos.y);

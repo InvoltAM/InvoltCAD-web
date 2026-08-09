@@ -25,7 +25,7 @@ interface Joint {
  * Поддерживаемые стили соединений: square, round, miter, bevel, none.
  */
 export class WallRenderer {
-  private selectedWallId: string | null = null;
+  private selectedWallIds: string[] = [];
 
   constructor(
     private plan: Plan,
@@ -34,8 +34,12 @@ export class WallRenderer {
     private themeManager: ThemeManager,
   ) {}
 
-  setSelectedWall(id: string | null): void {
-    this.selectedWallId = id;
+  setSelectedWallIds(ids: string[]): void {
+    this.selectedWallIds = ids;
+  }
+
+  private isWallSelected(wall: Wall): boolean {
+    return this.selectedWallIds.includes(wall.id);
   }
 
   render(ctx: CanvasRenderingContext2D): void {
@@ -80,19 +84,17 @@ export class WallRenderer {
       this.drawJoint(ctx, joint, joinStyle);
     }
 
-    // 4. Подсветка выделенной стены
-    if (this.selectedWallId) {
-      const wall = this.plan.findWall(this.selectedWallId);
-      if (wall && visibleWalls.includes(wall)) {
-        ctx.fillStyle = this.themeManager.getColor('selectionFill');
-        this.drawWallBodyPath(ctx, wall);
-        ctx.fill();
+    // 4. Подсветка выделенных стен
+    for (const wall of visibleWalls) {
+      if (!this.isWallSelected(wall)) continue;
+      ctx.fillStyle = this.themeManager.getColor('selectionFill');
+      this.drawWallBodyPath(ctx, wall);
+      ctx.fill();
 
-        ctx.strokeStyle = this.themeManager.getColor('selected');
-        ctx.lineWidth = 2 / this.camera.scale;
-        this.drawWallBodyPath(ctx, wall);
-        ctx.stroke();
-      }
+      ctx.strokeStyle = this.themeManager.getColor('selected');
+      ctx.lineWidth = 2 / this.camera.scale;
+      this.drawWallBodyPath(ctx, wall);
+      ctx.stroke();
     }
   }
 
@@ -151,22 +153,20 @@ export class WallRenderer {
     }
     ctx.fill();
 
-    // 3. Подсветка выделенной стены
-    if (this.selectedWallId) {
-      const wall = this.plan.findWall(this.selectedWallId);
-      if (wall && walls.includes(wall)) {
-        ctx.beginPath();
-        const pts = wallPolyline(wall, 50);
-        for (let i = 0; i < pts.length - 1; i++) {
-          this.addSegmentPath(ctx, pts[i], pts[i + 1], wall.thickness + 8 / this.camera.scale, 0, 0);
-        }
-        ctx.fillStyle = this.themeManager.getColor('selectionFill');
-        ctx.fill();
-
-        ctx.strokeStyle = this.themeManager.getColor('selected');
-        ctx.lineWidth = 2 / this.camera.scale;
-        ctx.stroke();
+    // 3. Подсветка выделенных стен
+    for (const wall of walls) {
+      if (!this.isWallSelected(wall)) continue;
+      ctx.beginPath();
+      const pts = wallPolyline(wall, 50);
+      for (let i = 0; i < pts.length - 1; i++) {
+        this.addSegmentPath(ctx, pts[i], pts[i + 1], wall.thickness + 8 / this.camera.scale, 0, 0);
       }
+      ctx.fillStyle = this.themeManager.getColor('selectionFill');
+      ctx.fill();
+
+      ctx.strokeStyle = this.themeManager.getColor('selected');
+      ctx.lineWidth = 2 / this.camera.scale;
+      ctx.stroke();
     }
   }
 

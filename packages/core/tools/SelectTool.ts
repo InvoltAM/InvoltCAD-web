@@ -703,63 +703,83 @@ export class SelectTool implements Tool {
     const box = this.getSelectionBox();
     const isWindow = this.selectionBox!.currentScreen.x >= this.selectionBox!.startScreen.x;
     const selected = this.selectByBox(box, isWindow);
-    if (selected) {
-      this.applySelection(selected);
-    }
+    this.applySelection(selected);
   }
 
+  /** Результат выделения рамкой: все объекты, попавшие в рамку. */
   private selectByBox(
     box: { min: Vector2; max: Vector2 },
     isWindow: boolean,
-  ): { type: 'wall' | 'opening' | 'device' | 'cable' | 'dimension' | 'room'; id: string | number } | null {
+  ): {
+    walls: string[];
+    openings: string[];
+    devices: string[];
+    cables: string[];
+    dimensions: string[];
+    rooms: number[];
+  } {
+    const devices: string[] = [];
     for (const device of this.plan.devices) {
-      if (this.deviceInBox(device, box, isWindow)) return { type: 'device', id: device.id };
+      if (this.deviceInBox(device, box, isWindow)) devices.push(device.id);
     }
+
+    const openings: string[] = [];
     for (const wall of this.plan.walls) {
       for (const opening of wall.openings) {
-        if (this.openingInBox(opening, wall, box, isWindow)) return { type: 'opening', id: opening.id };
+        if (this.openingInBox(opening, wall, box, isWindow)) openings.push(opening.id);
       }
     }
+
+    const walls: string[] = [];
     for (const wall of this.plan.walls) {
-      if (this.wallInBox(wall, box, isWindow)) return { type: 'wall', id: wall.id };
+      if (this.wallInBox(wall, box, isWindow)) walls.push(wall.id);
     }
+
+    const dimensions: string[] = [];
     for (const dim of this.plan.dimensions) {
-      if (this.dimensionInBox(dim, box, isWindow)) return { type: 'dimension', id: dim.id };
+      if (this.dimensionInBox(dim, box, isWindow)) dimensions.push(dim.id);
     }
+
+    const cables: string[] = [];
     for (const cable of this.plan.cables) {
-      if (this.cableInBox(cable, box, isWindow)) return { type: 'cable', id: cable.id };
+      if (this.cableInBox(cable, box, isWindow)) cables.push(cable.id);
     }
-    const rooms = this.plan.getRooms();
-    for (let i = 0; i < rooms.length; i++) {
-      if (this.roomInBox(rooms[i], box, isWindow)) return { type: 'room', id: i };
+
+    const rooms: number[] = [];
+    const roomList = this.plan.getRooms();
+    for (let i = 0; i < roomList.length; i++) {
+      if (this.roomInBox(roomList[i], box, isWindow)) rooms.push(i);
     }
-    return null;
+
+    return { walls, openings, devices, cables, dimensions, rooms };
   }
 
-  private applySelection(
-    sel: { type: 'wall' | 'opening' | 'device' | 'cable' | 'dimension' | 'room'; id: string | number },
-  ): void {
-    this.clearSelection();
-    switch (sel.type) {
-      case 'wall':
-        this.canvas.setSelectedWall(sel.id as string);
-        break;
-      case 'opening':
-        this.canvas.setSelectedOpening(sel.id as string);
-        break;
-      case 'device':
-        this.canvas.setSelectedDevice(sel.id as string);
-        break;
-      case 'cable':
-        this.canvas.setSelectedCable(sel.id as string);
-        break;
-      case 'dimension':
-        this.canvas.setSelectedDimension(sel.id as string);
-        break;
-      case 'room':
-        this.canvas.setSelectedRoom(sel.id as number);
-        break;
+  private applySelection(selected: {
+    walls: string[];
+    openings: string[];
+    devices: string[];
+    cables: string[];
+    dimensions: string[];
+    rooms: number[];
+  }): void {
+    const hasAny =
+      selected.walls.length > 0 ||
+      selected.openings.length > 0 ||
+      selected.devices.length > 0 ||
+      selected.cables.length > 0 ||
+      selected.dimensions.length > 0 ||
+      selected.rooms.length > 0;
+    if (!hasAny) {
+      this.clearSelection();
+      return;
     }
+
+    this.canvas.setSelectedWalls(selected.walls);
+    this.canvas.setSelectedOpenings(selected.openings);
+    this.canvas.setSelectedDevices(selected.devices);
+    this.canvas.setSelectedCables(selected.cables);
+    this.canvas.setSelectedDimensions(selected.dimensions);
+    this.canvas.setSelectedRooms(selected.rooms);
   }
 
   private getSelectionBox(): { min: Vector2; max: Vector2 } {
@@ -772,6 +792,14 @@ export class SelectTool implements Tool {
 
   private pointInBox(p: Vector2, box: { min: Vector2; max: Vector2 }): boolean {
     return p.x >= box.min.x && p.x <= box.max.x && p.y >= box.min.y && p.y <= box.max.y;
+  }
+
+  private rectInBox(rect: { min: Vector2; max: Vector2 }, box: { min: Vector2; max: Vector2 }): boolean {
+    return rect.min.x >= box.min.x && rect.max.x <= box.max.x && rect.min.y >= box.min.y && rect.max.y <= box.max.y;
+  }
+
+  private rectIntersectsBox(rect: { min: Vector2; max: Vector2 }, box: { min: Vector2; max: Vector2 }): boolean {
+    return !(rect.max.x < box.min.x || rect.min.x > box.max.x || rect.max.y < box.min.y || rect.min.y > box.max.y);
   }
 
   private lineIntersectsBox(a: Vector2, b: Vector2, box: { min: Vector2; max: Vector2 }): boolean {
@@ -796,14 +824,24 @@ export class SelectTool implements Tool {
     if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
       return true;
     }
+    // Коллинеарные случаи: конец одного отрезка лежит на другом
+    if (this.pointOnSegment(a1, b1, b2) || this.pointOnSegment(a2, b1, b2) ||
+        this.pointOnSegment(b1, a1, a2) || this.pointOnSegment(b2, a1, a2)) {
+      return true;
+    }
     return false;
   }
 
-  private deviceInBox(
-    device: import('../model/Device').Device,
-    box: { min: Vector2; max: Vector2 },
-    isWindow: boolean,
-  ): boolean {
+  private pointOnSegment(p: Vector2, a: Vector2, b: Vector2): boolean {
+    const v = b.sub(a);
+    const lenSq = v.dot(v);
+    if (lenSq === 0) return p.equals(a);
+    const t = Math.max(0, Math.min(1, p.sub(a).dot(v) / lenSq));
+    const proj = a.add(v.scale(t));
+    return p.distanceTo(proj) < 1e-6;
+  }
+
+  private getDeviceBounds(device: import('../model/Device').Device): { min: Vector2; max: Vector2 } {
     const globalIconScale = this.canvas.editorState.get('deviceIconScale') ?? 1;
     const item = findDeviceCatalogItem(device.type);
     const baseSizeMm = item ? Math.max(item.width, item.height) : 600;
@@ -817,7 +855,40 @@ export class SelectTool implements Tool {
       const n = dir.perpendicular();
       iconPos = pos.add(n.scale(halfWorld * device.side));
     }
-    return this.pointInBox(iconPos, box);
+    return {
+      min: new Vector2(iconPos.x - halfWorld, iconPos.y - halfWorld),
+      max: new Vector2(iconPos.x + halfWorld, iconPos.y + halfWorld),
+    };
+  }
+
+  private deviceInBox(
+    device: import('../model/Device').Device,
+    box: { min: Vector2; max: Vector2 },
+    isWindow: boolean,
+  ): boolean {
+    const bounds = this.getDeviceBounds(device);
+    if (isWindow) return this.rectInBox(bounds, box);
+    return this.rectIntersectsBox(bounds, box);
+  }
+
+  private getOpeningBounds(opening: Opening, wall: Wall): { min: Vector2; max: Vector2 } {
+    const len = wallLength(wall);
+    if (len === 0) {
+      return { min: new Vector2(0, 0), max: new Vector2(0, 0) };
+    }
+    const dir = wallDirection(wall);
+    const n = dir.perpendicular();
+    const center = wall.a.add(dir.scale(opening.t * len));
+    const half = opening.width / 2;
+    const h = wall.thickness / 2 + 3;
+    const c1 = center.add(dir.scale(-half)).add(n.scale(h));
+    const c2 = center.add(dir.scale(half)).add(n.scale(h));
+    const c3 = center.add(dir.scale(half)).sub(n.scale(h));
+    const c4 = center.add(dir.scale(-half)).sub(n.scale(h));
+    return {
+      min: new Vector2(Math.min(c1.x, c2.x, c3.x, c4.x), Math.min(c1.y, c2.y, c3.y, c4.y)),
+      max: new Vector2(Math.max(c1.x, c2.x, c3.x, c4.x), Math.max(c1.y, c2.y, c3.y, c4.y)),
+    };
   }
 
   private openingInBox(
@@ -826,11 +897,9 @@ export class SelectTool implements Tool {
     box: { min: Vector2; max: Vector2 },
     isWindow: boolean,
   ): boolean {
-    const len = wallLength(wall);
-    if (len === 0) return false;
-    const dir = wallDirection(wall);
-    const center = wall.a.add(dir.scale(opening.t * len));
-    return this.pointInBox(center, box);
+    const bounds = this.getOpeningBounds(opening, wall);
+    if (isWindow) return this.rectInBox(bounds, box);
+    return this.rectIntersectsBox(bounds, box);
   }
 
   private wallInBox(wall: Wall, box: { min: Vector2; max: Vector2 }, isWindow: boolean): boolean {
@@ -875,8 +944,18 @@ export class SelectTool implements Tool {
     box: { min: Vector2; max: Vector2 },
     isWindow: boolean,
   ): boolean {
+    if (isWindow) {
+      return room.polygon.every(p => this.pointInBox(p, box));
+    }
     const center = this.polygonCentroid(room.polygon);
-    return this.pointInBox(center, box);
+    if (this.pointInBox(center, box)) return true;
+    // Для crossing проверяем пересечение границы комнаты с рамкой
+    for (let i = 0; i < room.polygon.length; i++) {
+      const a = room.polygon[i];
+      const b = room.polygon[(i + 1) % room.polygon.length];
+      if (this.lineIntersectsBox(a, b, box)) return true;
+    }
+    return false;
   }
 
   private polygonCentroid(polygon: Vector2[]): Vector2 {

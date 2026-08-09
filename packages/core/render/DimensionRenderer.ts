@@ -8,7 +8,7 @@ import { ThemeManager } from '../editor/ThemeManager';
  * Отрисовка ручных размерных линий.
  */
 export class DimensionRenderer {
-  private selectedId: string | null = null;
+  private selectedIds: string[] = [];
 
   constructor(
     private plan: Plan,
@@ -16,8 +16,12 @@ export class DimensionRenderer {
     private themeManager: ThemeManager,
   ) {}
 
-  setSelectedDimension(id: string | null): void {
-    this.selectedId = id;
+  setSelectedDimensionIds(ids: string[]): void {
+    this.selectedIds = ids;
+  }
+
+  private isSelected(dim: Dimension): boolean {
+    return this.selectedIds.includes(dim.id);
   }
 
   render(ctx: CanvasRenderingContext2D): void {
@@ -37,7 +41,7 @@ export class DimensionRenderer {
     const d = dir.normalized();
     const n = d.perpendicular();
     const mid = a.add(b).scale(0.5);
-    const color = dim.id === this.selectedId ? this.themeManager.getColor('dimensionSelected') : this.themeManager.getColor('dimension');
+    const color = this.isSelected(dim) ? this.themeManager.getColor('dimensionSelected') : this.themeManager.getColor('dimension');
 
     ctx.strokeStyle = color;
     ctx.fillStyle = color;

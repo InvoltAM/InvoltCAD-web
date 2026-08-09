@@ -112,7 +112,7 @@ export class PngExporter {
 
     if (layers.dimensions) {
       const renderer = new DimensionRenderer(this.plan, camera, this.themeManager);
-      renderer.setSelectedDimension(null);
+      renderer.setSelectedDimensionIds([]);
       renderer.render(ctx);
     }
 
@@ -122,25 +122,25 @@ export class PngExporter {
 
     if (layers.walls) {
       const renderer = new WallRenderer(this.plan, camera, this.editorState, this.themeManager);
-      renderer.setSelectedWall(null);
+      renderer.setSelectedWallIds([]);
       renderer.render(ctx);
     }
 
     if (layers.openings) {
       const renderer = new OpeningRenderer(this.plan, camera, this.themeManager);
-      renderer.setSelectedOpening(null);
+      renderer.setSelectedOpeningIds([]);
       renderer.render(ctx);
     }
 
     if (layers.devices) {
       const renderer = new DeviceRenderer(this.plan, camera, this.editorState, this.themeManager);
-      renderer.setSelectedDevice(null);
+      renderer.setSelectedDeviceIds([]);
       renderer.render(ctx);
     }
 
     if (layers.cables) {
       const renderer = new CableRenderer(this.plan, camera, this.editorState, this.themeManager);
-      renderer.setSelectedCable(null);
+      renderer.setSelectedCableIds([]);
       renderer.render(ctx);
     }
 

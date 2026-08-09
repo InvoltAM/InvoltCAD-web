@@ -349,67 +349,159 @@ export class CanvasEngine {
 
   setSelectedWall(id: string | null): void {
     this.editorState.set('selectedWallId', id);
-    this.wallRenderer.setSelectedWall(id);
+    this.editorState.set('selectedWallIds', id ? [id] : []);
+    this.wallRenderer.setSelectedWallIds(id ? [id] : []);
     if (id) this.editorState.set('selectedOpeningId', null);
+    this.requestRender();
+  }
+
+  setSelectedWalls(ids: string[]): void {
+    const unique = [...new Set(ids)];
+    this.editorState.set('selectedWallIds', unique);
+    this.editorState.set('selectedWallId', unique[0] ?? null);
+    this.wallRenderer.setSelectedWallIds(unique);
     this.requestRender();
   }
 
   setSelectedOpening(id: string | null): void {
     this.editorState.set('selectedOpeningId', id);
-    this.openingRenderer.setSelectedOpening(id);
+    this.editorState.set('selectedOpeningIds', id ? [id] : []);
+    this.openingRenderer.setSelectedOpeningIds(id ? [id] : []);
     if (id) {
       this.editorState.set('selectedWallId', null);
+      this.editorState.set('selectedWallIds', []);
+      this.wallRenderer.setSelectedWallIds([]);
       this.editorState.set('selectedDeviceId', null);
+      this.editorState.set('selectedDeviceIds', []);
+      this.deviceRenderer.setSelectedDeviceIds([]);
       this.editorState.set('selectedCableId', null);
+      this.editorState.set('selectedCableIds', []);
+      this.cableRenderer.setSelectedCableIds([]);
     }
+    this.requestRender();
+  }
+
+  setSelectedOpenings(ids: string[]): void {
+    const unique = [...new Set(ids)];
+    this.editorState.set('selectedOpeningIds', unique);
+    this.editorState.set('selectedOpeningId', unique[0] ?? null);
+    this.openingRenderer.setSelectedOpeningIds(unique);
     this.requestRender();
   }
 
   setSelectedDevice(id: string | null): void {
     this.editorState.set('selectedDeviceId', id);
-    this.deviceRenderer.setSelectedDevice(id);
+    this.editorState.set('selectedDeviceIds', id ? [id] : []);
+    this.deviceRenderer.setSelectedDeviceIds(id ? [id] : []);
     if (id) {
       this.editorState.set('selectedWallId', null);
+      this.editorState.set('selectedWallIds', []);
+      this.wallRenderer.setSelectedWallIds([]);
       this.editorState.set('selectedOpeningId', null);
+      this.editorState.set('selectedOpeningIds', []);
+      this.openingRenderer.setSelectedOpeningIds([]);
       this.editorState.set('selectedCableId', null);
+      this.editorState.set('selectedCableIds', []);
+      this.cableRenderer.setSelectedCableIds([]);
     }
+    this.requestRender();
+  }
+
+  setSelectedDevices(ids: string[]): void {
+    const unique = [...new Set(ids)];
+    this.editorState.set('selectedDeviceIds', unique);
+    this.editorState.set('selectedDeviceId', unique[0] ?? null);
+    this.deviceRenderer.setSelectedDeviceIds(unique);
     this.requestRender();
   }
 
   setSelectedCable(id: string | null): void {
     this.editorState.set('selectedCableId', id);
-    this.cableRenderer.setSelectedCable(id);
+    this.editorState.set('selectedCableIds', id ? [id] : []);
+    this.cableRenderer.setSelectedCableIds(id ? [id] : []);
     if (id) {
       this.editorState.set('selectedWallId', null);
+      this.editorState.set('selectedWallIds', []);
+      this.wallRenderer.setSelectedWallIds([]);
       this.editorState.set('selectedOpeningId', null);
+      this.editorState.set('selectedOpeningIds', []);
+      this.openingRenderer.setSelectedOpeningIds([]);
       this.editorState.set('selectedDeviceId', null);
+      this.editorState.set('selectedDeviceIds', []);
+      this.deviceRenderer.setSelectedDeviceIds([]);
     }
+    this.requestRender();
+  }
+
+  setSelectedCables(ids: string[]): void {
+    const unique = [...new Set(ids)];
+    this.editorState.set('selectedCableIds', unique);
+    this.editorState.set('selectedCableId', unique[0] ?? null);
+    this.cableRenderer.setSelectedCableIds(unique);
     this.requestRender();
   }
 
   setSelectedDimension(id: string | null): void {
     this.editorState.set('selectedDimensionId', id);
-    this.dimensionRenderer.setSelectedDimension(id);
+    this.editorState.set('selectedDimensionIds', id ? [id] : []);
+    this.dimensionRenderer.setSelectedDimensionIds(id ? [id] : []);
     if (id) {
       this.editorState.set('selectedWallId', null);
+      this.editorState.set('selectedWallIds', []);
+      this.wallRenderer.setSelectedWallIds([]);
       this.editorState.set('selectedOpeningId', null);
+      this.editorState.set('selectedOpeningIds', []);
+      this.openingRenderer.setSelectedOpeningIds([]);
       this.editorState.set('selectedDeviceId', null);
+      this.editorState.set('selectedDeviceIds', []);
+      this.deviceRenderer.setSelectedDeviceIds([]);
       this.editorState.set('selectedCableId', null);
+      this.editorState.set('selectedCableIds', []);
+      this.cableRenderer.setSelectedCableIds([]);
       this.editorState.set('selectedRoomIndex', null);
+      this.editorState.set('selectedRoomIndices', []);
+      this.roomRenderer.setSelectedRoomIndices([]);
     }
+    this.requestRender();
+  }
+
+  setSelectedDimensions(ids: string[]): void {
+    const unique = [...new Set(ids)];
+    this.editorState.set('selectedDimensionIds', unique);
+    this.editorState.set('selectedDimensionId', unique[0] ?? null);
+    this.dimensionRenderer.setSelectedDimensionIds(unique);
     this.requestRender();
   }
 
   setSelectedRoom(index: number | null): void {
     this.editorState.set('selectedRoomIndex', index);
-    this.roomRenderer.setSelectedRoom(index);
+    this.editorState.set('selectedRoomIndices', index !== null ? [index] : []);
+    this.roomRenderer.setSelectedRoomIndices(index !== null ? [index] : []);
     if (index !== null) {
       this.editorState.set('selectedWallId', null);
+      this.editorState.set('selectedWallIds', []);
+      this.wallRenderer.setSelectedWallIds([]);
       this.editorState.set('selectedOpeningId', null);
+      this.editorState.set('selectedOpeningIds', []);
+      this.openingRenderer.setSelectedOpeningIds([]);
       this.editorState.set('selectedDeviceId', null);
+      this.editorState.set('selectedDeviceIds', []);
+      this.deviceRenderer.setSelectedDeviceIds([]);
       this.editorState.set('selectedCableId', null);
+      this.editorState.set('selectedCableIds', []);
+      this.cableRenderer.setSelectedCableIds([]);
       this.editorState.set('selectedDimensionId', null);
+      this.editorState.set('selectedDimensionIds', []);
+      this.dimensionRenderer.setSelectedDimensionIds([]);
     }
+    this.requestRender();
+  }
+
+  setSelectedRooms(indices: number[]): void {
+    const unique = [...new Set(indices)];
+    this.editorState.set('selectedRoomIndices', unique);
+    this.editorState.set('selectedRoomIndex', unique[0] ?? null);
+    this.roomRenderer.setSelectedRoomIndices(unique);
     this.requestRender();
   }
 

@@ -12,7 +12,7 @@ import { ThemeManager } from '../editor/ThemeManager';
  * - окно: параллельные линии поперек стены + подоконник
  */
 export class OpeningRenderer {
-  private selectedOpeningId: string | null = null;
+  private selectedOpeningIds: string[] = [];
 
   constructor(
     private plan: Plan,
@@ -20,8 +20,12 @@ export class OpeningRenderer {
     private themeManager: ThemeManager,
   ) {}
 
-  setSelectedOpening(id: string | null): void {
-    this.selectedOpeningId = id;
+  setSelectedOpeningIds(ids: string[]): void {
+    this.selectedOpeningIds = ids;
+  }
+
+  private isOpeningSelected(opening: Opening): boolean {
+    return this.selectedOpeningIds.includes(opening.id);
   }
 
   render(ctx: CanvasRenderingContext2D): void {
@@ -97,7 +101,7 @@ export class OpeningRenderer {
     }
 
     // 4. Выделение
-    if (opening.id === this.selectedOpeningId) {
+    if (this.isOpeningSelected(opening)) {
       ctx.fillStyle = this.themeManager.getColor('selectionFill');
       ctx.fill();
 

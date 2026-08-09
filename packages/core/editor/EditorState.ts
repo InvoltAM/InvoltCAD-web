@@ -29,6 +29,12 @@ export interface EditorStateData {
   selectedCableId: string | null;
   selectedDimensionId: string | null;
   selectedRoomIndex: number | null;
+  selectedWallIds: string[];
+  selectedOpeningIds: string[];
+  selectedDeviceIds: string[];
+  selectedCableIds: string[];
+  selectedDimensionIds: string[];
+  selectedRoomIndices: number[];
   selectedDeviceType: DeviceType;
   zoom: number;
   layers: DisplayLayers;
@@ -63,6 +69,12 @@ export class EditorState {
     selectedCableId: null,
     selectedDimensionId: null,
     selectedRoomIndex: null,
+    selectedWallIds: [],
+    selectedOpeningIds: [],
+    selectedDeviceIds: [],
+    selectedCableIds: [],
+    selectedDimensionIds: [],
+    selectedRoomIndices: [],
     selectedDeviceType: 'socket',
     zoom: 0.1,
     layers: { rooms: true, walls: true, openings: true, dimensions: true, wallDimensions: false, devices: true, cables: true },

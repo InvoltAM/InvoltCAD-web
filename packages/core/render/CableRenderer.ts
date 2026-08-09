@@ -14,7 +14,7 @@ function typeToColorKey(type: string): ThemeColorKey {
 }
 
 export class CableRenderer {
-  private selectedCableId: string | null = null;
+  private selectedCableIds: string[] = [];
 
   constructor(
     private plan: Plan,
@@ -23,8 +23,12 @@ export class CableRenderer {
     private themeManager: ThemeManager,
   ) {}
 
-  setSelectedCable(id: string | null): void {
-    this.selectedCableId = id;
+  setSelectedCableIds(ids: string[]): void {
+    this.selectedCableIds = ids;
+  }
+
+  private isCableSelected(cable: import('../model/Cable').Cable): boolean {
+    return this.selectedCableIds.includes(cable.id);
   }
 
   render(ctx: CanvasRenderingContext2D): void {
@@ -44,7 +48,7 @@ export class CableRenderer {
 
       if (!this.isRouteVisible(route, rect)) continue;
 
-      const selected = this.selectedCableId === cable.id;
+      const selected = this.isCableSelected(cable);
       ctx.strokeStyle = selected ? this.themeManager.getColor('selected') : this.themeManager.getColor(typeToColorKey(cable.type));
       ctx.lineWidth = Math.max(2, selected ? 5 * this.camera.scale : 4 * this.camera.scale);
       ctx.lineCap = 'round';
