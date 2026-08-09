@@ -57,6 +57,7 @@ interface CadStoreState {
   markingOpen: boolean
   automationOpen: boolean
   templatesOpen: boolean
+  cableJournalOpen: boolean
 
   setTool: (tool: ToolName) => void
   setSelectedWall: (id: string | null) => void
@@ -93,6 +94,7 @@ interface CadStoreState {
   setMarkingOpen: (open: boolean) => void
   setAutomationOpen: (open: boolean) => void
   setTemplatesOpen: (open: boolean) => void
+  setCableJournalOpen: (open: boolean) => void
   clearSelection: () => void
 }
 
@@ -140,6 +142,7 @@ export const useCadStore = create<CadStoreState>((set) => ({
   markingOpen: false,
   automationOpen: false,
   templatesOpen: false,
+  cableJournalOpen: false,
 
   setTool: (tool) => set({ currentTool: tool }),
   setSelectedWall: (id) => set({ selectedWallId: id }),
@@ -176,6 +179,7 @@ export const useCadStore = create<CadStoreState>((set) => ({
   setMarkingOpen: (markingOpen) => set({ markingOpen }),
   setAutomationOpen: (automationOpen) => set({ automationOpen }),
   setTemplatesOpen: (templatesOpen) => set({ templatesOpen }),
+  setCableJournalOpen: (cableJournalOpen) => set({ cableJournalOpen }),
   clearSelection: () =>
     set({
       selectedWallId: null,

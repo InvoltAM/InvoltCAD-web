@@ -813,3 +813,31 @@ body {
   color: #fff;
   font-weight: 700;
 }
+
+/* Таблица кабельного журнала */
+.cable-journal-table {
+  border-collapse: collapse;
+  font-size: 10px;
+}
+
+.cable-journal-table th,
+.cable-journal-table td {
+  border: 1px solid var(--border);
+  padding: 4px 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.cable-journal-table th {
+  background: var(--hover-bg);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.cable-journal-table td {
+  color: var(--text);
+}
+
+.cable-journal-table tbody tr:hover {
+  background: var(--hover-bg);
+}

@@ -66,6 +66,8 @@ export default function Toolbar() {
   const setAutomationOpen = useCadStore((s) => s.setAutomationOpen)
   const templatesOpen = useCadStore((s) => s.templatesOpen)
   const setTemplatesOpen = useCadStore((s) => s.setTemplatesOpen)
+  const cableJournalOpen = useCadStore((s) => s.cableJournalOpen)
+  const setCableJournalOpen = useCadStore((s) => s.setCableJournalOpen)
   const { engineRef, themeManagerRef, panelManagerRef } = useEditor()
 
   const [panelMenuOpen, setPanelMenuOpen] = useState(false)
@@ -104,7 +106,7 @@ export default function Toolbar() {
   }
 
   const handleToggleCableJournal = () => {
-    panelManagerRef.current?.toggle('cableJournal')
+    setCableJournalOpen(!cableJournalOpen)
   }
 
   const handleToggleOls = () => {
@@ -326,7 +328,7 @@ export default function Toolbar() {
           </button>
           <button
             onClick={handleToggleCableJournal}
-            className={`project-sidebar-btn ${panelManagerRef.current?.isVisible('cableJournal') ? 'active' : ''}`}
+            className={`project-sidebar-btn ${cableJournalOpen ? 'active' : ''}`}
             title="Кабельный журнал"
           >
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('cable') }} />

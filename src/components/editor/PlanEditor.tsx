@@ -49,10 +49,9 @@ export default function PlanEditor() {
     property: HTMLElement | null
     layers: HTMLElement | null
     spec: HTMLElement | null
-    cableJournal: HTMLElement | null
     sheetCables: HTMLElement | null
     validation: HTMLElement | null
-  }>({ property: null, layers: null, spec: null, cableJournal: null, sheetCables: null, validation: null })
+  }>({ property: null, layers: null, spec: null, sheetCables: null, validation: null })
 
   const currentTool = useCadStore((s) => s.currentTool)
   const theme = useCadStore((s) => s.theme)
@@ -62,6 +61,7 @@ export default function PlanEditor() {
   const selectedCableId = useCadStore((s) => s.selectedCableId)
   const selectedDimensionId = useCadStore((s) => s.selectedDimensionId)
   const selectedRoomIndex = useCadStore((s) => s.selectedRoomIndex)
+  const cableJournalOpen = useCadStore((s) => s.cableJournalOpen)
 
   // Инициализация движка
   useEffect(() => {
@@ -169,7 +169,6 @@ export default function PlanEditor() {
       const propertyBody = document.createElement('div')
       const layersBody = document.createElement('div')
       const specBody = document.createElement('div')
-      const cableJournalBody = document.createElement('div')
       const sheetCablesBody = document.createElement('div')
       const validationBody = document.createElement('div')
 
@@ -178,7 +177,6 @@ export default function PlanEditor() {
           { id: 'properties', title: 'Свойства', icon: icon('properties'), body: propertyBody },
           { id: 'layers', title: 'Слои', icon: icon('layers'), body: layersBody },
           { id: 'spec', title: 'Спецификация листа', icon: icon('spec'), body: specBody },
-          { id: 'cableJournal', title: 'Кабельный журнал', icon: icon('cable'), body: cableJournalBody, menuVisible: false },
           { id: 'sheetCables', title: 'Кабели', icon: icon('cable'), body: sheetCablesBody, width: 400 },
           { id: 'validation', title: 'Проверка', icon: icon('properties'), body: validationBody },
         ],
@@ -191,7 +189,6 @@ export default function PlanEditor() {
         property: propertyBody,
         layers: layersBody,
         spec: specBody,
-        cableJournal: cableJournalBody,
         sheetCables: sheetCablesBody,
         validation: validationBody,
       })
@@ -199,7 +196,7 @@ export default function PlanEditor() {
 
     return () => {
       unsubscribe()
-      setPanelBodies({ property: null, layers: null, spec: null, cableJournal: null, sheetCables: null, validation: null })
+      setPanelBodies({ property: null, layers: null, spec: null, sheetCables: null, validation: null })
       engine.destroy()
       engineRef.current = null
       panelManagerRef.current?.destroy()
@@ -296,9 +293,13 @@ export default function PlanEditor() {
         {panelBodies.property && createPortal(<PropertyPanel />, panelBodies.property)}
         {panelBodies.layers && createPortal(<LayersPanel />, panelBodies.layers)}
         {panelBodies.spec && createPortal(<SpecPanel />, panelBodies.spec)}
-        {panelBodies.cableJournal && createPortal(<CableJournalPanel />, panelBodies.cableJournal)}
         {panelBodies.sheetCables && createPortal(<SheetCablesPanel />, panelBodies.sheetCables)}
         {panelBodies.validation && createPortal(<ValidationPanel />, panelBodies.validation)}
+        {cableJournalOpen && (
+          <div className="fixed bottom-0 left-0 right-0 z-40 flex max-h-[60vh] flex-col border-t border-[var(--border)] bg-[var(--panel-bg)] shadow-2xl" data-cable-journal>
+            <CableJournalPanel />
+          </div>
+        )}
       </div>
     </EditorProvider>
   )
