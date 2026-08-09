@@ -130,34 +130,36 @@ export default function CableJournalPanel() {
             <table className="cable-journal-table w-full border-collapse text-xs" style={{ minWidth: '420mm' }}>
               <thead>
                 <tr>
-                  <th rowSpan={2}>№ п/п</th>
+                  <th rowSpan={2} className="col-narrow">№ п/п</th>
                   <th rowSpan={2}>Маркировка группы</th>
                   <th rowSpan={2}>Марка кабеля</th>
-                  <th rowSpan={2}>Сечение кабеля, мм²</th>
+                  <th rowSpan={2}>S, мм²</th>
                   <th colSpan={4}>Длина, м</th>
-                  <th rowSpan={2}>Начало (щит/группа)</th>
+                  <th colSpan={2}>Начало</th>
                   <th colSpan={2}>Конец</th>
                 </tr>
                 <tr>
-                  <th>по чертежу</th>
+                  <th>черт.</th>
                   <th>подъём</th>
                   <th>спуск</th>
                   <th>общая</th>
-                  <th>помещение</th>
-                  <th>наименование потребителя</th>
+                  <th>щит</th>
+                  <th>группа</th>
+                  <th>пом.</th>
+                  <th>Потребитель</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="text-center text-[var(--text-muted)]">
+                    <td colSpan={12} className="text-center text-[var(--text-muted)]">
                       Нет кабелей. Проведите кабели между устройствами инструментом «Кабель» и нажмите «Обновить».
                     </td>
                   </tr>
                 ) : (
                   rows.map((row) => (
                     <tr key={row.id}>
-                      <td>{row.idx}</td>
+                      <td className="col-narrow">{row.idx}</td>
                       <td>{row.circuitName}</td>
                       <td>{row.brand}</td>
                       <td>{row.section}</td>
@@ -165,6 +167,7 @@ export default function CableJournalPanel() {
                       <td>{row.rise.toFixed(2)}</td>
                       <td>{row.fall.toFixed(2)}</td>
                       <td>{row.totalM.toFixed(2)}</td>
+                      <td>—</td>
                       <td>{row.circuitName}</td>
                       <td>{row.roomName}</td>
                       <td>{row.consumerName}</td>
