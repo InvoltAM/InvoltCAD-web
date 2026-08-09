@@ -64,6 +64,19 @@ export class SheetFrameRenderer {
 
     this.renderStamp(ctx, stampX, stampY, stampW, stampH, ps);
 
+    // Подпись формата в нижнем 5-мм поле (между внутренней и внешней рамками).
+    const formatLabel = `Формат ${sheet.pageSize} ${sheet.orientation === 'landscape' ? 'альбомный' : 'портретный'}`;
+    const formatW = this.mm(40, ps);
+    const formatH = this.mm(5, ps);
+    const formatX = x0 + paperW - formatW;
+    const formatY = y0 + paperH - formatH;
+    ctx.lineWidth = this.strokeWidth(0.35, ps);
+    ctx.strokeRect(formatX, formatY, formatW, formatH);
+    ctx.font = `${this.mmToPx(2.5, ps)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(formatLabel, formatX + formatW / 2, formatY + formatH / 2);
+
     ctx.restore();
   }
 
@@ -284,15 +297,6 @@ export class SheetFrameRenderer {
     // Всего листов — в объединённых строках 4–5 правого подстолбца (20×10 мм)
     if (show.sheetTotal && tb.sheetTotal) {
       ctx.fillText(tb.sheetTotal, rightSubX2 + this.mm(10, ps), y + this.mm(35, ps));
-    }
-
-    // --- Масса и масштаб (графы 24-25) ---
-    const bottomY = y + this.mm(52.5, ps);
-    if (show.weight && tb.weight) {
-      ctx.fillText(tb.weight, mainRightX + this.mm(25, ps), bottomY);
-    }
-    if (show.scaleLabel && tb.scaleLabel) {
-      ctx.fillText(tb.scaleLabel, mainRightX + this.mm(40, ps), bottomY);
     }
 
     // --- Компания / логотип (нижнее правое поле, строки 1–3, 50×15 мм) ---

@@ -91,6 +91,11 @@ export function buildHtml(params: {
         .join('')
     : '<tr><td colspan="12" class="empty">Нет кабелей</td></tr>';
 
+  const activeSheet = params.plan?.activeSheet;
+  const formatLabel = activeSheet
+    ? `Формат ${activeSheet.pageSize} ${activeSheet.orientation === 'landscape' ? 'альбомный' : 'портретный'}`
+    : 'Формат A3 альбомный';
+
   return `<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -165,6 +170,19 @@ export function buildHtml(params: {
     width: 185mm;
     height: 55mm;
   }
+  .format-label {
+    position: absolute;
+    right: ${MARGIN.right}mm;
+    bottom: 0;
+    width: 40mm;
+    height: ${MARGIN.bottom}mm;
+    border: 0.35mm solid #000;
+    border-bottom: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8pt;
+  }
 </style>
 </head>
 <body>
@@ -203,6 +221,7 @@ export function buildHtml(params: {
     <div class="stamp">
       ${params.plan ? buildStampImage(params.plan) : buildStampSvg(tb)}
     </div>
+    <div class="format-label">${formatLabel}</div>
   </div>
 </body>
 </html>`;
@@ -268,7 +287,7 @@ function buildStampSvg(tb: SheetTitleBlock | undefined | null): string {
   for (let i = 0; i < leftCols.length - 1; i++) {
     cx += leftCols[i];
     if (mergedPairs.has(i)) {
-      lines += `<line x1="${cx}" y1="0" x2="${cx}" y2="${totalH - 25}" stroke="black" stroke-width="0.35" />`;
+      lines += `<line x1="${cx}" y1="0" x2="${cx}" y2="${totalH - 30}" stroke="black" stroke-width="0.35" />`;
     } else {
       lines += `<line x1="${cx}" y1="0" x2="${cx}" y2="${totalH}" stroke="black" stroke-width="0.35" />`;
     }
@@ -278,7 +297,7 @@ function buildStampSvg(tb: SheetTitleBlock | undefined | null): string {
   const leftHeaders = ['Изм.', 'Кол.уч.', 'Лист', '№док.', 'Подп.', 'Дата'];
   let hx = 0;
   for (let i = 0; i < leftCols.length; i++) {
-    labels += textSvg(leftHeaders[i], hx + leftCols[i] / 2, totalH - 20 - rowH / 2, 2.5, 'middle', 'middle');
+    labels += textSvg(leftHeaders[i], hx + leftCols[i] / 2, 22.5, 2.5, 'middle', 'middle');
     hx += leftCols[i];
   }
 
@@ -290,13 +309,13 @@ function buildStampSvg(tb: SheetTitleBlock | undefined | null): string {
   // Значения правой части (Стадия, Лист, Листов) в объединённых строках 4-5
   const mainRightX = leftW + mainLeftW;
   if (show.stage && tb.stage) {
-    labels += textSvg(tb.stage, mainRightX + 7.5, totalH - 35 + rowH, 3.5, 'middle', 'middle');
+    labels += textSvg(tb.stage, mainRightX + 7.5, 35, 3.5, 'middle', 'middle');
   }
   if (show.sheetNo && tb.sheetNo) {
-    labels += textSvg(tb.sheetNo, rightSubX1 - 7.5, totalH - 35 + rowH, 3.5, 'middle', 'middle');
+    labels += textSvg(tb.sheetNo, rightSubX1 - 7.5, 35, 3.5, 'middle', 'middle');
   }
   if (show.sheetTotal && tb.sheetTotal) {
-    labels += textSvg(tb.sheetTotal, rightSubX2 + 10, totalH - 35 + rowH, 3.5, 'middle', 'middle');
+    labels += textSvg(tb.sheetTotal, rightSubX2 + 10, 35, 3.5, 'middle', 'middle');
   }
 
   // Строки 1-6 левой группы (снизу вверх): роль, фамилия, подпись, дата
@@ -311,7 +330,7 @@ function buildStampSvg(tb: SheetTitleBlock | undefined | null): string {
   for (let i = 0; i < 6; i++) {
     const row = rows[i];
     if (!row.show) continue;
-    const rowY = totalH - 5 - i * 5 - rowH / 2; // центр строки
+    const rowY = 52.5 - i * 5; // центр строки
     labels += textSvg(row.role, 10, rowY, 2.5, 'middle', 'middle');
     if (row.name) labels += textSvg(row.name, 30, rowY, 3.5, 'middle', 'middle');
     if (row.signature) labels += textSvg(row.signature, 47.5, rowY, 3.5, 'middle', 'middle');
@@ -321,27 +340,19 @@ function buildStampSvg(tb: SheetTitleBlock | undefined | null): string {
   // Заполняемые поля основного поля слева
   const mainLeftCenter = leftW + mainLeftW / 2;
   if (show.drawingTitle && tb.drawingTitle) {
-    labels += textSvg(tb.drawingTitle, mainLeftCenter, totalH - 47.5, 3.5, 'middle', 'middle');
+    labels += textSvg(tb.drawingTitle, mainLeftCenter, 47.5, 3.5, 'middle', 'middle');
   }
   if (show.section && tb.section) {
-    labels += textSvg(tb.section, mainLeftCenter, totalH - 32.5, 3.5, 'middle', 'middle');
+    labels += textSvg(tb.section, mainLeftCenter, 32.5, 3.5, 'middle', 'middle');
   }
 
   // Заполняемые поля основного поля справа (120 мм)
   const mainFieldCenter = leftW + 60;
   if (show.address && tb.address) {
-    labels += textSvg(tb.address, mainFieldCenter, totalH - 17.5, 2.5, 'middle', 'middle');
+    labels += textSvg(tb.address, mainFieldCenter, 17.5, 2.5, 'middle', 'middle');
   }
   if (show.projectCode && tb.projectCode) {
-    labels += textSvg(tb.projectCode, mainFieldCenter, totalH - 5, 3.5, 'middle', 'middle');
-  }
-
-  // Масса и масштаб (графы 24-25)
-  if (show.weight && tb.weight) {
-    labels += textSvg(tb.weight, mainRightX + 25, totalH - 2.5, 3.5, 'middle', 'middle');
-  }
-  if (show.scaleLabel && tb.scaleLabel) {
-    labels += textSvg(tb.scaleLabel, mainRightX + 40, totalH - 2.5, 3.5, 'middle', 'middle');
+    labels += textSvg(tb.projectCode, mainFieldCenter, 5, 3.5, 'middle', 'middle');
   }
 
   // Компания / логотип (нижнее правое поле, строки 1-3, 50×15 мм)
