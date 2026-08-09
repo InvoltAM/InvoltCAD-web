@@ -142,9 +142,9 @@ export default function CableJournalPanel() {
                   <th className="col-length">черт.</th>
                   <th className="col-length">↑ П</th>
                   <th className="col-length">↓ О</th>
-                  <th className="col-length">общая</th>
-                  <th>щит</th>
-                  <th className="col-length">№Авт.</th>
+                  <th className="col-total">Общая</th>
+                  <th className="col-start">щит</th>
+                  <th className="col-start">№Авт.</th>
                   <th>пом.</th>
                   <th>Потребитель</th>
                 </tr>
@@ -166,9 +166,9 @@ export default function CableJournalPanel() {
                       <td className="col-length">{row.routeM.toFixed(2)}</td>
                       <td className="col-length">{row.rise.toFixed(2)}</td>
                       <td className="col-length">{row.fall.toFixed(2)}</td>
-                      <td className="col-length">{row.totalM.toFixed(2)}</td>
-                      <td>—</td>
-                      <td className="col-length">{row.circuitName}</td>
+                      <td className="col-total">{row.totalM.toFixed(2)}</td>
+                      <td className="col-start">—</td>
+                      <td className="col-start">{row.circuitName}</td>
                       <td>{row.roomName}</td>
                       <td>{row.consumerName}</td>
                     </tr>
