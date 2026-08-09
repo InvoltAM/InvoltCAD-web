@@ -17,6 +17,7 @@ export interface CableJournalPrintRow {
   autoNo: string;
   roomName: string;
   consumerName: string;
+  laid: boolean;
 }
 
 export interface CableJournalPrintOptions {
@@ -74,6 +75,7 @@ export function buildHtml(params: {
         .map(
           (row) => `
     <tr>
+      <td><input type="checkbox" ${row.laid ? 'checked' : ''} disabled /></td>
       <td>${row.idx}</td>
       <td>${escapeHtml(row.circuitName)}</td>
       <td>${escapeHtml(row.brand)}</td>
@@ -89,7 +91,7 @@ export function buildHtml(params: {
     </tr>`,
         )
         .join('')
-    : '<tr><td colspan="12" class="empty">Нет кабелей</td></tr>';
+    : '<tr><td colspan="13" class="empty">Нет кабелей</td></tr>';
 
   const activeSheet = params.plan?.activeSheet;
   const formatLabel = activeSheet
@@ -194,6 +196,7 @@ export function buildHtml(params: {
       <table class="journal">
         <thead>
           <tr>
+            <th rowspan="2">Прол.</th>
             <th rowspan="2">№ п/п</th>
             <th rowspan="2">№гр.</th>
             <th rowspan="2">Марка кабеля</th>

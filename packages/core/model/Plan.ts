@@ -638,6 +638,7 @@ export class Plan {
       visible: c.visible ?? true,
       brand: c.brand ?? '',
       marking: c.marking ?? '',
+      laid: c.laid ?? false,
     }));
     const dimensionsToJSON = (dimensions: Dimension[]) => dimensions.map(d => ({
       id: d.id,
@@ -742,6 +743,7 @@ export class Plan {
         visible: c.visible ?? true,
         brand: c.brand ?? '',
         marking: c.marking ?? '',
+        laid: c.laid ?? false,
       };
     });
 

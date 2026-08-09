@@ -19,12 +19,14 @@ interface JournalRow extends CableRunData {
   fall: number
   roomName: string
   consumerName: string
+  laid: boolean
 }
 
 export default function CableJournalPanel() {
   const { engineRef } = useEditor()
   const [plan, setPlan] = useState<Plan | null>(null)
   const [activeTab, setActiveTab] = useState<TabKey>('standard')
+  const [tick, setTick] = useState(0)
 
   useEffect(() => {
     setPlan(engineRef.current?.plan ?? null)
@@ -48,6 +50,21 @@ export default function CableJournalPanel() {
     engineRef.current?.requestRender()
     setPlan(p)
   }
+
+  const toggleLaid = useCallback(
+    (cableId: string) => {
+      const engine = engineRef.current
+      const p = engine?.plan
+      if (!p) return
+      const cable = p.cables.find((c) => c.id === cableId)
+      if (!cable) return
+      cable.laid = !cable.laid
+      engine.notifyChanged()
+      engine.requestRender()
+      setTick((t) => t + 1)
+    },
+    [engineRef],
+  )
 
   const runs = useMemo(() => {
     if (!plan) return []
@@ -87,9 +104,10 @@ export default function CableJournalPanel() {
         fall: 0,
         roomName,
         consumerName,
+        laid: cable?.laid ?? false,
       }
     })
-  }, [runs, cableMap, circuitMap, rooms, plan])
+  }, [runs, cableMap, circuitMap, rooms, plan, tick])
 
   const handlePrint = useCallback(() => {
     if (!plan) return
@@ -106,6 +124,7 @@ export default function CableJournalPanel() {
       autoNo: row.circuitName,
       roomName: row.roomName,
       consumerName: row.consumerName,
+      laid: row.laid,
     }))
     printCableJournal({
       title: 'Кабельный журнал',
@@ -154,6 +173,7 @@ export default function CableJournalPanel() {
             <table className="cable-journal-table w-full border-collapse text-xs" style={{ minWidth: '420mm' }}>
               <thead>
                 <tr>
+                  <th rowSpan={2} className="col-narrow">Прол.</th>
                   <th rowSpan={2} className="col-narrow">№ п/п</th>
                   <th rowSpan={2} className="col-group">№гр.</th>
                   <th rowSpan={2} className="col-brand">Марка кабеля</th>
@@ -176,13 +196,21 @@ export default function CableJournalPanel() {
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="text-center text-[var(--text-muted)]">
+                    <td colSpan={13} className="text-center text-[var(--text-muted)]">
                       Нет кабелей. Проведите кабели между устройствами инструментом «Кабель» и нажмите «Обновить».
                     </td>
                   </tr>
                 ) : (
                   rows.map((row) => (
                     <tr key={row.id}>
+                      <td className="col-narrow">
+                        <input
+                          type="checkbox"
+                          checked={row.laid}
+                          onChange={() => toggleLaid(row.cableId)}
+                          title="Проложен по факту"
+                        />
+                      </td>
                       <td className="col-narrow">{row.idx}</td>
                       <td className="col-group">{row.circuitName}</td>
                       <td className="col-brand">{row.brand}</td>

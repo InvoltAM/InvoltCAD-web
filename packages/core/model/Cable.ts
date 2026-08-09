@@ -16,14 +16,16 @@ export interface Cable {
   visible?: boolean;    // видимость на чертеже
   brand?: string;       // марка кабеля
   marking?: string;     // маркировка линии
+  laid?: boolean;       // проложен по факту
 }
 
-export const DEFAULT_CABLE: { type: CableType; crossSection: number; visible: boolean; brand: string; marking: string } = {
+export const DEFAULT_CABLE: { type: CableType; crossSection: number; visible: boolean; brand: string; marking: string; laid: boolean } = {
   type: 'power',
   crossSection: 2.5,
   visible: true,
   brand: '',
   marking: '',
+  laid: false,
 };
 
 /** Стандартные марки кабеля для выпадающего списка. */
