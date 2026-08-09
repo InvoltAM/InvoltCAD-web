@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useEditor } from './EditorContext'
 import { useCadStore } from '@/stores/cadStore'
 import { Plan } from '@core/model/Plan'
@@ -51,29 +51,6 @@ export default function CableJournalPanel() {
     setPlan(p)
   }
 
-  const handlePrint = () => {
-    if (!plan) return
-    const printRows: CableJournalPrintRow[] = rows.map((row) => ({
-      idx: row.idx,
-      circuitName: row.circuitName,
-      brand: row.brand,
-      section: row.section,
-      routeM: row.routeM,
-      rise: row.rise,
-      fall: row.fall,
-      totalM: row.totalM,
-      panel: '—',
-      autoNo: row.circuitName,
-      roomName: row.roomName,
-      consumerName: row.consumerName,
-    }))
-    printCableJournal({
-      title: 'Кабельный журнал',
-      rows: printRows,
-      titleBlock: plan.activeSheet?.titleBlock,
-    })
-  }
-
   const runs = useMemo(() => {
     if (!plan) return []
     plan.recalcCableRoutes()
@@ -116,6 +93,30 @@ export default function CableJournalPanel() {
     })
   }, [runs, cableMap, circuitMap, rooms, plan])
 
+  const handlePrint = useCallback(() => {
+    if (!plan) return
+    const printRows: CableJournalPrintRow[] = rows.map((row) => ({
+      idx: row.idx,
+      circuitName: row.circuitName,
+      brand: row.brand,
+      section: row.section,
+      routeM: row.routeM,
+      rise: row.rise,
+      fall: row.fall,
+      totalM: row.totalM,
+      panel: '—',
+      autoNo: row.circuitName,
+      roomName: row.roomName,
+      consumerName: row.consumerName,
+    }))
+    printCableJournal({
+      title: 'Кабельный журнал',
+      rows: printRows,
+      titleBlock: plan.activeSheet?.titleBlock,
+      plan,
+    })
+  }, [plan, rows])
+
   if (!plan) {
     return (
       <div className="p-4 text-sm text-[var(--text-muted)]">
@@ -139,7 +140,7 @@ export default function CableJournalPanel() {
             Обновить
           </button>
           <button
-            onClick={handlePrint}
+            onClick={() => handlePrint()}
             className="rounded border border-[var(--text-secondary)] bg-[var(--hover-bg)] px-2 py-1 text-xs text-[var(--text)] hover:bg-[var(--border)]"
             title="Печать кабельного журнала на листе А3 с рамкой и штампом"
           >

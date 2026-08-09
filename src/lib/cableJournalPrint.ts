@@ -1,4 +1,8 @@
 import type { SheetTitleBlock } from '@core/model/Sheet';
+import type { Plan } from '@core/model/Plan';
+import { Camera } from '@core/engine/Camera';
+import { ThemeManager } from '@core/editor/ThemeManager';
+import { SheetFrameRenderer } from '@core/render/SheetFrameRenderer';
 
 export interface CableJournalPrintRow {
   idx: number;
@@ -19,24 +23,23 @@ export interface CableJournalPrintOptions {
   title: string;
   rows: CableJournalPrintRow[];
   titleBlock?: SheetTitleBlock | null;
-  /** Если true, iframe создаётся, но диалог печати не вызывается и iframe не удаляется (для тестов). */
-  _testMode?: boolean;
+  plan?: Plan | null;
 }
 
 const A3_LANDSCAPE = { width: 420, height: 297 };
 const MARGIN = { left: 20, right: 5, top: 5, bottom: 5 };
 
-export function printCableJournal(options: CableJournalPrintOptions): HTMLIFrameElement | void {
-  const { rows, titleBlock, _testMode } = options;
+export function printCableJournal(options: CableJournalPrintOptions): void {
+  const { rows, titleBlock, plan } = options;
 
-  const html = buildHtml({ rows, titleBlock });
+  const html = buildHtml({ rows, titleBlock, plan });
 
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';
   iframe.style.left = '-9999px';
   iframe.style.top = '0';
-  iframe.style.width = '${A3_LANDSCAPE.width}mm';
-  iframe.style.height = '${A3_LANDSCAPE.height}mm';
+  iframe.style.width = `${A3_LANDSCAPE.width}mm`;
+  iframe.style.height = `${A3_LANDSCAPE.height}mm`;
   iframe.style.border = 'none';
   document.body.appendChild(iframe);
 
@@ -51,23 +54,18 @@ export function printCableJournal(options: CableJournalPrintOptions): HTMLIFrame
   doc.close();
 
   const win = iframe.contentWindow;
-  if (win && !_testMode) {
+  if (win) {
     win.focus();
     setTimeout(() => win.print(), 0);
   }
 
-  if (!_testMode) {
-    setTimeout(() => iframe.remove(), 2000);
-  }
-
-  if (_testMode) {
-    return iframe;
-  }
+  setTimeout(() => iframe.remove(), 2000);
 }
 
 export function buildHtml(params: {
   rows: CableJournalPrintRow[];
   titleBlock?: SheetTitleBlock | null;
+  plan?: Plan | null;
 }): string {
   const tb = params.titleBlock;
   const show = tb?.show;
@@ -167,37 +165,6 @@ export function buildHtml(params: {
     width: 185mm;
     height: 55mm;
   }
-  table.stamp-table {
-    width: 185mm;
-    height: 55mm;
-    border-collapse: collapse;
-    table-layout: fixed;
-    font-size: 7pt;
-  }
-  table.stamp-table td {
-    border: 0.35mm solid #000;
-    padding: 0.5mm;
-    text-align: center;
-    vertical-align: middle;
-    overflow: hidden;
-    white-space: nowrap;
-  }
-  table.stamp-table .label {
-    font-size: 6pt;
-    text-align: left;
-    padding-left: 1mm;
-  }
-  table.stamp-table .top-field {
-    font-size: 8pt;
-    font-weight: bold;
-  }
-  table.stamp-table .company {
-    font-size: 8pt;
-    font-weight: bold;
-  }
-  table.stamp-table .left-main {
-    background: transparent;
-  }
 </style>
 </head>
 <body>
@@ -234,93 +201,214 @@ export function buildHtml(params: {
       </table>
     </div>
     <div class="stamp">
-      ${buildStampHtml(tb)}
+      ${params.plan ? buildStampImage(params.plan) : buildStampSvg(tb)}
     </div>
   </div>
 </body>
 </html>`;
 }
 
-function buildStampHtml(tb: SheetTitleBlock | undefined | null): string {
+function buildStampSvg(tb: SheetTitleBlock | undefined | null): string {
   if (!tb) {
-    return `<table class="stamp-table"><tr><td>Штамп</td></tr></table>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="185mm" height="55mm" viewBox="0 0 185 55" preserveAspectRatio="xMidYMid meet">
+      <rect x="0" y="0" width="185" height="55" fill="none" stroke="black" stroke-width="0.7" />
+      <text x="92.5" y="27.5" font-size="5" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif">Штамп</text>
+    </svg>`;
   }
 
-  const projectCode = escapeHtml(tb.projectCode || '');
-  const address = escapeHtml(tb.address || '');
-  const section = escapeHtml(tb.section || '');
-  const drawingTitle = escapeHtml(tb.drawingTitle || '');
-  const stage = escapeHtml(tb.stage || '');
-  const sheetNo = escapeHtml(tb.sheetNo || '');
-  const sheetTotal = escapeHtml(tb.sheetTotal || '');
-  const company = escapeHtml(tb.company || '');
-  const companyLogo = tb.companyLogo || '';
-  const designer = escapeHtml(tb.designer || '');
-  const checker = escapeHtml(tb.checker || '');
-  const normController = escapeHtml(tb.normController || '');
-  const gip = escapeHtml(tb.gip || '');
-  const approver = escapeHtml(tb.approver || '');
-  const reviewer = escapeHtml(tb.reviewer || '');
-  const date = escapeHtml(tb.date || '');
-  const scaleLabel = escapeHtml(tb.scaleLabel || '');
+  const show = tb.show;
+  const dateLabel = show.date && tb.date ? formatDateMmYy(tb.date) : '';
 
-  const logoCell = companyLogo
-    ? `<img src="${companyLogo}" style="max-width:18mm;max-height:8mm;" alt="" />`
-    : '';
+  const leftCols = [10, 10, 10, 10, 15, 10];
+  const leftW = leftCols.reduce((a, b) => a + b, 0); // 65
+  const mainLeftW = 70;
+  const mainRightW = 50;
+  const totalW = leftW + mainLeftW + mainRightW; // 185
+  const totalH = 55;
+  const rowH = 5;
 
-  return `<table class="stamp-table">
-    <colgroup>
-      <col style="width:10mm"><col style="width:10mm"><col style="width:10mm"><col style="width:10mm">
-      <col style="width:15mm"><col style="width:10mm"><col style="width:70mm">
-      <col style="width:15mm"><col style="width:15mm"><col style="width:20mm">
-    </colgroup>
-    <tbody>
-      <tr>
-        <td colspan="6" rowspan="4" class="left-main"></td>
-        <td colspan="4" class="top-field">${drawingTitle}</td>
-      </tr>
-      <tr><td colspan="4" class="top-field">${address}</td></tr>
-      <tr><td colspan="4" class="top-field">${section}</td></tr>
-      <tr><td colspan="4" class="top-field">${projectCode}</td></tr>
-      <tr>
-        <td colspan="6" rowspan="2" class="left-main"></td>
-        <td colspan="4" class="top-field"></td>
-      </tr>
-      <tr>
-        <td></td>
-        <td>Стадия</td>
-        <td>Лист</td>
-        <td>Листов</td>
-      </tr>
-      <tr>
-        <td colspan="6" class="left-main"></td>
-        <td></td>
-        <td>${stage}</td>
-        <td>${sheetNo}</td>
-        <td>${sheetTotal}</td>
-      </tr>
-      <tr>
-        <td colspan="2" class="label">Утвердил</td>
-        <td colspan="2">${approver}</td>
-        <td colspan="2" class="label">Проверил</td>
-        <td colspan="4" rowspan="4" class="company">${logoCell}<div>${company}</div></td>
-      </tr>
-      <tr>
-        <td colspan="2" class="label">Н.контр.</td>
-        <td colspan="2">${normController}</td>
-        <td colspan="2" class="label">Согласовал</td>
-      </tr>
-      <tr>
-        <td colspan="2" class="label">ГИП</td>
-        <td colspan="2">${gip}</td>
-        <td colspan="2" class="label">Разработал</td>
-      </tr>
-      <tr>
-        <td colspan="2" class="label">Дата</td>
-        <td colspan="4">${date}</td>
-      </tr>
-    </tbody>
-  </table>`;
+  let lines = '';
+  let labels = '';
+
+  // Внешняя рамка штампа 0.7 мм.
+  lines += `<rect x="0" y="0" width="${totalW}" height="${totalH}" fill="none" stroke="black" stroke-width="0.7" />`;
+
+  // 11 горизонтальных строк по 5 мм.
+  const skippedMainLeftRows = new Set([1, 3, 4, 6, 7, 9, 10]);
+  const skippedMainRightRows = new Set([1, 3, 4, 7, 9, 10]);
+  for (let r = 1; r < 11; r++) {
+    const ry = rowH * r;
+    // Левая группа
+    lines += `<line x1="0" y1="${ry}" x2="${leftW}" y2="${ry}" stroke="black" stroke-width="0.35" />`;
+    // Основное поле слева (70 мм)
+    if (!skippedMainLeftRows.has(r)) {
+      lines += `<line x1="${leftW}" y1="${ry}" x2="${leftW + mainLeftW}" y2="${ry}" stroke="black" stroke-width="0.35" />`;
+    }
+    // Основное поле справа (50 мм)
+    if (!skippedMainRightRows.has(r)) {
+      lines += `<line x1="${leftW + mainLeftW}" y1="${ry}" x2="${totalW}" y2="${ry}" stroke="black" stroke-width="0.35" />`;
+    }
+  }
+
+  // Вертикальная граница между левой группой и основным полем
+  lines += `<line x1="${leftW}" y1="0" x2="${leftW}" y2="${totalH}" stroke="black" stroke-width="0.35" />`;
+
+  // Вертикальная граница между основным полем слева и справа (только строки 1–6 снизу)
+  lines += `<line x1="${leftW + mainLeftW}" y1="${totalH - 30}" x2="${leftW + mainLeftW}" y2="${totalH}" stroke="black" stroke-width="0.35" />`;
+
+  // Вертикали в правой части для строк 4-6
+  const rightSubX1 = leftW + mainLeftW + 15;
+  const rightSubX2 = rightSubX1 + 15;
+  lines += `<line x1="${rightSubX1}" y1="${totalH - 30}" x2="${rightSubX1}" y2="${totalH - 15}" stroke="black" stroke-width="0.35" />`;
+  lines += `<line x1="${rightSubX2}" y1="${totalH - 30}" x2="${rightSubX2}" y2="${totalH - 15}" stroke="black" stroke-width="0.35" />`;
+
+  // Внутренние вертикали левой группы
+  let cx = 0;
+  const mergedPairs = new Set([0, 2]);
+  for (let i = 0; i < leftCols.length - 1; i++) {
+    cx += leftCols[i];
+    if (mergedPairs.has(i)) {
+      lines += `<line x1="${cx}" y1="0" x2="${cx}" y2="${totalH - 25}" stroke="black" stroke-width="0.35" />`;
+    } else {
+      lines += `<line x1="${cx}" y1="0" x2="${cx}" y2="${totalH}" stroke="black" stroke-width="0.35" />`;
+    }
+  }
+
+  // Заголовки левой группы (строка 7 снизу, центр y=22.5)
+  const leftHeaders = ['Изм.', 'Кол.уч.', 'Лист', '№док.', 'Подп.', 'Дата'];
+  let hx = 0;
+  for (let i = 0; i < leftCols.length; i++) {
+    labels += textSvg(leftHeaders[i], hx + leftCols[i] / 2, totalH - 20 - rowH / 2, 2.5, 'middle', 'middle');
+    hx += leftCols[i];
+  }
+
+  // Заголовки правой части (строка 6 снизу, центр y=27.5)
+  labels += textSvg('Стадия', leftW + mainLeftW + 7.5, totalH - 25 - rowH / 2, 2.5, 'middle', 'middle');
+  labels += textSvg('Лист', rightSubX1 - 7.5, totalH - 25 - rowH / 2, 2.5, 'middle', 'middle');
+  labels += textSvg('Листов', rightSubX2 + 10, totalH - 25 - rowH / 2, 2.5, 'middle', 'middle');
+
+  // Значения правой части (Стадия, Лист, Листов) в объединённых строках 4-5
+  const mainRightX = leftW + mainLeftW;
+  if (show.stage && tb.stage) {
+    labels += textSvg(tb.stage, mainRightX + 7.5, totalH - 35 + rowH, 3.5, 'middle', 'middle');
+  }
+  if (show.sheetNo && tb.sheetNo) {
+    labels += textSvg(tb.sheetNo, rightSubX1 - 7.5, totalH - 35 + rowH, 3.5, 'middle', 'middle');
+  }
+  if (show.sheetTotal && tb.sheetTotal) {
+    labels += textSvg(tb.sheetTotal, rightSubX2 + 10, totalH - 35 + rowH, 3.5, 'middle', 'middle');
+  }
+
+  // Строки 1-6 левой группы (снизу вверх): роль, фамилия, подпись, дата
+  const rows = [
+    { show: show.row1, role: 'Утвердил', name: tb.approver, signature: tb.signatureApprover },
+    { show: show.row2, role: 'Н.контр.', name: tb.normController, signature: tb.signatureNormController },
+    { show: show.row3, role: 'ГИП', name: tb.gip, signature: tb.signatureGip },
+    { show: show.row4, role: 'Проверил', name: tb.checker, signature: tb.signatureChecker },
+    { show: show.row5, role: 'Согласовал', name: tb.reviewer, signature: tb.signatureReviewer },
+    { show: show.row6, role: 'Разраб.', name: tb.designer, signature: tb.signatureDesigner },
+  ];
+  for (let i = 0; i < 6; i++) {
+    const row = rows[i];
+    if (!row.show) continue;
+    const rowY = totalH - 5 - i * 5 - rowH / 2; // центр строки
+    labels += textSvg(row.role, 10, rowY, 2.5, 'middle', 'middle');
+    if (row.name) labels += textSvg(row.name, 30, rowY, 3.5, 'middle', 'middle');
+    if (row.signature) labels += textSvg(row.signature, 47.5, rowY, 3.5, 'middle', 'middle');
+    if (dateLabel) labels += textSvg(dateLabel, 60, rowY, 2.5, 'middle', 'middle');
+  }
+
+  // Заполняемые поля основного поля слева
+  const mainLeftCenter = leftW + mainLeftW / 2;
+  if (show.drawingTitle && tb.drawingTitle) {
+    labels += textSvg(tb.drawingTitle, mainLeftCenter, totalH - 47.5, 3.5, 'middle', 'middle');
+  }
+  if (show.section && tb.section) {
+    labels += textSvg(tb.section, mainLeftCenter, totalH - 32.5, 3.5, 'middle', 'middle');
+  }
+
+  // Заполняемые поля основного поля справа (120 мм)
+  const mainFieldCenter = leftW + 60;
+  if (show.address && tb.address) {
+    labels += textSvg(tb.address, mainFieldCenter, totalH - 17.5, 2.5, 'middle', 'middle');
+  }
+  if (show.projectCode && tb.projectCode) {
+    labels += textSvg(tb.projectCode, mainFieldCenter, totalH - 5, 3.5, 'middle', 'middle');
+  }
+
+  // Масса и масштаб (графы 24-25)
+  if (show.weight && tb.weight) {
+    labels += textSvg(tb.weight, mainRightX + 25, totalH - 2.5, 3.5, 'middle', 'middle');
+  }
+  if (show.scaleLabel && tb.scaleLabel) {
+    labels += textSvg(tb.scaleLabel, mainRightX + 40, totalH - 2.5, 3.5, 'middle', 'middle');
+  }
+
+  // Компания / логотип (нижнее правое поле, строки 1-3, 50×15 мм)
+  if (show.company && (tb.company || tb.companyLogo)) {
+    const companyX = mainRightX;
+    const companyY = totalH - 15;
+    const companyW = mainRightW;
+    const companyH = 15;
+    if (tb.companyLogo) {
+      labels += `<image x="${companyX + 2}" y="${companyY + 2}" width="${companyW - 4}" height="${companyH - 4}" href="${tb.companyLogo}" preserveAspectRatio="xMidYMid meet" />`;
+    } else if (tb.company) {
+      labels += textSvg(tb.company, companyX + companyW / 2, companyY + companyH / 2, 3.5, 'middle', 'middle');
+    }
+  }
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 ${totalW} ${totalH}" preserveAspectRatio="xMidYMid meet">
+    ${lines}
+    ${labels}
+  </svg>`;
+}
+
+function textSvg(
+  value: string,
+  x: number,
+  y: number,
+  fontSizeMm: number,
+  textAnchor: 'middle' | 'start' = 'middle',
+  dominantBaseline: 'middle' | 'hanging' | 'auto' = 'middle',
+): string {
+  const escaped = escapeHtml(value);
+  return `<text x="${x}" y="${y}" font-size="${fontSizeMm}" text-anchor="${textAnchor}" dominant-baseline="central" alignment-baseline="central" font-family="Arial,Helvetica,sans-serif">${escaped}</text>`;
+}
+
+function formatDateMmYy(dateStr: string): string {
+  const parts = dateStr.split(/[.\\/-]/);
+  if (parts.length >= 3) {
+    const mm = parts[1]?.padStart(2, '0') ?? '';
+    const yy = parts[2]?.slice(-2) ?? '';
+    return `${mm}.${yy}`;
+  }
+  return dateStr;
+}
+
+function buildStampImage(plan: Plan): string {
+  const scale = 10;
+  const widthMm = 185;
+  const heightMm = 55;
+  const canvas = document.createElement('canvas');
+  canvas.width = widthMm * scale;
+  canvas.height = heightMm * scale;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return buildStampSvg(plan.activeSheet?.titleBlock);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const camera = new Camera(canvas.width, canvas.height);
+  camera.scale = 1;
+  const themeManager = new ThemeManager('light');
+  const renderer = new SheetFrameRenderer(plan, camera, themeManager);
+  const color = themeManager.getColor('sheetFrame');
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  renderer.renderStamp(ctx, 0, 0, widthMm * scale, heightMm * scale, scale);
+
+  const dataUrl = canvas.toDataURL('image/png');
+  return `<img src="${dataUrl}" style="display:block; width:100%; height:100%;" alt="" />`;
 }
 
 function escapeHtml(text: string): string {

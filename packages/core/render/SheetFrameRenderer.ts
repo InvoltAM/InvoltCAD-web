@@ -67,7 +67,7 @@ export class SheetFrameRenderer {
     ctx.restore();
   }
 
-  private renderStamp(
+  renderStamp(
     ctx: CanvasRenderingContext2D,
     x: number,
     y: number,
