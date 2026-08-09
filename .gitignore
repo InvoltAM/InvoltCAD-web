@@ -43,6 +43,10 @@ yarn-error.log*
 # tmp files
 /tmp
 
+# local test outputs
+/test-fixtures
+
+
 # typescript
 *.tsbuildinfo
 tsconfig.tsbuildinfo
