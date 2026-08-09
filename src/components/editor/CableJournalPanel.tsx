@@ -132,7 +132,7 @@ export default function CableJournalPanel() {
                 <tr>
                   <th rowSpan={2} className="col-narrow">№ п/п</th>
                   <th rowSpan={2} className="col-group">№гр.</th>
-                  <th rowSpan={2}>Марка кабеля</th>
+                  <th rowSpan={2} className="col-brand">Марка кабеля</th>
                   <th rowSpan={2} className="col-section">S, мм²</th>
                   <th colSpan={4}>Длина, м</th>
                   <th colSpan={2}>Начало</th>
@@ -140,11 +140,11 @@ export default function CableJournalPanel() {
                 </tr>
                 <tr>
                   <th className="col-length">черт.</th>
-                  <th className="col-length">подъём</th>
-                  <th className="col-length">спуск</th>
+                  <th className="col-length">↑ П</th>
+                  <th className="col-length">↓ О</th>
                   <th className="col-length">общая</th>
                   <th>щит</th>
-                  <th>группа</th>
+                  <th className="col-length">№Авт.</th>
                   <th>пом.</th>
                   <th>Потребитель</th>
                 </tr>
@@ -161,14 +161,14 @@ export default function CableJournalPanel() {
                     <tr key={row.id}>
                       <td className="col-narrow">{row.idx}</td>
                       <td className="col-group">{row.circuitName}</td>
-                      <td>{row.brand}</td>
+                      <td className="col-brand">{row.brand}</td>
                       <td className="col-section">{row.section}</td>
                       <td className="col-length">{row.routeM.toFixed(2)}</td>
                       <td className="col-length">{row.rise.toFixed(2)}</td>
                       <td className="col-length">{row.fall.toFixed(2)}</td>
                       <td className="col-length">{row.totalM.toFixed(2)}</td>
                       <td>—</td>
-                      <td>{row.circuitName}</td>
+                      <td className="col-length">{row.circuitName}</td>
                       <td>{row.roomName}</td>
                       <td>{row.consumerName}</td>
                     </tr>
