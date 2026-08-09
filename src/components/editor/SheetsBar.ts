@@ -68,6 +68,9 @@ export class SheetsBar {
         this.openExportMenu(exportBtn);
       }
     });
+    exportBtn.addEventListener('mousedown', e => {
+      e.stopPropagation();
+    });
 
     const stampBtn = document.createElement('button');
     stampBtn.className = 'sheet-stamp-btn';
@@ -79,6 +82,9 @@ export class SheetsBar {
       } else {
         this.openStampMenu(stampBtn);
       }
+    });
+    stampBtn.addEventListener('mousedown', e => {
+      e.stopPropagation();
     });
 
     const tabs = document.createElement('div');
@@ -127,6 +133,9 @@ export class SheetsBar {
     menuBtn.draggable = false;
     menuBtn.innerHTML = `<span class="ui-icon">${icon('dotsThreeVertical')}</span>`;
     menuBtn.addEventListener('pointerdown', e => {
+      e.stopPropagation();
+    });
+    menuBtn.addEventListener('mousedown', e => {
       e.stopPropagation();
     });
     menuBtn.addEventListener('click', e => {
