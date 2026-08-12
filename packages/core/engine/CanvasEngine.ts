@@ -551,9 +551,9 @@ export class CanvasEngine {
     const ps = sheet.printScale || 100;
     const paperW = dims.width * ps;
     const paperH = dims.height * ps;
-    const bounds = this.plan.getBounds(0);
-    const cx = (bounds.min.x + bounds.max.x) / 2;
-    const cy = (bounds.min.y + bounds.max.y) / 2;
+    // Рамка листа зафиксирована с центром в мировом начале координат.
+    const cx = 0;
+    const cy = 0;
     const fitScale = Math.min(
       this.camera.viewportWidth / (paperW * 1.2),
       this.camera.viewportHeight / (paperH * 1.2),

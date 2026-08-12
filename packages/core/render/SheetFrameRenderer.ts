@@ -28,12 +28,9 @@ export class SheetFrameRenderer {
     const paperW = dims.width * ps;
     const paperH = dims.height * ps;
 
-    const bounds = this.plan.getBounds(0);
-    const cx = (bounds.min.x + bounds.max.x) / 2;
-    const cy = (bounds.min.y + bounds.max.y) / 2;
-
-    const x0 = cx - paperW / 2;
-    const y0 = cy - paperH / 2;
+    // Рамка листа фиксирована относительно мирового начала координат (центр рамки в (0,0)).
+    const x0 = -paperW / 2;
+    const y0 = -paperH / 2;
 
     ctx.save();
     const color = this.themeManager.getColor('sheetFrame');
