@@ -14,10 +14,14 @@ interface DockTool {
   icon: string
 }
 
-const drawingTools: DockTool[] = [
+const wallTools: DockTool[] = [
   { name: 'wall', label: 'Стена', icon: icon('wall') },
   { name: 'door', label: 'Дверь', icon: icon('door') },
   { name: 'window', label: 'Окно', icon: icon('window') },
+]
+
+const drawingTools: DockTool[] = [
+  { name: 'wall', label: 'Стена', icon: icon('wall') },
   { name: 'device', label: 'Устройство', icon: icon('device') },
   { name: 'cable', label: 'Кабель', icon: icon('cable') },
   { name: 'dimension', label: 'Размер', icon: icon('dimension') },
@@ -74,6 +78,9 @@ export default function Toolbar() {
   const [panelItems, setPanelItems] = useState<Array<{ id: string; title: string; icon: string; visible: boolean }>>([])
   const panelMenuBtnRef = useRef<HTMLButtonElement>(null)
 
+  const [wallMenuOpen, setWallMenuOpen] = useState(false)
+  const wallMenuBtnRef = useRef<HTMLButtonElement>(null)
+
   // macOS dock hover state
   const [hoveredDockId, setHoveredDockId] = useState<string | null>(null)
   const dockRef = useRef<HTMLDivElement>(null)
@@ -94,6 +101,26 @@ export default function Toolbar() {
     document.addEventListener('click', onDocClick)
     return () => document.removeEventListener('click', onDocClick)
   }, [panelMenuOpen, panelManagerRef])
+
+  useEffect(() => {
+    if (!wallMenuOpen) return
+    const onDocClick = (e: MouseEvent) => {
+      if (!wallMenuBtnRef.current?.contains(e.target as Node)) {
+        setWallMenuOpen(false)
+      }
+    }
+    document.addEventListener('click', onDocClick)
+    return () => document.removeEventListener('click', onDocClick)
+  }, [wallMenuOpen])
+
+  const handleToggleWallMenu = () => {
+    setWallMenuOpen((prev) => !prev)
+  }
+
+  const handleSelectWallTool = (name: ToolName) => {
+    setTool(name)
+    setWallMenuOpen(false)
+  }
 
   const handleTogglePanelMenu = () => {
     if (!panelManagerRef.current) return
@@ -436,21 +463,62 @@ export default function Toolbar() {
       <div
         ref={dockRef}
         className="editor-dock"
-        onMouseLeave={() => setHoveredDockId(null)}
+        onMouseLeave={() => {
+          setHoveredDockId(null)
+          setWallMenuOpen(false)
+        }}
       >
-        {drawingTools.map((tool) => (
-          <button
-            key={tool.name}
-            onClick={() => setTool(tool.name)}
-            onMouseEnter={() => setHoveredDockId(tool.name)}
-            className={`editor-dock-item ${currentTool === tool.name ? 'active' : ''}`}
-            title={tool.label}
-            style={{ transform: `scale(${getDockScale(tool.name)})` }}
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: tool.icon }} />
-            <span className="editor-dock-tooltip">{tool.label}</span>
-          </button>
-        ))}
+        {drawingTools.map((tool) => {
+          if (tool.name === 'wall') {
+            const isWallToolActive =
+              currentTool === 'wall' || currentTool === 'door' || currentTool === 'window'
+            return (
+              <div key="wall" className="editor-dock-group">
+                <button
+                  ref={wallMenuBtnRef}
+                  onClick={handleToggleWallMenu}
+                  onMouseEnter={() => setHoveredDockId('wall')}
+                  className={`editor-dock-item editor-dock-item-menu ${isWallToolActive ? 'active' : ''}`}
+                  title="Стена / Дверь / Окно"
+                  style={{ transform: `scale(${getDockScale('wall')})` }}
+                >
+                  <span className="ui-icon" dangerouslySetInnerHTML={{ __html: tool.icon }} />
+                  <span className="editor-dock-arrow">▼</span>
+                  <span className="editor-dock-tooltip">{tool.label}</span>
+                </button>
+                {wallMenuOpen && (
+                  <div
+                    className="editor-dock-submenu"
+                  >
+                    {wallTools.map((wt) => (
+                      <button
+                        key={wt.name}
+                        className={`editor-dock-submenu-item ${currentTool === wt.name ? 'active' : ''}`}
+                        onClick={() => handleSelectWallTool(wt.name)}
+                      >
+                        <span className="ui-icon" dangerouslySetInnerHTML={{ __html: wt.icon }} />
+                        <span>{wt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          }
+          return (
+            <button
+              key={tool.name}
+              onClick={() => setTool(tool.name)}
+              onMouseEnter={() => setHoveredDockId(tool.name)}
+              className={`editor-dock-item ${currentTool === tool.name ? 'active' : ''}`}
+              title={tool.label}
+              style={{ transform: `scale(${getDockScale(tool.name)})` }}
+            >
+              <span className="ui-icon" dangerouslySetInnerHTML={{ __html: tool.icon }} />
+              <span className="editor-dock-tooltip">{tool.label}</span>
+            </button>
+          )
+        })}
         <div className="editor-dock-divider" />
         {dockActions.map((action) => (
           <button

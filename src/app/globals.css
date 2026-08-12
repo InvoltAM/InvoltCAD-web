@@ -807,6 +807,84 @@ body {
   font-weight: 600;
 }
 
+/* Выпадающее подменю инструмента Стена (дверь/окно) */
+.editor-dock-group {
+  position: relative;
+  display: flex;
+}
+
+.editor-dock-item-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 4px;
+}
+
+.editor-dock-arrow {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  font-size: 8px;
+  line-height: 1;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.editor-dock-item.active .editor-dock-arrow {
+  color: var(--accent);
+}
+
+.editor-dock-submenu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  min-width: 140px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  z-index: 300;
+  overflow: hidden;
+  transform: translateX(-50%);
+}
+
+.editor-dock-submenu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.editor-dock-submenu-item .ui-icon {
+  display: inline-flex;
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+
+.editor-dock-submenu-item.active {
+  background: rgba(255, 140, 0, 0.12);
+  color: var(--accent);
+}
+
+.editor-dock-submenu-item.active .ui-icon {
+  color: var(--accent);
+}
+
+.editor-dock-submenu-item:hover {
+  background: var(--hover-bg);
+}
+
+.editor-dock-submenu-item.active:hover {
+  background: rgba(255, 140, 0, 0.18);
+}
+
 /* Защита от случайного удаления листа */
 .sheet-tab-close.armed {
   background: #dc2626;
