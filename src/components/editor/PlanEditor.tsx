@@ -28,6 +28,7 @@ import SheetCablesPanel from './SheetCablesPanel'
 import OlsPanel from './OlsPanel'
 import PanelEditor from './PanelEditor'
 import RoomsPanel from './RoomsPanel'
+import RoomNumbersPanel from './RoomNumbersPanel'
 import CatalogPanel from './CatalogPanel'
 import EstimatesPanel from './EstimatesPanel'
 import InvoicesPanel from './InvoicesPanel'
@@ -52,7 +53,8 @@ export default function PlanEditor() {
     sheetCables: HTMLElement | null
     validation: HTMLElement | null
     cableJournal: HTMLElement | null
-  }>({ property: null, layers: null, spec: null, sheetCables: null, validation: null, cableJournal: null })
+    roomNumbers: HTMLElement | null
+  }>({ property: null, layers: null, spec: null, sheetCables: null, validation: null, cableJournal: null, roomNumbers: null })
 
   const currentTool = useCadStore((s) => s.currentTool)
   const theme = useCadStore((s) => s.theme)
@@ -172,6 +174,7 @@ export default function PlanEditor() {
       const sheetCablesBody = document.createElement('div')
       const validationBody = document.createElement('div')
       const cableJournalBody = document.createElement('div')
+      const roomNumbersBody = document.createElement('div')
 
       panelManagerRef.current = new PanelManager(
         [
@@ -190,6 +193,7 @@ export default function PlanEditor() {
             menuVisible: false,
             onVisibilityChange: (visible) => useCadStore.getState().setCableJournalOpen(visible),
           },
+          { id: 'roomNumbers', title: '№ помещения', icon: icon('roomNumbers'), body: roomNumbersBody, width: 360 },
         ],
         app,
         sheetsBarRef.current.element
@@ -206,12 +210,13 @@ export default function PlanEditor() {
         sheetCables: sheetCablesBody,
         validation: validationBody,
         cableJournal: cableJournalBody,
+        roomNumbers: roomNumbersBody,
       })
     }
 
     return () => {
       unsubscribe()
-      setPanelBodies({ property: null, layers: null, spec: null, sheetCables: null, validation: null, cableJournal: null })
+      setPanelBodies({ property: null, layers: null, spec: null, sheetCables: null, validation: null, cableJournal: null, roomNumbers: null })
       engine.destroy()
       engineRef.current = null
       panelManagerRef.current?.destroy()
@@ -324,6 +329,7 @@ export default function PlanEditor() {
         {panelBodies.sheetCables && createPortal(<SheetCablesPanel />, panelBodies.sheetCables)}
         {panelBodies.validation && createPortal(<ValidationPanel />, panelBodies.validation)}
         {panelBodies.cableJournal && createPortal(<CableJournalPanel />, panelBodies.cableJournal)}
+        {panelBodies.roomNumbers && createPortal(<RoomNumbersPanel />, panelBodies.roomNumbers)}
       </div>
     </EditorProvider>
   )

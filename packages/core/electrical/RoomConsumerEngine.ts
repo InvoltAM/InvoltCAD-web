@@ -5,6 +5,7 @@ import { Vector2 } from '../geometry/Vector2';
 
 export interface RoomData {
   id: string;
+  number: number;
   name: string;
   polygon: Vector2[];
   area: number;
@@ -90,8 +91,9 @@ export function buildRoomData(plan: Plan, existingConsumers: ConsumerData[] = []
   const roomData: RoomData[] = rooms.map((room, index) => {
     const centroid = room.polygon.reduce((sum, p) => sum.add(p), new Vector2(0, 0)).scale(1 / (room.polygon.length || 1));
     return {
-      id: stableRoomId(room.polygon),
-      name: DEFAULT_ROOM_NAMES[index % DEFAULT_ROOM_NAMES.length] || `Комната ${index + 1}`,
+      id: (room as any).id || stableRoomId(room.polygon),
+      number: (room as any).number ?? index + 1,
+      name: (room as any).name ?? (DEFAULT_ROOM_NAMES[index % DEFAULT_ROOM_NAMES.length] || `Комната ${index + 1}`),
       polygon: room.polygon.map((p) => p.clone()),
       area: room.area,
       centroid,

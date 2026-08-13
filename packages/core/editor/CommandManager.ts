@@ -5,6 +5,7 @@ import { Device, DeviceType } from '../model/Device';
 import { Cable, CableType, DEFAULT_CABLE } from '../model/Cable';
 import { Dimension } from '../model/Dimension';
 import { Vector2 } from '../geometry/Vector2';
+import { SheetTable, SheetTableType } from '../model/SheetTable';
 
 export interface Command {
   execute(): void;
@@ -624,5 +625,86 @@ export class MoveDeviceCommand implements Command {
       device.position = this.oldPosition ? { ...this.oldPosition } : undefined;
       this.plan.recalcCableRoutes();
     }
+  }
+}
+
+/** Команда добавления таблицы на лист. */
+export class AddSheetTableCommand implements Command {
+  private tableId = '';
+
+  constructor(
+    private plan: Plan,
+    private type: SheetTableType,
+    private position: Vector2,
+    private width = 300,
+    private height = 200,
+    private scale = 1,
+  ) {}
+
+  execute(): void {
+    const table = this.plan.addSheetTable(this.type, this.position, this.width, this.height, this.scale);
+    this.tableId = table.id;
+  }
+
+  undo(): void {
+    this.plan.removeSheetTable(this.tableId);
+  }
+}
+
+/** Команда удаления таблицы с листа. */
+export class RemoveSheetTableCommand implements Command {
+  private tableData: SheetTable | null = null;
+
+  constructor(private plan: Plan, private tableId: string) {}
+
+  execute(): void {
+    const table = this.plan.findSheetTable(this.tableId);
+    if (table) {
+      this.tableData = { ...table };
+      this.plan.removeSheetTable(this.tableId);
+    }
+  }
+
+  undo(): void {
+    if (!this.tableData) return;
+    this.plan.tables.push({ ...this.tableData });
+  }
+}
+
+/** Команда перемещения таблицы на листе. */
+export class MoveSheetTableCommand implements Command {
+  constructor(
+    private plan: Plan,
+    private tableId: string,
+    private oldPosition: { x: number; y: number },
+    private newPosition: { x: number; y: number },
+  ) {}
+
+  execute(): void {
+    this.plan.moveSheetTable(this.tableId, new Vector2(this.newPosition.x, this.newPosition.y));
+  }
+
+  undo(): void {
+    this.plan.moveSheetTable(this.tableId, new Vector2(this.oldPosition.x, this.oldPosition.y));
+  }
+}
+
+/** Команда изменения масштаба таблицы на листе. */
+export class ResizeSheetTableCommand implements Command {
+  constructor(
+    private plan: Plan,
+    private tableId: string,
+    private oldScale: number,
+    private newScale: number,
+    private oldPosition: { x: number; y: number },
+    private newPosition: { x: number; y: number },
+  ) {}
+
+  execute(): void {
+    this.plan.resizeSheetTable(this.tableId, this.newScale, new Vector2(this.newPosition.x, this.newPosition.y));
+  }
+
+  undo(): void {
+    this.plan.resizeSheetTable(this.tableId, this.oldScale, new Vector2(this.oldPosition.x, this.oldPosition.y));
   }
 }

@@ -7,6 +7,9 @@ const EPS = 0.01;
 const MIN_ROOM_AREA = 50_000; // 0.05 м²
 
 export interface Room {
+  id?: string;
+  number?: number;
+  name?: string;
   polygon: Vector2[];
   area: number; // мм² (полезная площадь с вычтенными вырезами)
   grossArea: number; // мм² (площадь без вычета вырезов)

@@ -713,7 +713,7 @@ export class PanelManager {
   toggle(id: string): void {
     const panel = this.panels.find(p => p.id === id);
     if (!panel) return;
-    if (panel.closed) this.show(id);
+    if (panel.closed || panel.collapsed) this.show(id);
     else this.hide(id);
   }
 

@@ -10,6 +10,7 @@ import { Quadtree, buildWallQuadtree } from '../geometry/Quadtree';
 import { projectPointToSegment } from '../geometry/Geometry';
 
 import { Sheet, createDefaultSheets, createEmptyTitleBlock, SheetTitleBlock } from './Sheet';
+import { createSheetTable, SheetTable, SheetTableType } from './SheetTable';
 import { CableRunData } from '../electrical/CableRunEngine';
 
 export interface PlanElectrical {
@@ -40,6 +41,14 @@ export function createEmptyElectrical(): PlanElectrical {
   };
 }
 
+export interface RoomMetadata {
+  id: string;
+  number: number;
+  name: string;
+  centroid: { x: number; y: number };
+  area: number;
+}
+
 /**
  * Корневая модель плана помещения.
  * Все координаты в миллиметрах.
@@ -53,6 +62,7 @@ export class Plan {
   private wallQuadtree: Quadtree<Wall> | null = null;
   private cachedQuadtreeHash = '';
   private cachedRooms: Room[] | null = null;
+  roomData: RoomMetadata[] = [];
 
   /** Активный лист (по умолчанию — первый). */
   get activeSheet(): Sheet {
@@ -84,6 +94,14 @@ export class Plan {
   }
   set dimensions(value: Dimension[]) {
     this.activeSheet.dimensions = value;
+  }
+
+  /** Таблицы активного листа. */
+  get tables(): SheetTable[] {
+    return this.activeSheet.tables;
+  }
+  set tables(value: SheetTable[]) {
+    this.activeSheet.tables = value;
   }
 
   addWall(a: Vector2, b: Vector2, thickness = DEFAULT_WALL_THICKNESS): Wall {
@@ -122,6 +140,7 @@ export class Plan {
       devices: [],
       cables: [],
       dimensions: [],
+      tables: [],
       pageSize: 'A4',
       orientation: 'landscape',
       printScale: 100,
@@ -504,11 +523,103 @@ export class Plan {
 
   }
 
-  /** Найти замкнутые комнаты по стенам (с кэшированием). */
+  addSheetTable(type: SheetTableType, position: Vector2, width = 300, height = 200, scale = 1): SheetTable {
+    let pos = position.clone();
+    let offset = 0;
+    while (this.tables.some((t) => Math.abs(t.position.x - pos.x) < 1000 && Math.abs(t.position.y - pos.y) < 1000)) {
+      offset += 1000;
+      pos = position.add(new Vector2(offset, offset));
+    }
+    const table = createSheetTable(type, pos, width, height, scale);
+    this.tables.push(table);
+    return table;
+  }
+
+  removeSheetTable(id: string): void {
+    this.tables = this.tables.filter(t => t.id !== id);
+  }
+
+  findSheetTable(id: string): SheetTable | undefined {
+    return this.tables.find(t => t.id === id);
+  }
+
+  moveSheetTable(id: string, position: Vector2): void {
+    const table = this.findSheetTable(id);
+    if (table) {
+      table.position = { x: position.x, y: position.y };
+    }
+  }
+
+  resizeSheetTable(id: string, scale: number, position: Vector2): void {
+    const table = this.findSheetTable(id);
+    if (table) {
+      table.scale = scale;
+      table.position = { x: position.x, y: position.y };
+    }
+  }
+
+  /** Центроид полигона комнаты. */
+  private getRoomCentroid(polygon: Vector2[]): Vector2 {
+    let cx = 0;
+    let cy = 0;
+    for (const p of polygon) {
+      cx += p.x;
+      cy += p.y;
+    }
+    return new Vector2(cx / polygon.length, cy / polygon.length);
+  }
+
+  /** Найти замкнутые комнаты по стенам (с кэшированием).
+   * Каждой комнате присваивается устойчивый номер и идентификатор.
+   * Имя заполняется вручную через {@link updateRoomName}.
+   */
   getRooms(): Room[] {
     if (this.cachedRooms) return this.cachedRooms;
-    this.cachedRooms = detectRooms(this.walls);
+    const raw = detectRooms(this.walls);
+    const existing = this.roomData;
+    let nextNumber = existing.reduce((m, r) => Math.max(m, r.number), 0) + 1;
+    const mapped: Room[] = raw.map((room) => {
+      const centroid = this.getRoomCentroid(room.polygon);
+      const matched = existing.find((r) => {
+        const dx = r.centroid.x - centroid.x;
+        const dy = r.centroid.y - centroid.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const areaDiff = Math.abs(r.area - room.area);
+        const areaBase = Math.max(r.area, room.area, 1);
+        return dist < 50 && areaDiff / areaBase < 0.05;
+      });
+      if (matched) {
+        return {
+          ...room,
+          id: matched.id,
+          number: matched.number,
+          name: matched.name,
+        };
+      }
+      return {
+        ...room,
+        id: crypto.randomUUID(),
+        number: nextNumber++,
+        name: '',
+      };
+    });
+    this.roomData = mapped.map((r) => ({
+      id: r.id!,
+      number: r.number!,
+      name: r.name!,
+      centroid: this.getRoomCentroid(r.polygon),
+      area: r.area,
+    }));
+    this.cachedRooms = mapped;
     return this.cachedRooms;
+  }
+
+  /** Обновить наименование комнаты. */
+  updateRoomName(id: string, name: string): void {
+    const data = this.roomData.find(r => r.id === id);
+    if (data) data.name = name;
+    const room = this.cachedRooms?.find(r => r.id === id);
+    if (room) room.name = name;
   }
 
   /** Сбросить кэш комнат (вызывать при изменении стен). */
@@ -647,6 +758,14 @@ export class Plan {
       length: d.length,
       text: d.text,
     }));
+    const tablesToJSON = (tables: SheetTable[]) => tables.map(t => ({
+      id: t.id,
+      type: t.type,
+      position: { x: t.position.x, y: t.position.y },
+      width: t.width,
+      height: t.height,
+      scale: t.scale,
+    }));
 
     return {
       walls: this.walls.map(w => ({
@@ -670,6 +789,7 @@ export class Plan {
         devices: devicesToJSON(s.devices),
         cables: cablesToJSON(s.cables),
         dimensions: dimensionsToJSON(s.dimensions),
+        tables: tablesToJSON(s.tables),
         pageSize: s.pageSize,
         orientation: s.orientation,
         printScale: s.printScale,
@@ -677,6 +797,7 @@ export class Plan {
       })),
       activeSheetId: this.activeSheetId || this.sheets[0]?.id,
       electrical: this.electrical ?? createEmptyElectrical(),
+      roomData: this.roomData,
     };
   }
 
@@ -758,6 +879,14 @@ export class Plan {
         text: d.text,
       };
     });
+    const tablesFromJSON = (list: any[]): SheetTable[] => (list ?? []).map(t => ({
+      id: t.id || crypto.randomUUID(),
+      type: t.type || 'spec',
+      position: { x: t.position?.x ?? 0, y: t.position?.y ?? 0 },
+      width: t.width ?? 300,
+      height: t.height ?? 200,
+      scale: t.scale ?? 1,
+    }));
 
     if (Array.isArray(data.sheets) && data.sheets.length > 0) {
       // Новый формат: листы с собственными устройствами/кабелями/размерами
@@ -770,6 +899,7 @@ export class Plan {
           devices,
           cables: cablesFromJSON(s.cables, devices),
           dimensions: dimensionsFromJSON(s.dimensions),
+          tables: tablesFromJSON(s.tables),
           pageSize: s.pageSize || 'A4',
           orientation: s.orientation || 'landscape',
           printScale: s.printScale ?? 100,
@@ -796,6 +926,13 @@ export class Plan {
     }
 
     plan.electrical = data.electrical ?? createEmptyElectrical();
+    plan.roomData = (data.roomData ?? []).map((r: any) => ({
+      id: r.id || crypto.randomUUID(),
+      number: r.number ?? 1,
+      name: r.name ?? '',
+      centroid: { x: r.centroid?.x ?? 0, y: r.centroid?.y ?? 0 },
+      area: r.area ?? 0,
+    }));
 
     return plan;
   }

@@ -12,6 +12,7 @@ import { DeviceRenderer } from '../render/DeviceRenderer';
 import { CableRenderer } from '../render/CableRenderer';
 import { RoomRenderer } from '../render/RoomRenderer';
 import { WallDimensionRenderer } from '../render/WallDimensionRenderer';
+import { TableRenderer } from '../render/TableRenderer';
 import { ToolManager, ToolName } from '../tools/ToolManager';
 import { EditorState } from '../editor/EditorState';
 import { CommandManager } from '../editor/CommandManager';
@@ -39,6 +40,7 @@ export class CanvasEngine {
   cableRenderer: CableRenderer;
   roomRenderer!: RoomRenderer;
   wallDimensionRenderer!: WallDimensionRenderer;
+  tableRenderer: TableRenderer;
   sheetFrameRenderer: SheetFrameRenderer;
   input: InputManager;
   snapEngine: SnapEngine;
@@ -85,6 +87,7 @@ export class CanvasEngine {
     this.cableRenderer = new CableRenderer(plan, this.camera, this.editorState, this.themeManager);
     this.roomRenderer = new RoomRenderer(plan, this.camera, this.themeManager);
     this.wallDimensionRenderer = new WallDimensionRenderer(plan, this.camera, this.themeManager);
+    this.tableRenderer = new TableRenderer(plan, this.camera, this.themeManager);
     this.sheetFrameRenderer = new SheetFrameRenderer(plan, this.camera, this.themeManager, () => this.requestRender());
 
     this.input = new InputManager(canvas, this.camera);
@@ -279,7 +282,10 @@ export class CanvasEngine {
       this.cableRenderer.render(ctx);
     }
 
-    // 10. Ghost-слой
+    // 10. Таблицы на листе
+    this.tableRenderer.render(ctx);
+
+    // 11. Ghost-слой
     if (this.ghostDraw) {
       this.ghostDraw(ctx);
     }
@@ -340,6 +346,7 @@ export class CanvasEngine {
       this.setSelectedCable(null);
       this.setSelectedDimension(null);
       this.setSelectedRoom(null);
+      this.setSelectedSheetTable(null);
     }
   }
 
@@ -493,6 +500,9 @@ export class CanvasEngine {
       this.editorState.set('selectedDimensionId', null);
       this.editorState.set('selectedDimensionIds', []);
       this.dimensionRenderer.setSelectedDimensionIds([]);
+      this.editorState.set('selectedSheetTableId', null);
+      this.editorState.set('selectedSheetTableIds', []);
+      this.tableRenderer.setSelectedTableIds([]);
     }
     this.requestRender();
   }
@@ -503,6 +513,49 @@ export class CanvasEngine {
     this.editorState.set('selectedRoomIndex', unique[0] ?? null);
     this.roomRenderer.setSelectedRoomIndices(unique);
     this.requestRender();
+  }
+
+  setSelectedSheetTable(id: string | null): void {
+    this.editorState.set('selectedSheetTableId', id);
+    this.editorState.set('selectedSheetTableIds', id ? [id] : []);
+    this.tableRenderer.setSelectedTableIds(id ? [id] : []);
+    if (id) {
+      this.editorState.set('selectedWallId', null);
+      this.editorState.set('selectedWallIds', []);
+      this.wallRenderer.setSelectedWallIds([]);
+      this.editorState.set('selectedOpeningId', null);
+      this.editorState.set('selectedOpeningIds', []);
+      this.openingRenderer.setSelectedOpeningIds([]);
+      this.editorState.set('selectedDeviceId', null);
+      this.editorState.set('selectedDeviceIds', []);
+      this.deviceRenderer.setSelectedDeviceIds([]);
+      this.editorState.set('selectedCableId', null);
+      this.editorState.set('selectedCableIds', []);
+      this.cableRenderer.setSelectedCableIds([]);
+      this.editorState.set('selectedDimensionId', null);
+      this.editorState.set('selectedDimensionIds', []);
+      this.dimensionRenderer.setSelectedDimensionIds([]);
+      this.editorState.set('selectedRoomIndex', null);
+      this.editorState.set('selectedRoomIndices', []);
+      this.roomRenderer.setSelectedRoomIndices([]);
+    }
+    this.requestRender();
+  }
+
+  setSelectedSheetTables(ids: string[]): void {
+    const unique = [...new Set(ids)];
+    this.editorState.set('selectedSheetTableIds', unique);
+    this.editorState.set('selectedSheetTableId', unique[0] ?? null);
+    this.tableRenderer.setSelectedTableIds(unique);
+    this.requestRender();
+  }
+
+  getSelectedSheetTable(): string | null {
+    return this.editorState.get('selectedSheetTableId');
+  }
+
+  getSelectedSheetTables(): string[] {
+    return this.editorState.get('selectedSheetTableIds') ?? [];
   }
 
   getSelectedRoom(): number | null {
@@ -527,6 +580,30 @@ export class CanvasEngine {
 
   getSelectedDimension(): string | null {
     return this.editorState.get('selectedDimensionId');
+  }
+
+  getSelectedWalls(): string[] {
+    return this.editorState.get('selectedWallIds') ?? [];
+  }
+
+  getSelectedOpenings(): string[] {
+    return this.editorState.get('selectedOpeningIds') ?? [];
+  }
+
+  getSelectedDevices(): string[] {
+    return this.editorState.get('selectedDeviceIds') ?? [];
+  }
+
+  getSelectedCables(): string[] {
+    return this.editorState.get('selectedCableIds') ?? [];
+  }
+
+  getSelectedDimensions(): string[] {
+    return this.editorState.get('selectedDimensionIds') ?? [];
+  }
+
+  getSelectedRooms(): number[] {
+    return this.editorState.get('selectedRoomIndices') ?? [];
   }
 
   /** Уведомить об изменении плана (autosave + render). */
@@ -624,6 +701,8 @@ export class CanvasEngine {
     this.setSelectedDevice(null);
     this.setSelectedCable(null);
     this.setSelectedDimension(null);
+    this.setSelectedRoom(null);
+    this.setSelectedSheetTable(null);
     this.notifyChanged();
   }
 }

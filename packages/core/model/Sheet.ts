@@ -1,6 +1,7 @@
 import { Device } from './Device';
 import { Cable } from './Cable';
 import { Dimension } from './Dimension';
+import { SheetTable } from './SheetTable';
 
 /**
  * Лист проекта: общие стены живут в Plan,
@@ -116,6 +117,7 @@ export interface Sheet {
   devices: Device[];
   cables: Cable[];
   dimensions: Dimension[];
+  tables: SheetTable[];
   pageSize: PageSize;
   orientation: PageOrientation;
   printScale: number;
@@ -219,6 +221,7 @@ export function createSheet(name: string): Sheet {
     devices: [],
     cables: [],
     dimensions: [],
+    tables: [],
     pageSize: 'A4',
     orientation: 'landscape',
     printScale: 100,

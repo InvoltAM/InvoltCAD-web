@@ -19,14 +19,26 @@ import {
   MoveDeviceNameCommand,
   MoveDeviceCommand,
   MoveFreeDeviceCommand,
+  AddSheetTableCommand,
+  RemoveSheetTableCommand,
+  MoveSheetTableCommand,
+  ResizeSheetTableCommand,
 } from '../editor/CommandManager';
+import { TableResizeCorner } from '../render/TableRenderer';
 
 const ROOM_VERTEX_SCREEN_THRESHOLD = 8; // px
 const ROOM_VERTEX_WORLD_THRESHOLD = 5; // мм
+const TABLE_RESIZE_MIN_SCALE = 0.3;
 
 interface DragRoomVertex {
   roomIndex: number;
   vertexIndex: number;
+  startWorld: Vector2;
+  targets: Array<{ wall: Wall; endpoint: 'a' | 'b'; original: Vector2 }>;
+}
+
+interface DragWallVertex {
+  world: Vector2;
   startWorld: Vector2;
   targets: Array<{ wall: Wall; endpoint: 'a' | 'b'; original: Vector2 }>;
 }
@@ -46,6 +58,23 @@ interface DragDevice {
   moved: boolean;
 }
 
+interface DragTable {
+  table: import('../model/SheetTable.js').SheetTable;
+  startWorld: Vector2;
+  originalPos: { x: number; y: number };
+  moved: boolean;
+}
+
+interface ResizeTable {
+  table: import('../model/SheetTable.js').SheetTable;
+  corner: import('../render/TableRenderer.js').TableResizeCorner;
+  anchor: Vector2;
+  startWorld: Vector2;
+  startScale: number;
+  startPos: { x: number; y: number };
+  moved: boolean;
+}
+
 /**
  * Инструмент "Выбор".
  * Выделение, перемещение проема, удаление через CommandManager,
@@ -56,14 +85,18 @@ export class SelectTool implements Tool {
 
   private dragOpening: { opening: Opening; wall: Wall; startT: number } | null = null;
   private dragRoomVertex: DragRoomVertex | null = null;
+  private dragWallVertex: DragWallVertex | null = null;
   private activeRoomVertex: DragRoomVertex | null = null;
   private dragDeviceName: DragDeviceName | null = null;
   private dragDevice: DragDevice | null = null;
+  private dragTable: DragTable | null = null;
+  private resizeTable: ResizeTable | null = null;
   private selectionBox: {
     startWorld: Vector2;
     currentWorld: Vector2;
     startScreen: Vector2;
     currentScreen: Vector2;
+    additive: boolean;
   } | null = null;
   private pointerDownOnEmpty = false;
   private hasDragged = false;
@@ -80,6 +113,59 @@ export class SelectTool implements Tool {
     this.canvas.setGhost(null);
   }
 
+  private isMultiSelect(e: InputEvent): boolean {
+    return e.ctrlKey || e.shiftKey;
+  }
+
+  private toggleWallSelection(id: string): void {
+    const selected = new Set(this.canvas.getSelectedWalls());
+    if (selected.has(id)) selected.delete(id);
+    else selected.add(id);
+    this.canvas.setSelectedWalls([...selected]);
+  }
+
+  private toggleOpeningSelection(id: string): void {
+    const selected = new Set(this.canvas.getSelectedOpenings());
+    if (selected.has(id)) selected.delete(id);
+    else selected.add(id);
+    this.canvas.setSelectedOpenings([...selected]);
+  }
+
+  private toggleDeviceSelection(id: string): void {
+    const selected = new Set(this.canvas.getSelectedDevices());
+    if (selected.has(id)) selected.delete(id);
+    else selected.add(id);
+    this.canvas.setSelectedDevices([...selected]);
+  }
+
+  private toggleCableSelection(id: string): void {
+    const selected = new Set(this.canvas.getSelectedCables());
+    if (selected.has(id)) selected.delete(id);
+    else selected.add(id);
+    this.canvas.setSelectedCables([...selected]);
+  }
+
+  private toggleDimensionSelection(id: string): void {
+    const selected = new Set(this.canvas.getSelectedDimensions());
+    if (selected.has(id)) selected.delete(id);
+    else selected.add(id);
+    this.canvas.setSelectedDimensions([...selected]);
+  }
+
+  private toggleRoomSelection(index: number): void {
+    const selected = new Set(this.canvas.getSelectedRooms());
+    if (selected.has(index)) selected.delete(index);
+    else selected.add(index);
+    this.canvas.setSelectedRooms([...selected]);
+  }
+
+  private toggleTableSelection(id: string): void {
+    const selected = new Set(this.canvas.getSelectedSheetTables());
+    if (selected.has(id)) selected.delete(id);
+    else selected.add(id);
+    this.canvas.setSelectedSheetTables([...selected]);
+  }
+
   onPointerDown(e: InputEvent): void {
     this.selectionBox = null;
     this.pointerDownOnEmpty = false;
@@ -88,52 +174,114 @@ export class SelectTool implements Tool {
     const hitDevice = this.hitTestDevice(e.screenPoint);
     const hitCable = this.hitTestCable(e.screenPoint);
     const hitDimension = this.hitTestDimension(e.screenPoint);
+    const hitTableHandle = this.hitTestTableResizeHandle(e.screenPoint);
+    const hitTable = this.hitTestSheetTable(e.screenPoint);
     const hitOpening = this.hitTestOpening(e.screenPoint);
     const hitWall = this.hitTestWall(e.screenPoint);
     const hitRoomVertex = this.hitTestRoomVertex(e.screenPoint);
+    const hitWallVertex = this.hitTestWallVertex(e.screenPoint);
 
     if (hitDeviceName) {
-      // Подпись устройства: выделяем устройство и начинаем перетаскивание подписи
-      this.clearSelection();
-      this.canvas.setSelectedDevice(hitDeviceName.id);
-      this.dragDeviceName = {
-        device: hitDeviceName,
-        startWorld: this.canvas.camera.screenToWorld(e.screenPoint),
-        originalOffset: hitDeviceName.nameOffset ? { ...hitDeviceName.nameOffset } : undefined,
-      };
+      if (this.isMultiSelect(e)) {
+        this.toggleDeviceSelection(hitDeviceName.id);
+      } else {
+        this.clearSelection();
+        this.canvas.setSelectedDevice(hitDeviceName.id);
+        this.dragDeviceName = {
+          device: hitDeviceName,
+          startWorld: this.canvas.camera.screenToWorld(e.screenPoint),
+          originalOffset: hitDeviceName.nameOffset ? { ...hitDeviceName.nameOffset } : undefined,
+        };
+      }
       this.dragOpening = null;
     } else if (hitDevice) {
-      this.clearSelection();
-      this.canvas.setSelectedDevice(hitDevice.id);
-      // Начинаем drag устройства: смещение применится, если мышь сдвинется
-      const wall = this.plan.findWall(hitDevice.wallId) ?? null;
-      this.dragDevice = {
-        device: hitDevice,
-        wall,
-        startT: hitDevice.t,
-        startWorld: this.canvas.camera.screenToWorld(e.screenPoint),
-        originalPos: hitDevice.position ? { ...hitDevice.position } : null,
-        moved: false,
-      };
+      if (this.isMultiSelect(e)) {
+        this.toggleDeviceSelection(hitDevice.id);
+      } else {
+        this.clearSelection();
+        this.canvas.setSelectedDevice(hitDevice.id);
+        // Начинаем drag устройства: смещение применится, если мышь сдвинется
+        const wall = this.plan.findWall(hitDevice.wallId) ?? null;
+        this.dragDevice = {
+          device: hitDevice,
+          wall,
+          startT: hitDevice.t,
+          startWorld: this.canvas.camera.screenToWorld(e.screenPoint),
+          originalPos: hitDevice.position ? { ...hitDevice.position } : null,
+          moved: false,
+        };
+      }
       this.dragOpening = null;
     } else if (hitCable) {
-      this.clearSelection();
-      this.canvas.setSelectedCable(hitCable.id);
+      if (this.isMultiSelect(e)) {
+        this.toggleCableSelection(hitCable.id);
+      } else {
+        this.clearSelection();
+        this.canvas.setSelectedCable(hitCable.id);
+      }
       this.dragOpening = null;
     } else if (hitDimension) {
-      this.clearSelection();
-      this.canvas.setSelectedDimension(hitDimension.id);
+      if (this.isMultiSelect(e)) {
+        this.toggleDimensionSelection(hitDimension.id);
+      } else {
+        this.clearSelection();
+        this.canvas.setSelectedDimension(hitDimension.id);
+      }
+      this.dragOpening = null;
+    } else if (hitTableHandle) {
+      if (this.isMultiSelect(e)) {
+        this.toggleTableSelection(hitTableHandle.table.id);
+      } else {
+        this.clearSelection();
+        this.canvas.setSelectedSheetTable(hitTableHandle.table.id);
+      }
+      this.startResizeTable(hitTableHandle, e.screenPoint);
+      this.dragOpening = null;
+    } else if (hitTable) {
+      if (this.isMultiSelect(e)) {
+        this.toggleTableSelection(hitTable.id);
+      } else {
+        this.clearSelection();
+        this.canvas.setSelectedSheetTable(hitTable.id);
+        this.dragTable = {
+          table: hitTable,
+          startWorld: this.canvas.camera.screenToWorld(e.screenPoint),
+          originalPos: { ...hitTable.position },
+          moved: false,
+        };
+      }
       this.dragOpening = null;
     } else if (hitOpening) {
-      this.clearSelection();
-      this.canvas.setSelectedOpening(hitOpening.opening.id);
-      this.dragOpening = {
-        opening: hitOpening.opening,
-        wall: hitOpening.wall,
-        startT: hitOpening.opening.t,
-      };
+      if (this.isMultiSelect(e)) {
+        this.toggleOpeningSelection(hitOpening.opening.id);
+      } else {
+        this.clearSelection();
+        this.canvas.setSelectedOpening(hitOpening.opening.id);
+        this.dragOpening = {
+          opening: hitOpening.opening,
+          wall: hitOpening.wall,
+          startT: hitOpening.opening.t,
+        };
+      }
+    } else if (hitWallVertex) {
+      if (this.isMultiSelect(e)) {
+        this.toggleWallSelection(hitWallVertex.targets[0].wall.id);
+      } else {
+        this.clearSelection();
+        this.canvas.setSelectedWall(hitWallVertex.targets[0].wall.id);
+        this.dragWallVertex = {
+          world: hitWallVertex.world,
+          startWorld: hitWallVertex.world,
+          targets: hitWallVertex.targets,
+        };
+      }
+      this.dragOpening = null;
     } else if (hitRoomVertex) {
-      this.canvas.setSelectedRoom(hitRoomVertex.roomIndex);
+      if (this.isMultiSelect(e)) {
+        this.toggleRoomSelection(hitRoomVertex.roomIndex);
+      } else {
+        this.canvas.setSelectedRoom(hitRoomVertex.roomIndex);
+      }
       this.dragRoomVertex = {
         roomIndex: hitRoomVertex.roomIndex,
         vertexIndex: hitRoomVertex.vertexIndex,
@@ -143,14 +291,22 @@ export class SelectTool implements Tool {
       this.activeRoomVertex = this.dragRoomVertex;
       this.dragOpening = null;
     } else if (hitWall) {
-      this.clearSelection();
-      this.canvas.setSelectedWall(hitWall.id);
+      if (this.isMultiSelect(e)) {
+        this.toggleWallSelection(hitWall.id);
+      } else {
+        this.clearSelection();
+        this.canvas.setSelectedWall(hitWall.id);
+      }
       this.dragOpening = null;
     } else {
       const hitRoom = this.hitTestRoom(e.screenPoint);
       if (hitRoom !== null) {
-        this.clearSelection();
-        this.canvas.setSelectedRoom(hitRoom);
+        if (this.isMultiSelect(e)) {
+          this.toggleRoomSelection(hitRoom);
+        } else {
+          this.clearSelection();
+          this.canvas.setSelectedRoom(hitRoom);
+        }
         this.dragOpening = null;
         this.dragRoomVertex = null;
       } else {
@@ -163,14 +319,18 @@ export class SelectTool implements Tool {
     if (this.pointerDownOnEmpty) {
       const dist = e.screenPoint.distanceTo(this.pointerDownScreen);
       if (!this.selectionBox && dist > 4) {
+        const additive = this.isMultiSelect(e);
         this.selectionBox = {
           startWorld: this.pointerDownWorld.clone(),
           currentWorld: e.worldPoint.clone(),
           startScreen: this.pointerDownScreen.clone(),
           currentScreen: e.screenPoint.clone(),
+          additive,
         };
         this.hasDragged = true;
-        this.clearSelection();
+        if (!additive) {
+          this.clearSelection();
+        }
       }
       if (this.selectionBox) {
         this.selectionBox.currentWorld = e.worldPoint.clone();
@@ -179,6 +339,23 @@ export class SelectTool implements Tool {
         this.canvas.requestRender();
       }
       return;
+    }
+
+    if (this.resizeTable) {
+      const world = this.canvas.camera.screenToWorld(e.screenPoint);
+      this.applyResizeTable(world);
+      return;
+    }
+
+    if (this.dragTable) {
+      const world = this.canvas.camera.screenToWorld(e.screenPoint);
+      const delta = world.sub(this.dragTable.startWorld);
+      this.dragTable.table.position = {
+        x: this.dragTable.originalPos.x + delta.x,
+        y: this.dragTable.originalPos.y + delta.y,
+      };
+      this.dragTable.moved = true;
+      this.canvas.notifyChanged();
     }
 
     if (this.dragDevice) {
@@ -276,10 +453,46 @@ export class SelectTool implements Tool {
       }
       this.plan.invalidateRooms();
       this.canvas.notifyChanged();
+    } else if (this.dragWallVertex) {
+      const world = this.canvas.camera.screenToWorld(e.screenPoint);
+      const delta = world.sub(this.dragWallVertex.startWorld);
+      for (const target of this.dragWallVertex.targets) {
+        target.wall[target.endpoint] = target.original.add(delta);
+        if (target.wall.arc) {
+          target.wall.arc = undefined;
+        }
+      }
+      this.plan.recalcCableRoutes();
+      this.plan.invalidateRooms();
+      this.canvas.notifyChanged();
     }
   }
 
   onPointerUp(e: InputEvent): void {
+    if (this.resizeTable) {
+      const { table, startScale, startPos, moved } = this.resizeTable;
+      if (moved) {
+        this.canvas.commandManager.execute(
+          new ResizeSheetTableCommand(this.plan, table.id, startScale, table.scale ?? 1, startPos, { ...table.position }),
+        );
+      }
+      this.resizeTable = null;
+      this.canvas.notifyChanged();
+      return;
+    }
+
+    if (this.dragTable) {
+      const { table, originalPos, moved } = this.dragTable;
+      if (moved) {
+        this.canvas.commandManager.execute(
+          new MoveSheetTableCommand(this.plan, table.id, originalPos, { ...table.position }),
+        );
+      }
+      this.dragTable = null;
+      this.canvas.notifyChanged();
+      return;
+    }
+
     if (this.dragDevice) {
       const { device, wall, startT, originalPos, moved } = this.dragDevice;
       if (moved) {
@@ -336,6 +549,20 @@ export class SelectTool implements Tool {
       this.canvas.notifyChanged();
     }
 
+    if (this.dragWallVertex) {
+      const world = this.canvas.camera.screenToWorld(e.screenPoint);
+      const delta = world.sub(this.dragWallVertex.startWorld);
+      const moves = this.dragWallVertex.targets.map(target => ({
+        wallId: target.wall.id,
+        endpoint: target.endpoint,
+        oldPos: target.original.clone(),
+        newPos: target.original.add(delta).clone(),
+      }));
+      this.canvas.commandManager.execute(new MoveWallEndpointsCommand(this.plan, moves));
+      this.dragWallVertex = null;
+      this.canvas.notifyChanged();
+    }
+
     if (this.selectionBox) {
       this.finalizeSelectionBox();
       this.selectionBox = null;
@@ -369,38 +596,48 @@ export class SelectTool implements Tool {
 
   onKeyDown(e: KeyboardEvent): boolean {
     if (e.key === 'Delete' || e.key === 'Backspace') {
-      const wallId = this.canvas.getSelectedWall();
-      const openingId = this.canvas.getSelectedOpening();
-      const deviceId = this.canvas.getSelectedDevice();
-      const cableId = this.canvas.getSelectedCable();
-      if (cableId) {
-        this.plan.removeCable(cableId);
-        this.canvas.setSelectedCable(null);
-        this.canvas.notifyChanged();
-        return true;
-      }
-      if (deviceId) {
-        this.canvas.commandManager.execute(new RemoveDeviceCommand(this.plan, deviceId));
-        this.canvas.setSelectedDevice(null);
-        this.canvas.notifyChanged();
-        return true;
-      }
-      if (openingId) {
-        this.canvas.commandManager.execute(new RemoveOpeningCommand(this.plan, openingId));
-        this.canvas.setSelectedOpening(null);
-        this.canvas.notifyChanged();
-        return true;
-      }
-      if (wallId) {
-        this.canvas.commandManager.execute(new RemoveWallCommand(this.plan, wallId));
-        this.canvas.setSelectedWall(null);
-        this.canvas.notifyChanged();
-        return true;
-      }
-      const dimensionId = this.canvas.getSelectedDimension();
-      if (dimensionId) {
-        this.canvas.commandManager.execute(new RemoveDimensionCommand(this.plan, dimensionId));
-        this.canvas.setSelectedDimension(null);
+      const walls = this.canvas.getSelectedWalls();
+      const openings = this.canvas.getSelectedOpenings();
+      const devices = this.canvas.getSelectedDevices();
+      const cables = this.canvas.getSelectedCables();
+      const dimensions = this.canvas.getSelectedDimensions();
+      const tables = this.canvas.getSelectedSheetTables();
+      const hasAny =
+        walls.length > 0 ||
+        openings.length > 0 ||
+        devices.length > 0 ||
+        cables.length > 0 ||
+        dimensions.length > 0 ||
+        tables.length > 0;
+
+      if (hasAny) {
+        // Удаляем сначала независимые объекты, затем стены.
+        // removeWall также удаляет устройства и кабели на стене,
+        // поэтому отдельные команды на них просто станут no-op.
+        for (const id of tables) {
+          this.canvas.commandManager.execute(new RemoveSheetTableCommand(this.plan, id));
+        }
+        for (const id of dimensions) {
+          this.canvas.commandManager.execute(new RemoveDimensionCommand(this.plan, id));
+        }
+        for (const id of openings) {
+          this.canvas.commandManager.execute(new RemoveOpeningCommand(this.plan, id));
+        }
+        for (const id of cables) {
+          this.plan.removeCable(id);
+        }
+        for (const id of devices) {
+          this.canvas.commandManager.execute(new RemoveDeviceCommand(this.plan, id));
+        }
+        for (const id of walls) {
+          this.canvas.commandManager.execute(new RemoveWallCommand(this.plan, id));
+        }
+        this.canvas.setSelectedWalls([]);
+        this.canvas.setSelectedOpenings([]);
+        this.canvas.setSelectedDevices([]);
+        this.canvas.setSelectedCables([]);
+        this.canvas.setSelectedDimensions([]);
+        this.canvas.setSelectedSheetTables([]);
         this.canvas.notifyChanged();
         return true;
       }
@@ -426,6 +663,7 @@ export class SelectTool implements Tool {
     this.canvas.setSelectedCable(null);
     this.canvas.setSelectedDimension(null);
     this.canvas.setSelectedRoom(null);
+    this.canvas.setSelectedSheetTable(null);
     this.activeRoomVertex = null;
   }
 
@@ -485,6 +723,67 @@ export class SelectTool implements Tool {
       }
     }
     return null;
+  }
+
+  private hitTestSheetTable(screenPoint: Vector2): import('../model/SheetTable.js').SheetTable | null {
+    const world = this.canvas.camera.screenToWorld(screenPoint);
+    for (const table of this.plan.tables) {
+      const bounds = this.canvas.tableRenderer.getTableBounds(table);
+      if (
+        world.x >= bounds.min.x &&
+        world.x <= bounds.max.x &&
+        world.y >= bounds.min.y &&
+        world.y <= bounds.max.y
+      ) {
+        return table;
+      }
+    }
+    return null;
+  }
+
+  private hitTestTableResizeHandle(
+    screenPoint: Vector2,
+  ): { table: import('../model/SheetTable.js').SheetTable; corner: TableResizeCorner } | null {
+    const selected = new Set(this.canvas.getSelectedSheetTables());
+    for (const table of this.plan.tables) {
+      if (!selected.has(table.id)) continue;
+      const hit = this.canvas.tableRenderer.hitTestResizeHandle(screenPoint, table);
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  private startResizeTable(
+    hit: { table: import('../model/SheetTable.js').SheetTable; corner: TableResizeCorner },
+    screenPoint: Vector2,
+  ): void {
+    const bounds = this.canvas.tableRenderer.getTableBounds(hit.table);
+    const anchor = this.canvas.tableRenderer.getAnchorForCorner(hit.corner, bounds);
+    this.resizeTable = {
+      table: hit.table,
+      corner: hit.corner,
+      anchor: anchor,
+      startWorld: this.canvas.camera.screenToWorld(screenPoint),
+      startScale: hit.table.scale ?? 1,
+      startPos: { ...hit.table.position },
+      moved: false,
+    };
+  }
+
+  private applyResizeTable(world: Vector2): void {
+    if (!this.resizeTable) return;
+    const { table, anchor, startWorld, startScale, startPos } = this.resizeTable;
+    const startDist = startWorld.distanceTo(anchor);
+    const newDist = world.distanceTo(anchor);
+    if (startDist === 0) return;
+    let newScale = startScale * (newDist / startDist);
+    newScale = Math.max(TABLE_RESIZE_MIN_SCALE, newScale);
+    const scaleRatio = newScale / startScale;
+    const offset = new Vector2(startPos.x - anchor.x, startPos.y - anchor.y).scale(scaleRatio);
+    table.scale = newScale;
+    table.position = { x: anchor.x + offset.x, y: anchor.y + offset.y };
+    this.resizeTable.moved = true;
+    this.canvas.notifyChanged();
   }
 
   private hitTestCable(screenPoint: Vector2): import('../model/Cable.js').Cable | null {
@@ -589,6 +888,37 @@ export class SelectTool implements Tool {
       if (!insideHole) return i;
     }
     return null;
+  }
+
+  private hitTestWallVertex(screenPoint: Vector2): {
+    world: Vector2;
+    targets: Array<{ wall: Wall; endpoint: 'a' | 'b'; original: Vector2 }>;
+  } | null {
+    const thresholdPx = 8;
+    let bestWorld: Vector2 | null = null;
+    let bestScreenDist = Infinity;
+
+    for (const wall of this.plan.walls) {
+      for (const endpoint of ['a', 'b'] as const) {
+        const p = wall[endpoint];
+        const screen = this.canvas.camera.worldToScreen(p);
+        const dist = Math.hypot(screen.x - screenPoint.x, screen.y - screenPoint.y);
+        if (dist <= thresholdPx && dist < bestScreenDist) {
+          bestScreenDist = dist;
+          bestWorld = p;
+        }
+      }
+    }
+
+    if (!bestWorld) return null;
+
+    const targets = this.collectCoincidentEndpoints(bestWorld);
+    if (targets.length === 0) return null;
+
+    return {
+      world: bestWorld.clone(),
+      targets,
+    };
   }
 
   private hitTestRoomVertex(screenPoint: Vector2): {
@@ -703,7 +1033,7 @@ export class SelectTool implements Tool {
     const box = this.getSelectionBox();
     const isWindow = this.selectionBox!.currentScreen.x >= this.selectionBox!.startScreen.x;
     const selected = this.selectByBox(box, isWindow);
-    this.applySelection(selected);
+    this.applySelection(selected, this.selectionBox!.additive);
   }
 
   /** Результат выделения рамкой: все объекты, попавшие в рамку. */
@@ -717,6 +1047,7 @@ export class SelectTool implements Tool {
     cables: string[];
     dimensions: string[];
     rooms: number[];
+    tables: string[];
   } {
     const devices: string[] = [];
     for (const device of this.plan.devices) {
@@ -751,35 +1082,57 @@ export class SelectTool implements Tool {
       if (this.roomInBox(roomList[i], box, isWindow)) rooms.push(i);
     }
 
-    return { walls, openings, devices, cables, dimensions, rooms };
+    const tables: string[] = [];
+    for (const table of this.plan.tables) {
+      if (this.tableInBox(table, box, isWindow)) tables.push(table.id);
+    }
+
+    return { walls, openings, devices, cables, dimensions, rooms, tables };
   }
 
-  private applySelection(selected: {
-    walls: string[];
-    openings: string[];
-    devices: string[];
-    cables: string[];
-    dimensions: string[];
-    rooms: number[];
-  }): void {
+  private applySelection(
+    selected: {
+      walls: string[];
+      openings: string[];
+      devices: string[];
+      cables: string[];
+      dimensions: string[];
+      rooms: number[];
+      tables: string[];
+    },
+    additive = false,
+  ): void {
     const hasAny =
       selected.walls.length > 0 ||
       selected.openings.length > 0 ||
       selected.devices.length > 0 ||
       selected.cables.length > 0 ||
       selected.dimensions.length > 0 ||
-      selected.rooms.length > 0;
-    if (!hasAny) {
+      selected.rooms.length > 0 ||
+      selected.tables.length > 0;
+    if (!hasAny && !additive) {
       this.clearSelection();
       return;
     }
+    if (!hasAny) return;
 
-    this.canvas.setSelectedWalls(selected.walls);
-    this.canvas.setSelectedOpenings(selected.openings);
-    this.canvas.setSelectedDevices(selected.devices);
-    this.canvas.setSelectedCables(selected.cables);
-    this.canvas.setSelectedDimensions(selected.dimensions);
-    this.canvas.setSelectedRooms(selected.rooms);
+    if (additive) {
+      this.canvas.setSelectedWalls([...new Set([...this.canvas.getSelectedWalls(), ...selected.walls])]);
+      this.canvas.setSelectedOpenings([...new Set([...this.canvas.getSelectedOpenings(), ...selected.openings])]);
+      this.canvas.setSelectedDevices([...new Set([...this.canvas.getSelectedDevices(), ...selected.devices])]);
+      this.canvas.setSelectedCables([...new Set([...this.canvas.getSelectedCables(), ...selected.cables])]);
+      this.canvas.setSelectedDimensions([...new Set([...this.canvas.getSelectedDimensions(), ...selected.dimensions])]);
+      this.canvas.setSelectedRooms([...new Set([...this.canvas.getSelectedRooms(), ...selected.rooms])]);
+      this.canvas.setSelectedSheetTables([...new Set([...this.canvas.getSelectedSheetTables(), ...selected.tables])]);
+    } else {
+      this.canvas.setSelectedWalls(selected.walls);
+      this.canvas.setSelectedOpenings(selected.openings);
+      this.canvas.setSelectedDevices(selected.devices);
+      this.canvas.setSelectedCables(selected.cables);
+      this.canvas.setSelectedDimensions(selected.dimensions);
+      this.canvas.setSelectedRooms(selected.rooms);
+      this.canvas.setSelectedSheetTables(selected.tables);
+    }
   }
 
   private getSelectionBox(): { min: Vector2; max: Vector2 } {
@@ -956,6 +1309,16 @@ export class SelectTool implements Tool {
       if (this.lineIntersectsBox(a, b, box)) return true;
     }
     return false;
+  }
+
+  private tableInBox(
+    table: import('../model/SheetTable').SheetTable,
+    box: { min: Vector2; max: Vector2 },
+    isWindow: boolean,
+  ): boolean {
+    const bounds = this.canvas.tableRenderer.getTableBounds(table);
+    if (isWindow) return this.rectInBox(bounds, box);
+    return this.rectIntersectsBox(bounds, box);
   }
 
   private polygonCentroid(polygon: Vector2[]): Vector2 {

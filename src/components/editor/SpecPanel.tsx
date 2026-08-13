@@ -6,6 +6,8 @@ import { Plan } from '@core/model/Plan'
 import { Storage } from '@core/io/Storage'
 import { CABLE_TYPES, Cable } from '@core/model/Cable'
 import { DEFAULT_DEVICE_NAMES, DeviceType } from '@core/model/Device'
+import { AddSheetTableCommand } from '@core/editor/CommandManager'
+import { Vector2 } from '@core/geometry/Vector2'
 
 interface DeviceGroup {
   type: DeviceType
@@ -91,6 +93,17 @@ export default function SpecPanel() {
 
   const hasData = deviceGroups.size > 0 || cableGroups.size > 0
 
+  const handleAddToSheet = () => {
+    const engine = engineRef.current
+    if (!engine || !plan) return
+    const width = 240
+    const height = 120
+    const pos = new Vector2(engine.camera.x - width / 2, engine.camera.y - height / 2)
+    engine.commandManager.execute(new AddSheetTableCommand(plan, 'spec', pos, width, height))
+    engine.notifyChanged()
+    engine.requestRender()
+  }
+
   return (
     <div className="space-y-3 text-sm">
       {!hasData && (
@@ -134,6 +147,13 @@ export default function SpecPanel() {
           </div>
         </div>
       )}
+
+      <button
+        onClick={handleAddToSheet}
+        className="w-full rounded border border-[var(--accent)] bg-[var(--accent)]/10 px-2 py-1 text-xs text-[var(--accent)] hover:bg-[var(--accent)]/20"
+      >
+        Добавить на лист
+      </button>
 
       <button
         onClick={() => new Storage().exportSpecToCSV(plan)}

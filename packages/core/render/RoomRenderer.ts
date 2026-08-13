@@ -83,8 +83,12 @@ export class RoomRenderer {
       cy /= poly.length;
 
       const areaM2 = (room.area / 1_000_000).toFixed(2);
+      const roomNumber = room.number ?? i + 1;
+      const roomName = room.name ?? '';
+      const label = roomName ? `${roomNumber}. ${roomName}` : `${roomNumber}`;
       ctx.fillStyle = this.themeManager.getColor('roomText');
-      ctx.fillText(`${areaM2} м²`, cx, cy);
+      ctx.fillText(label, cx, cy - 4 / this.camera.scale);
+      ctx.fillText(`${areaM2} м²`, cx, cy + 8 / this.camera.scale);
       ctx.fillStyle = this.themeManager.getColor('roomFill');
     }
   }

@@ -5,6 +5,8 @@ import { useEditor } from './EditorContext'
 import { useCadStore } from '@/stores/cadStore'
 import { Cable, STANDARD_CABLE_BRANDS, STANDARD_CABLE_SECTIONS } from '@core/model/Cable'
 import { Plan } from '@core/model/Plan'
+import { AddSheetTableCommand } from '@core/editor/CommandManager'
+import { Vector2 } from '@core/geometry/Vector2'
 
 interface CableView {
   cable: Cable
@@ -103,10 +105,27 @@ export default function SheetCablesPanel() {
     return `${meters.toFixed(1)} м`
   }
 
+  const handleAddToSheet = () => {
+    const engine = engineRef.current
+    if (!engine || !plan) return
+    const width = 240
+    const height = 120
+    const pos = new Vector2(engine.camera.x - width / 2, engine.camera.y - height / 2)
+    engine.commandManager.execute(new AddSheetTableCommand(plan, 'cables', pos, width, height))
+    engine.notifyChanged()
+    engine.requestRender()
+  }
+
   if (cables.length === 0) {
     return (
-      <div className="p-2 text-sm text-[var(--text-muted)]">
-        На текущем листе нет кабелей.
+      <div className="space-y-2 p-2 text-sm text-[var(--text-muted)]">
+        <div>На текущем листе нет кабелей.</div>
+        <button
+          onClick={handleAddToSheet}
+          className="w-full rounded border border-[var(--accent)] bg-[var(--accent)]/10 px-2 py-1 text-xs text-[var(--accent)] hover:bg-[var(--accent)]/20"
+        >
+          Добавить на лист
+        </button>
       </div>
     )
   }
@@ -172,6 +191,13 @@ export default function SheetCablesPanel() {
           </div>
         )
       })}
+
+      <button
+        onClick={handleAddToSheet}
+        className="w-full rounded border border-[var(--accent)] bg-[var(--accent)]/10 px-2 py-1 text-xs text-[var(--accent)] hover:bg-[var(--accent)]/20"
+      >
+        Добавить на лист
+      </button>
     </div>
   )
 }

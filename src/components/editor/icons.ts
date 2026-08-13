@@ -4,7 +4,7 @@ export type IconName =
   | 'undo' | 'redo' | 'zoomIn' | 'zoomOut' | 'save' | 'exportPng' | 'exportXlsx' | 'exportSvg' | 'print' | 'import' | 'clear'
   | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects'
   | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects'
-  | 'rooms' | 'estimates' | 'invoices' | 'documents' | 'catalog' | 'marking' | 'automation' | 'templates'
+  | 'rooms' | 'roomNumbers' | 'estimates' | 'invoices' | 'documents' | 'catalog' | 'marking' | 'automation' | 'templates'
   | 'dotsThreeVertical' | 'stamp' | 'exportDxf' | 'exportPdf' | 'plus';
 
 const MAP: Record<IconName, string> = {
@@ -46,6 +46,7 @@ const MAP: Record<IconName, string> = {
   reset: 'arrows-counter-clockwise',
   projects: 'folders',
   rooms: 'grid-four',
+  roomNumbers: 'hash',
   estimates: 'receipt',
   invoices: 'invoice',
   documents: 'file-text',

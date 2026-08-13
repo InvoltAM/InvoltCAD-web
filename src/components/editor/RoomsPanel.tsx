@@ -36,7 +36,7 @@ export default function RoomsPanel() {
     const consumers = (plan.electrical.consumers as ConsumerData[]) || []
     const data = buildRoomData(plan, consumers)
     return data
-  }, [plan, forceUpdate])
+  }, [plan, forceUpdate, open])
 
   const circuits = (plan?.electrical.circuits as CircuitData[]) || []
 

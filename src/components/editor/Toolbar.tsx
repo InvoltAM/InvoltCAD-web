@@ -385,6 +385,14 @@ export default function Toolbar() {
             <span className="project-sidebar-label">Комнаты</span>
           </button>
           <button
+            onClick={() => panelManagerRef.current?.toggle('roomNumbers')}
+            className={`project-sidebar-btn ${panelManagerRef.current?.isVisible('roomNumbers') ? 'active' : ''}`}
+            title="№ помещения"
+          >
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('roomNumbers') }} />
+            <span className="project-sidebar-label">Помещения</span>
+          </button>
+          <button
             onClick={() => setCatalogOpen(!catalogOpen)}
             className={`project-sidebar-btn ${catalogOpen ? 'active' : ''}`}
             title="Каталог материалов и работ"
@@ -470,6 +478,8 @@ export default function Toolbar() {
       >
         {drawingTools.map((tool) => {
           if (tool.name === 'wall') {
+            const activeWallTool =
+              wallTools.find((wt) => wt.name === currentTool) ?? wallTools[0]
             const isWallToolActive =
               currentTool === 'wall' || currentTool === 'door' || currentTool === 'window'
             return (
@@ -479,12 +489,12 @@ export default function Toolbar() {
                   onClick={handleToggleWallMenu}
                   onMouseEnter={() => setHoveredDockId('wall')}
                   className={`editor-dock-item editor-dock-item-menu ${isWallToolActive ? 'active' : ''}`}
-                  title="Стена / Дверь / Окно"
+                  title={`${activeWallTool.label} ▼`}
                   style={{ transform: `scale(${getDockScale('wall')})` }}
                 >
-                  <span className="ui-icon" dangerouslySetInnerHTML={{ __html: tool.icon }} />
+                  <span className="ui-icon" dangerouslySetInnerHTML={{ __html: activeWallTool.icon }} />
                   <span className="editor-dock-arrow">▼</span>
-                  <span className="editor-dock-tooltip">{tool.label}</span>
+                  <span className="editor-dock-tooltip">{activeWallTool.label}</span>
                 </button>
                 {wallMenuOpen && (
                   <div

@@ -96,6 +96,37 @@ export class WallRenderer {
       this.drawWallBodyPath(ctx, wall);
       ctx.stroke();
     }
+
+    // 5. Манипуляторы вершин стен (для редактирования)
+    this.renderWallVertices(ctx, visibleWalls);
+  }
+
+  /**
+   * Отрисовка манипуляторов вершин стен (квадратики на концах).
+   * Всегда рисуем яркие маркеры, чтобы было понятно, за что тянуть.
+   */
+  private renderWallVertices(ctx: CanvasRenderingContext2D, walls: Wall[]): void {
+    const sizePx = 8;
+    const sizeWorld = sizePx / this.camera.scale;
+    const half = sizeWorld / 2;
+    const selected = this.themeManager.getColor('selected');
+    const bg = this.themeManager.getColor('canvasBg');
+    const rendered = new Set<string>();
+
+    for (const wall of walls) {
+      for (const endpoint of ['a', 'b'] as const) {
+        const p = wall[endpoint];
+        const key = `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+        if (rendered.has(key)) continue;
+        rendered.add(key);
+
+        ctx.fillStyle = selected;
+        ctx.strokeStyle = bg;
+        ctx.lineWidth = 1.5 / this.camera.scale;
+        ctx.fillRect(p.x - half, p.y - half, sizeWorld, sizeWorld);
+        ctx.strokeRect(p.x - half, p.y - half, sizeWorld, sizeWorld);
+      }
+    }
   }
 
   /**
@@ -168,6 +199,9 @@ export class WallRenderer {
       ctx.lineWidth = 2 / this.camera.scale;
       ctx.stroke();
     }
+
+    // 4. Манипуляторы вершин стен
+    this.renderWallVertices(ctx, walls);
   }
 
   private splitSegmentsAtJoints(
