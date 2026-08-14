@@ -89,7 +89,15 @@ export class DrawingTool implements Tool {
       this.canvas.showMagnifier(e.screenPoint);
     }
 
-    if (this.state !== 'drawing' || this.name === 'polyline') {
+    if (this.name === 'polyline' && this.state === 'drawing') {
+      // Во время рисования полилинии обновляем ghost-превью целиком,
+      // иначе каждое движение мыши заменяет превью одним snap-маркером — мерцание.
+      this.lastSnap = this.snapEngine.snap(e.screenPoint);
+      this.updateGhost();
+      return;
+    }
+
+    if (this.state !== 'drawing') {
       // Вне режима рисования просто обновляем snap-индикатор
       this.lastSnap = this.snapEngine.snap(e.screenPoint);
       this.canvas.setSnap(this.lastSnap);
