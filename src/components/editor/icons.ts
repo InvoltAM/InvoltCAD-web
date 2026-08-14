@@ -7,7 +7,8 @@ export type IconName =
   | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects'
   | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects'
   | 'rooms' | 'roomNumbers' | 'estimates' | 'invoices' | 'documents' | 'catalog' | 'marking' | 'automation' | 'templates'
-  | 'dotsThreeVertical' | 'stamp' | 'exportDxf' | 'exportPdf' | 'plus';
+  | 'dotsThreeVertical' | 'stamp' | 'exportDxf' | 'exportPdf' | 'plus'
+  | 'socket' | 'switch' | 'light' | 'sensor' | 'output' | 'camera' | 'sks' | 'drive' | 'smartHome';
 
 const MAP: Record<IconName, string> = {
   wall: 'wall',
@@ -68,6 +69,15 @@ const MAP: Record<IconName, string> = {
   dotsThreeVertical: 'dots-three-vertical',
   stamp: 'stamp',
   plus: 'plus',
+  socket: 'plug',
+  switch: 'toggle-left',
+  light: 'lightbulb',
+  sensor: 'rss-simple',
+  output: 'plugs',
+  camera: 'video-camera',
+  sks: 'network',
+  drive: 'gear',
+  smartHome: 'house-line',
 };
 
 export function icon(name: IconName): string {

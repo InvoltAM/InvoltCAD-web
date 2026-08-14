@@ -961,3 +961,85 @@ body {
   min-width: 20ch;
   max-width: 22ch;
 }
+
+/* Device palette panel */
+.device-palette-panel {
+  height: 100%;
+  padding: 12px;
+  overflow: auto;
+}
+
+.device-palette-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.device-palette-group {
+  position: relative;
+}
+
+.device-palette-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 80px;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.device-palette-btn:hover {
+  background: var(--hover-bg);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: var(--text);
+}
+
+.device-palette-btn.active {
+  background: rgba(255, 140, 0, 0.12);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.device-palette-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.device-palette-label {
+  font-size: 13px;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.device-palette-submenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 310;
+  min-width: 160px;
+  margin-top: 4px;
+  padding: 8px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.device-palette-submenu-empty {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}

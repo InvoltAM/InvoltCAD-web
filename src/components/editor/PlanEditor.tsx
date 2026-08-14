@@ -34,6 +34,7 @@ import OlsPanel from './OlsPanel'
 import PanelEditor from './PanelEditor'
 import RoomsPanel from './RoomsPanel'
 import RoomNumbersPanel from './RoomNumbersPanel'
+import DevicePalettePanel from './DevicePalettePanel'
 import CatalogPanel from './CatalogPanel'
 import EstimatesPanel from './EstimatesPanel'
 import InvoicesPanel from './InvoicesPanel'
@@ -59,7 +60,8 @@ export default function PlanEditor() {
     validation: HTMLElement | null
     cableJournal: HTMLElement | null
     roomNumbers: HTMLElement | null
-  }>({ property: null, layers: null, spec: null, sheetCables: null, validation: null, cableJournal: null, roomNumbers: null })
+    devicePalette: HTMLElement | null
+  }>({ property: null, layers: null, spec: null, sheetCables: null, validation: null, cableJournal: null, roomNumbers: null, devicePalette: null })
 
   const currentTool = useCadStore((s) => s.currentTool)
   const theme = useCadStore((s) => s.theme)
@@ -200,6 +202,7 @@ export default function PlanEditor() {
       const validationBody = document.createElement('div')
       const cableJournalBody = document.createElement('div')
       const roomNumbersBody = document.createElement('div')
+      const devicePaletteBody = document.createElement('div')
 
       panelManagerRef.current = new PanelManager(
         [
@@ -219,6 +222,16 @@ export default function PlanEditor() {
             onVisibilityChange: (visible) => useCadStore.getState().setCableJournalOpen(visible),
           },
           { id: 'roomNumbers', title: '№ помещения', icon: icon('roomNumbers'), body: roomNumbersBody, width: 360 },
+          {
+            id: 'devicePalette',
+            title: 'Устройства',
+            icon: icon('device'),
+            body: devicePaletteBody,
+            width: 320,
+            height: 360,
+            menuVisible: false,
+            onVisibilityChange: (visible) => useCadStore.getState().setDevicePaletteOpen(visible),
+          },
         ],
         app,
         sheetsBarRef.current.element
@@ -226,6 +239,9 @@ export default function PlanEditor() {
 
       // Кабельный журнал по умолчанию скрыт, открывается только кнопкой КЖ
       panelManagerRef.current.hide('cableJournal')
+
+      // Палитра устройств по умолчанию скрыта, открывается кнопкой Устройство
+      panelManagerRef.current.hide('devicePalette')
 
       // Рендерим React-компоненты внутри плавающих панелей через порталы
       setPanelBodies({
@@ -236,12 +252,13 @@ export default function PlanEditor() {
         validation: validationBody,
         cableJournal: cableJournalBody,
         roomNumbers: roomNumbersBody,
+        devicePalette: devicePaletteBody,
       })
     }
 
     return () => {
       unsubscribe()
-      setPanelBodies({ property: null, layers: null, spec: null, sheetCables: null, validation: null, cableJournal: null, roomNumbers: null })
+      setPanelBodies({ property: null, layers: null, spec: null, sheetCables: null, validation: null, cableJournal: null, roomNumbers: null, devicePalette: null })
       engine.destroy()
       engineRef.current = null
       panelManagerRef.current?.destroy()
@@ -360,6 +377,7 @@ export default function PlanEditor() {
         {panelBodies.validation && createPortal(<ValidationPanel />, panelBodies.validation)}
         {panelBodies.cableJournal && createPortal(<CableJournalPanel />, panelBodies.cableJournal)}
         {panelBodies.roomNumbers && createPortal(<RoomNumbersPanel />, panelBodies.roomNumbers)}
+        {panelBodies.devicePalette && createPortal(<DevicePalettePanel />, panelBodies.devicePalette)}
       </div>
     </EditorProvider>
   )

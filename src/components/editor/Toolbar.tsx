@@ -22,7 +22,6 @@ const wallTools: DockTool[] = [
 
 const drawingTools: DockTool[] = [
   { name: 'wall', label: 'Стена', icon: icon('wall') },
-  { name: 'device', label: 'Устройство', icon: icon('device') },
   { name: 'cable', label: 'Кабель', icon: icon('cable') },
   { name: 'dimension', label: 'Размер', icon: icon('dimension') },
 ]
@@ -88,6 +87,7 @@ export default function Toolbar() {
   const templatesOpen = useCadStore((s) => s.templatesOpen)
   const setTemplatesOpen = useCadStore((s) => s.setTemplatesOpen)
   const cableJournalOpen = useCadStore((s) => s.cableJournalOpen)
+  const devicePaletteOpen = useCadStore((s) => s.devicePaletteOpen)
   const { engineRef, themeManagerRef, panelManagerRef } = useEditor()
 
   const [panelMenuOpen, setPanelMenuOpen] = useState(false)
@@ -196,6 +196,10 @@ export default function Toolbar() {
 
   const handleToggleCableJournal = () => {
     panelManagerRef.current?.toggle('cableJournal')
+  }
+
+  const handleToggleDevicePalette = () => {
+    panelManagerRef.current?.toggle('devicePalette')
   }
 
   const handleToggleOls = () => {
@@ -320,6 +324,7 @@ export default function Toolbar() {
       if (!hoveredDockId) return 1
       const allIds = [
         ...drawingTools.map((t) => t.name),
+        'devicePalette',
         'drawing',
         ...navigationTools.map((t) => t.name),
         'modify',
@@ -595,6 +600,17 @@ export default function Toolbar() {
           }
           return elements
         })}
+        <button
+          key="devicePalette"
+          onClick={handleToggleDevicePalette}
+          onMouseEnter={() => setHoveredDockId('devicePalette')}
+          className={`editor-dock-item ${devicePaletteOpen ? 'active' : ''}`}
+          title="Устройства"
+          style={{ transform: `scale(${getDockScale('devicePalette')})` }}
+        >
+          <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('device') }} />
+          <span className="editor-dock-tooltip">Устройства</span>
+        </button>
         <div key="drawing" className="editor-dock-group">
           {(() => {
             const activeDrawingTool =
