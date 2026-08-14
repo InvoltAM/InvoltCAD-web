@@ -13,6 +13,7 @@ import { CableRenderer } from '../render/CableRenderer';
 import { RoomRenderer } from '../render/RoomRenderer';
 import { WallDimensionRenderer } from '../render/WallDimensionRenderer';
 import { TableRenderer } from '../render/TableRenderer';
+import { PrimitiveRenderer } from '../render/PrimitiveRenderer';
 import { ToolManager, ToolName } from '../tools/ToolManager';
 import { EditorState } from '../editor/EditorState';
 import { CommandManager } from '../editor/CommandManager';
@@ -41,6 +42,7 @@ export class CanvasEngine {
   roomRenderer!: RoomRenderer;
   wallDimensionRenderer!: WallDimensionRenderer;
   tableRenderer: TableRenderer;
+  primitiveRenderer: PrimitiveRenderer;
   sheetFrameRenderer: SheetFrameRenderer;
   input: InputManager;
   snapEngine: SnapEngine;
@@ -88,6 +90,7 @@ export class CanvasEngine {
     this.roomRenderer = new RoomRenderer(plan, this.camera, this.themeManager);
     this.wallDimensionRenderer = new WallDimensionRenderer(plan, this.camera, this.themeManager);
     this.tableRenderer = new TableRenderer(plan, this.camera, this.themeManager);
+    this.primitiveRenderer = new PrimitiveRenderer(plan, this.camera, this.themeManager);
     this.sheetFrameRenderer = new SheetFrameRenderer(plan, this.camera, this.themeManager, () => this.requestRender());
 
     this.input = new InputManager(canvas, this.camera);
@@ -282,10 +285,13 @@ export class CanvasEngine {
       this.cableRenderer.render(ctx);
     }
 
-    // 10. Таблицы на листе
+    // 10. Примитивы рисования
+    this.primitiveRenderer.render(ctx);
+
+    // 11. Таблицы на листе
     this.tableRenderer.render(ctx);
 
-    // 11. Ghost-слой
+    // 12. Ghost-слой
     if (this.ghostDraw) {
       this.ghostDraw(ctx);
     }

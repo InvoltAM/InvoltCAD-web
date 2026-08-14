@@ -1,4 +1,5 @@
 import { Plan } from '../model/Plan';
+import { DrawingPrimitive, DrawingPrimitiveType } from '../model/DrawingPrimitive';
 import { Wall, WallArc, DEFAULT_WALL_THICKNESS, updateWallArcEndpoints } from '../model/Wall';
 import { Opening, OpeningType } from '../model/Opening';
 import { Device, DeviceType } from '../model/Device';
@@ -706,5 +707,25 @@ export class ResizeSheetTableCommand implements Command {
 
   undo(): void {
     this.plan.resizeSheetTable(this.tableId, this.oldScale, new Vector2(this.oldPosition.x, this.oldPosition.y));
+  }
+}
+
+/** Команда добавления примитива рисования. */
+export class AddPrimitiveCommand implements Command {
+  private primitiveId = '';
+
+  constructor(
+    private plan: Plan,
+    private type: DrawingPrimitiveType,
+    private points: Vector2[],
+  ) {}
+
+  execute(): void {
+    const primitive = this.plan.addPrimitive(this.type, this.points);
+    this.primitiveId = primitive.id;
+  }
+
+  undo(): void {
+    this.plan.removePrimitive(this.primitiveId);
   }
 }

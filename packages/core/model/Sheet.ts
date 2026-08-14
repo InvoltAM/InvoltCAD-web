@@ -2,6 +2,7 @@ import { Device } from './Device';
 import { Cable } from './Cable';
 import { Dimension } from './Dimension';
 import { SheetTable } from './SheetTable';
+import { DrawingPrimitive } from './DrawingPrimitive';
 
 /**
  * Лист проекта: общие стены живут в Plan,
@@ -117,6 +118,7 @@ export interface Sheet {
   devices: Device[];
   cables: Cable[];
   dimensions: Dimension[];
+  primitives: DrawingPrimitive[];
   tables: SheetTable[];
   pageSize: PageSize;
   orientation: PageOrientation;
@@ -221,6 +223,7 @@ export function createSheet(name: string): Sheet {
     devices: [],
     cables: [],
     dimensions: [],
+    primitives: [],
     tables: [],
     pageSize: 'A4',
     orientation: 'landscape',

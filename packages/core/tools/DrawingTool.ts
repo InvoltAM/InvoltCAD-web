@@ -4,14 +4,21 @@ import { Plan } from '../model/Plan';
 import { SnapEngine } from '../snap/SnapEngine';
 import { CanvasEngine } from '../engine/CanvasEngine';
 import { Tool } from './ToolManager';
+import { AddPrimitiveCommand } from '../editor/CommandManager';
 
 export type DrawingToolType = 'polyline' | 'segment' | 'rectangle' | 'circle';
 
 type DrawingState = 'idle' | 'drawing';
 
+/** Минимальная длина отрезка/радиус, чтобы фиксировать примитив. */
+const MIN_SIZE = 10; // мм
+
 /**
  * Инструменты черчения примитивов: полилиния, отрезок, прямоугольник, круг.
- * Пока что рисуют только ghost-превью; сохранение в план будет добавлено позже.
+ * - Привязка и направляющие лучи работают как у инструмента "Стена".
+ * - Для отрезка/прямоугольника/круга: зажали → потянули → отпустили — результат фиксируется.
+ * - Для полилинии: каждый клик добавляет точку; Enter или Esc завершают и фиксируют ломаную.
+ * - Escape во время рисования разовой фигуры — отмена.
  */
 export class DrawingTool implements Tool {
   readonly name: DrawingToolType;
@@ -86,24 +93,37 @@ export class DrawingTool implements Tool {
     if (this.state !== 'drawing') return;
 
     if (this.name === 'polyline') {
-      // Полилиния продолжается до следующего клика или Escape
       return;
     }
 
-    // Для разовых фигур после отпускания кнопки завершаем ghost
+    const points = this.buildPrimitivePoints();
+    if (this.isValid(points)) {
+      this.canvas.commandManager.execute(
+        new AddPrimitiveCommand(this.plan, this.name, points),
+      );
+    }
+
     this.state = 'idle';
-    this.updateGhost();
+    this.canvas.setGhost(null);
+    this.canvas.requestRender();
   }
 
   onKeyDown(e: KeyboardEvent): boolean {
-    if (e.key === 'Escape') {
-      this.state = 'idle';
-      this.polylinePoints = [];
-      this.canvas.setGhost(null);
-      this.canvas.hideMagnifier();
-      this.snapEngine.clearTracking();
-      this.canvas.requestRender();
-      return true;
+    if (e.key === 'Escape' || e.key === 'Enter') {
+      if (this.state === 'drawing') {
+        if (this.name === 'polyline' && this.polylinePoints.length >= 2) {
+          this.canvas.commandManager.execute(
+            new AddPrimitiveCommand(this.plan, 'polyline', this.polylinePoints),
+          );
+        }
+        this.state = 'idle';
+        this.polylinePoints = [];
+        this.canvas.setGhost(null);
+        this.canvas.hideMagnifier();
+        this.snapEngine.clearTracking();
+        this.canvas.requestRender();
+        return true;
+      }
     }
     return false;
   }
@@ -116,6 +136,38 @@ export class DrawingTool implements Tool {
       return new Vector2(point.x, this.start.y);
     }
     return new Vector2(this.start.x, point.y);
+  }
+
+  private buildPrimitivePoints(): Vector2[] {
+    switch (this.name) {
+      case 'segment':
+        return [this.start.clone(), this.end.clone()];
+      case 'rectangle':
+        return [
+          new Vector2(Math.min(this.start.x, this.end.x), Math.min(this.start.y, this.end.y)),
+          new Vector2(Math.max(this.start.x, this.end.x), Math.max(this.start.y, this.end.y)),
+        ];
+      case 'circle':
+        return [this.start.clone(), this.end.clone()];
+      default:
+        return [];
+    }
+  }
+
+  private isValid(points: Vector2[]): boolean {
+    if (points.length < 2) return false;
+    if (this.name === 'segment') {
+      return points[0].distanceTo(points[1]) >= MIN_SIZE;
+    }
+    if (this.name === 'rectangle') {
+      const w = Math.abs(points[1].x - points[0].x);
+      const h = Math.abs(points[1].y - points[0].y);
+      return w >= MIN_SIZE && h >= MIN_SIZE;
+    }
+    if (this.name === 'circle') {
+      return points[0].distanceTo(points[1]) >= MIN_SIZE;
+    }
+    return true;
   }
 
   private updateGhost(): void {
@@ -139,6 +191,7 @@ export class DrawingTool implements Tool {
             const h = Math.abs(this.end.y - this.start.y);
             ctx.strokeRect(x, y, w, h);
           }
+          this.drawGuideRays(ctx);
         }
       } else if (this.name === 'circle') {
         if (this.state === 'drawing') {
@@ -146,6 +199,7 @@ export class DrawingTool implements Tool {
           ctx.beginPath();
           ctx.arc(this.start.x, this.start.y, radius, 0, Math.PI * 2);
           ctx.stroke();
+          this.drawGuideRays(ctx);
         }
       } else if (this.name === 'polyline') {
         if (this.polylinePoints.length > 1) {
@@ -172,5 +226,30 @@ export class DrawingTool implements Tool {
     });
     this.canvas.setSnap(this.lastSnap);
     this.canvas.requestRender();
+  }
+
+  private drawGuideRays(ctx: CanvasRenderingContext2D): void {
+    if (!this.lastSnap) return;
+    const guides = this.lastSnap.guides ?? [
+      { point: this.lastSnap.point, type: this.lastSnap.type, wall: this.lastSnap.wall, wall2: this.lastSnap.wall2 },
+    ];
+    for (const guide of guides) {
+      if (guide.type === 'grid') continue;
+      const dirs: Vector2[] = [];
+      for (const w of [guide.wall, guide.wall2]) {
+        if (!w) continue;
+        const d = w.b.sub(w.a);
+        const n = d.perpendicular();
+        dirs.push(d, d.scale(-1), n, n.scale(-1));
+      }
+      if (dirs.length > 0) {
+        this.canvas.ghostRenderer.drawGuideRays(
+          ctx,
+          guide.point,
+          dirs,
+          { color: this.canvas.themeManager.getColor('accent') },
+        );
+      }
+    }
   }
 }

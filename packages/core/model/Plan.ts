@@ -4,6 +4,7 @@ import { Opening, OpeningType, DEFAULT_DOOR_WIDTH, DEFAULT_WINDOW_WIDTH } from '
 import { Device, DeviceType, DEVICE_SIZE, DEFAULT_DEVICE_NAMES } from './Device';
 import { Cable, CableType, DEFAULT_CABLE } from './Cable';
 import { Dimension, createDimension } from './Dimension';
+import { DrawingPrimitive, DrawingPrimitiveType, createDrawingPrimitive } from './DrawingPrimitive';
 import { detectRooms, Room } from '../geometry/RoomDetector';
 import { Quadtree, buildWallQuadtree } from '../geometry/Quadtree';
 
@@ -96,6 +97,24 @@ export class Plan {
     this.activeSheet.dimensions = value;
   }
 
+  /** Примитивы рисования активного листа. */
+  get primitives(): DrawingPrimitive[] {
+    return this.activeSheet.primitives;
+  }
+  set primitives(value: DrawingPrimitive[]) {
+    this.activeSheet.primitives = value;
+  }
+
+  addPrimitive(type: DrawingPrimitiveType, points: Vector2[]): DrawingPrimitive {
+    const primitive = createDrawingPrimitive(type, points);
+    this.primitives.push(primitive);
+    return primitive;
+  }
+
+  removePrimitive(id: string): void {
+    this.primitives = this.primitives.filter((p) => p.id !== id);
+  }
+
   /** Таблицы активного листа. */
   get tables(): SheetTable[] {
     return this.activeSheet.tables;
@@ -140,6 +159,7 @@ export class Plan {
       devices: [],
       cables: [],
       dimensions: [],
+      primitives: [],
       tables: [],
       pageSize: 'A4',
       orientation: 'landscape',
@@ -758,6 +778,11 @@ export class Plan {
       length: d.length,
       text: d.text,
     }));
+    const primitivesToJSON = (primitives: DrawingPrimitive[]) => primitives.map(p => ({
+      id: p.id,
+      type: p.type,
+      points: p.points.map(pt => ({ x: pt.x, y: pt.y })),
+    }));
     const tablesToJSON = (tables: SheetTable[]) => tables.map(t => ({
       id: t.id,
       type: t.type,
@@ -789,6 +814,7 @@ export class Plan {
         devices: devicesToJSON(s.devices),
         cables: cablesToJSON(s.cables),
         dimensions: dimensionsToJSON(s.dimensions),
+        primitives: primitivesToJSON(s.primitives),
         tables: tablesToJSON(s.tables),
         pageSize: s.pageSize,
         orientation: s.orientation,
@@ -887,6 +913,11 @@ export class Plan {
       height: t.height ?? 200,
       scale: t.scale ?? 1,
     }));
+    const primitivesFromJSON = (list: any[]): DrawingPrimitive[] => (list ?? []).map(p => ({
+      id: p.id || crypto.randomUUID(),
+      type: p.type || 'segment',
+      points: (p.points ?? []).map((pt: any) => new Vector2(pt?.x ?? 0, pt?.y ?? 0)),
+    }));
 
     if (Array.isArray(data.sheets) && data.sheets.length > 0) {
       // Новый формат: листы с собственными устройствами/кабелями/размерами
@@ -899,6 +930,7 @@ export class Plan {
           devices,
           cables: cablesFromJSON(s.cables, devices),
           dimensions: dimensionsFromJSON(s.dimensions),
+          primitives: primitivesFromJSON(s.primitives),
           tables: tablesFromJSON(s.tables),
           pageSize: s.pageSize || 'A4',
           orientation: s.orientation || 'landscape',
@@ -922,6 +954,7 @@ export class Plan {
       first.devices = devicesFromJSON(data.devices);
       first.cables = cablesFromJSON(data.cables, first.devices);
       first.dimensions = dimensionsFromJSON(data.dimensions);
+      first.primitives = primitivesFromJSON(data.primitives);
       plan.activeSheetId = first.id;
     }
 
