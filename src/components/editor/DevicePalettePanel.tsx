@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { useCadStore } from '@/stores/cadStore'
+import { useEditor } from './EditorContext'
 import { icon } from './icons'
 import { SocketIP21Symbol, SocketIP44Symbol } from './DeviceSymbols'
 import type { DeviceType } from '@core/model/Device'
@@ -52,10 +53,15 @@ export default function DevicePalettePanel() {
   const [view, setView] = React.useState<string | null>(null)
   const setSelectedDeviceType = useCadStore((s) => s.setSelectedDeviceType)
   const setTool = useCadStore((s) => s.setTool)
+  const selectedDeviceType = useCadStore((s) => s.selectedDeviceType)
+  const { engineRef } = useEditor()
 
   const handleSelectDevice = (type: DeviceType) => {
     setSelectedDeviceType(type)
     setTool('device')
+    // Форсируем переактивацию инструмента, чтобы ghost и state обновились
+    // даже если currentTool уже 'device'
+    engineRef.current?.setTool('device')
   }
 
   return (
@@ -93,7 +99,7 @@ export default function DevicePalettePanel() {
             {(devicesByCategory[view] ?? []).map((item) => (
               <button
                 key={item.type}
-                className="device-palette-btn"
+                className={`device-palette-btn ${selectedDeviceType === item.type ? 'active' : ''}`}
                 onClick={() => handleSelectDevice(item.type)}
                 title={item.fullName}
               >
