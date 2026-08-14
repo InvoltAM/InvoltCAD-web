@@ -975,6 +975,30 @@ body {
   gap: 10px;
 }
 
+.device-palette-editor-btn {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-bg);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.device-palette-editor-btn:hover {
+  background: var(--hover-bg);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: var(--text);
+}
+
 .device-palette-group {
   position: relative;
   min-width: 0;

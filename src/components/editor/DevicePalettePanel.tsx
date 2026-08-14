@@ -39,6 +39,13 @@ export default function DevicePalettePanel() {
   return (
     <div ref={panelRef} className="device-palette-panel">
       <div className="device-palette-grid">
+        <button
+          className="device-palette-editor-btn"
+          onClick={() => alert('Редактор устройств — в разработке')}
+          title="Редактор устройств"
+        >
+          Редактор устройств
+        </button>
         {categories.map((cat) => {
           const isOpen = openId === cat.id
           return (
