@@ -156,6 +156,7 @@ export default function PlanEditor() {
     }
 
     engine.setTool(currentTool)
+    engine.fitToSheet()
 
     // Для отладки
     // @ts-expect-error — добавляем глобальную переменную для отладки

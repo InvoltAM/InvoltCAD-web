@@ -92,4 +92,20 @@ export class Camera {
       max: new Vector2(this.x + wWorld / 2 + marginX, this.y + hWorld / 2 + marginY),
     };
   }
+
+  /**
+   * Подогнать масштаб так, чтобы заданный мировой прямоугольник
+   * (центр в 0,0, размеры width × height) целиком помещался во viewport.
+   * padding — коэффициент запаса (1.1 = 10% отступов по краям).
+   */
+  fitToFrame(width: number, height: number, padding = 1.1): void {
+    if (!this.viewportWidth || !this.viewportHeight || !width || !height) return;
+    this.x = 0;
+    this.y = 0;
+    const fitScale = Math.min(
+      this.viewportWidth / (width * padding),
+      this.viewportHeight / (height * padding),
+    );
+    this.scale = Math.max(this.minScale, Math.min(this.maxScale, fitScale));
+  }
 }

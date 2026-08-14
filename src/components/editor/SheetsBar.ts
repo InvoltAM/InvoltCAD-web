@@ -689,6 +689,7 @@ export class SheetsBar {
     this.engine.setSelectedDevice(null);
     this.engine.setSelectedCable(null);
     this.engine.commandManager.clear();
+    this.engine.fitToSheet();
     this.engine.notifyChanged();
     this.refresh();
   }

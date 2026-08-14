@@ -629,13 +629,7 @@ export class CanvasEngine {
     const paperW = dims.width * ps;
     const paperH = dims.height * ps;
     // Рамка листа зафиксирована с центром в мировом начале координат.
-    const cx = 0;
-    const cy = 0;
-    const fitScale = Math.min(
-      this.camera.viewportWidth / (paperW * 1.2),
-      this.camera.viewportHeight / (paperH * 1.2),
-    );
-    this.camera.focusOn(new Vector2(cx, cy), Math.max(this.camera.getMinScale(), fitScale));
+    this.camera.fitToFrame(paperW, paperH, 1.2);
   }
 
   private renderValidationMarkers(ctx: CanvasRenderingContext2D): void {
