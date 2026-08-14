@@ -323,8 +323,9 @@ export default function Toolbar() {
     (id: string) => {
       if (!hoveredDockId) return 1
       const allIds = [
-        ...drawingTools.map((t) => t.name),
+        'wall',
         'devicePalette',
+        ...drawingTools.filter((t) => t.name !== 'wall').map((t) => t.name),
         'drawing',
         ...navigationTools.map((t) => t.name),
         'modify',
@@ -595,22 +596,26 @@ export default function Toolbar() {
               </button>
             )
           }
+          if (tool.name === 'wall') {
+            elements.push(
+              <button
+                key="devicePalette"
+                onClick={handleToggleDevicePalette}
+                onMouseEnter={() => setHoveredDockId('devicePalette')}
+                className={`editor-dock-item ${devicePaletteOpen ? 'active' : ''}`}
+                title="Устройства"
+                style={{ transform: `scale(${getDockScale('devicePalette')})` }}
+              >
+                <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('device') }} />
+                <span className="editor-dock-tooltip">Устройства</span>
+              </button>
+            )
+          }
           if (tool.name === 'cable') {
             elements.push(<div key="divider-after-cable" className="editor-dock-divider" />)
           }
           return elements
         })}
-        <button
-          key="devicePalette"
-          onClick={handleToggleDevicePalette}
-          onMouseEnter={() => setHoveredDockId('devicePalette')}
-          className={`editor-dock-item ${devicePaletteOpen ? 'active' : ''}`}
-          title="Устройства"
-          style={{ transform: `scale(${getDockScale('devicePalette')})` }}
-        >
-          <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('device') }} />
-          <span className="editor-dock-tooltip">Устройства</span>
-        </button>
         <div key="drawing" className="editor-dock-group">
           {(() => {
             const activeDrawingTool =
