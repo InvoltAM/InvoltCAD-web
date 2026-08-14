@@ -473,6 +473,10 @@ export class Plan {
     return this.cables.find(c => c.id === id);
   }
 
+  findPrimitive(id: string): DrawingPrimitive | undefined {
+    return this.primitives.find(p => p.id === id);
+  }
+
   addCable(
     fromDeviceId: string,
     toDeviceId: string,

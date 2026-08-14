@@ -6,21 +6,29 @@ import { ThemeManager } from '../editor/ThemeManager';
  * Отрисовка примитивов рисования (полилиния, отрезок, прямоугольник, круг).
  */
 export class PrimitiveRenderer {
+  private selectedIds = new Set<string>();
+
   constructor(
     private plan: Plan,
     private camera: Camera,
     private themeManager: ThemeManager,
   ) {}
 
+  setSelectedPrimitiveIds(ids: string[]): void {
+    this.selectedIds = new Set(ids);
+  }
+
   render(ctx: CanvasRenderingContext2D): void {
     const color = this.themeManager.getColor('dimension');
-    ctx.strokeStyle = color;
+    const selectedColor = this.themeManager.getColor('selected');
     ctx.fillStyle = color;
-    ctx.lineWidth = 1 / this.camera.scale;
 
     for (const primitive of this.plan.primitives) {
       const points = primitive.points;
       if (points.length === 0) continue;
+      const isSelected = this.selectedIds.has(primitive.id);
+      ctx.strokeStyle = isSelected ? selectedColor : color;
+      ctx.lineWidth = isSelected ? 2.5 / this.camera.scale : 1 / this.camera.scale;
 
       switch (primitive.type) {
         case 'polyline':
@@ -56,5 +64,64 @@ export class PrimitiveRenderer {
           break;
       }
     }
+  }
+
+  /** Hit-test примитива: ближайший сегмент/грань/окружность в пределах thresholdPx. */
+  hitTest(screenPoint: { x: number; y: number }, thresholdPx = 8): import('../model/DrawingPrimitive').DrawingPrimitive | null {
+    const { projectPointToSegment } = require('../geometry/Geometry');
+    const world = this.camera.screenToWorld({ x: screenPoint.x, y: screenPoint.y } as any);
+    const thresholdWorld = thresholdPx / this.camera.scale;
+    let best: { primitive: import('../model/DrawingPrimitive').DrawingPrimitive; distWorld: number } | null = null;
+
+    for (const primitive of this.plan.primitives) {
+      const points = primitive.points;
+      if (points.length === 0) continue;
+
+      if (primitive.type === 'segment' || primitive.type === 'polyline') {
+        const count = primitive.type === 'segment' ? Math.min(2, points.length) : points.length;
+        for (let i = 1; i < count; i++) {
+          const a = points[i - 1];
+          const b = points[i];
+          if (!a || !b) continue;
+          const proj = projectPointToSegment(world, a, b);
+          if (proj.dist < thresholdWorld && (!best || proj.dist < best.distWorld)) {
+            best = { primitive, distWorld: proj.dist };
+          }
+        }
+      } else if (primitive.type === 'rectangle') {
+        if (points.length < 2) continue;
+        const min = points[0];
+        const max = points[1];
+        const corners = [
+          min,
+          { x: max.x, y: min.y } as any,
+          max,
+          { x: min.x, y: max.y } as any,
+        ];
+        const edges: Array<[any, any]> = [
+          [corners[0], corners[1]],
+          [corners[1], corners[2]],
+          [corners[2], corners[3]],
+          [corners[3], corners[0]],
+        ];
+        for (const [a, b] of edges) {
+          const proj = projectPointToSegment(world, a, b);
+          if (proj.dist < thresholdWorld && (!best || proj.dist < best.distWorld)) {
+            best = { primitive, distWorld: proj.dist };
+          }
+        }
+      } else if (primitive.type === 'circle') {
+        if (points.length < 2) continue;
+        const center = points[0];
+        const rim = points[1];
+        const radius = center.distanceTo(rim);
+        const distWorld = Math.abs(world.distanceTo(center) - radius);
+        if (distWorld < thresholdWorld && (!best || distWorld < best.distWorld)) {
+          best = { primitive, distWorld };
+        }
+      }
+    }
+
+    return best?.primitive ?? null;
   }
 }

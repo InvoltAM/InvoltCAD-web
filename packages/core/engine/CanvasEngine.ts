@@ -564,6 +564,29 @@ export class CanvasEngine {
     return this.editorState.get('selectedSheetTableIds') ?? [];
   }
 
+  setSelectedPrimitive(id: string | null): void {
+    this.editorState.set('selectedPrimitiveId', id);
+    this.editorState.set('selectedPrimitiveIds', id ? [id] : []);
+    this.primitiveRenderer.setSelectedPrimitiveIds(id ? [id] : []);
+    this.requestRender();
+  }
+
+  setSelectedPrimitives(ids: string[]): void {
+    const unique = [...new Set(ids)];
+    this.editorState.set('selectedPrimitiveIds', unique);
+    this.editorState.set('selectedPrimitiveId', unique[0] ?? null);
+    this.primitiveRenderer.setSelectedPrimitiveIds(unique);
+    this.requestRender();
+  }
+
+  getSelectedPrimitive(): string | null {
+    return this.editorState.get('selectedPrimitiveId');
+  }
+
+  getSelectedPrimitives(): string[] {
+    return this.editorState.get('selectedPrimitiveIds') ?? [];
+  }
+
   getSelectedRoom(): number | null {
     return this.editorState.get('selectedRoomIndex');
   }

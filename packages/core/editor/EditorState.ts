@@ -37,6 +37,8 @@ export interface EditorStateData {
   selectedRoomIndices: number[];
   selectedSheetTableId: string | null;
   selectedSheetTableIds: string[];
+  selectedPrimitiveId: string | null;
+  selectedPrimitiveIds: string[];
   selectedDeviceType: DeviceType;
   zoom: number;
   layers: DisplayLayers;
@@ -79,6 +81,8 @@ export class EditorState {
     selectedRoomIndices: [],
     selectedSheetTableId: null,
     selectedSheetTableIds: [],
+    selectedPrimitiveId: null,
+    selectedPrimitiveIds: [],
     selectedDeviceType: 'socket',
     zoom: 0.1,
     layers: { rooms: true, walls: true, openings: true, dimensions: true, wallDimensions: false, devices: true, cables: true },

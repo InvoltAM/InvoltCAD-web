@@ -12,6 +12,10 @@ import { DeviceTool } from '@core/tools/DeviceTool'
 import { CableTool } from '@core/tools/CableTool'
 import { DimensionTool } from '@core/tools/DimensionTool'
 import { DrawingTool } from '@core/tools/DrawingTool'
+import { MoveTool } from '@core/tools/MoveTool'
+import { RotateTool } from '@core/tools/RotateTool'
+import { TrimTool } from '@core/tools/TrimTool'
+import { ExtendTool } from '@core/tools/ExtendTool'
 import { ThemeManager } from '@core/editor/ThemeManager'
 import { useCadStore } from '@/stores/cadStore'
 import { EditorProvider } from './EditorContext'
@@ -148,15 +152,16 @@ export default function PlanEditor() {
       },
     })
 
-    // Инструменты модификации (заглушки — логика будет добавлена позже)
-    for (const name of ['move', 'rotate', 'trim', 'extend'] as const) {
-      engine.toolManager.register({
-        name,
-        onActivate() {
-          engine.setGhost(null)
-        },
-      })
-    }
+    // Инструменты модификации
+    const moveTool = new MoveTool(engine, plan, engine.snapEngine)
+    const rotateTool = new RotateTool(engine, plan, engine.snapEngine)
+    const trimTool = new TrimTool(engine, plan, engine.snapEngine)
+    const extendTool = new ExtendTool(engine, plan, engine.snapEngine)
+
+    engine.registerTool('move', moveTool)
+    engine.registerTool('rotate', rotateTool)
+    engine.registerTool('trim', trimTool)
+    engine.registerTool('extend', extendTool)
 
     // Подписка на изменения плана для валидации и автосохранения
     engine.onChange = () => {

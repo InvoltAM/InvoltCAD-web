@@ -43,6 +43,13 @@ export class Vector2 {
     return new Vector2(-this.y, this.x);
   }
 
+  /** Повернуть вектор на угол angle (радианы) против часовой стрелки. */
+  rotate(angle: number): Vector2 {
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    return new Vector2(this.x * cos - this.y * sin, this.x * sin + this.y * cos);
+  }
+
   distanceTo(v: Vector2): number {
     return Math.hypot(this.x - v.x, this.y - v.y);
   }

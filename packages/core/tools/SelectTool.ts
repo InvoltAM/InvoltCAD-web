@@ -166,6 +166,13 @@ export class SelectTool implements Tool {
     this.canvas.setSelectedSheetTables([...selected]);
   }
 
+  private togglePrimitiveSelection(id: string): void {
+    const selected = new Set(this.canvas.getSelectedPrimitives());
+    if (selected.has(id)) selected.delete(id);
+    else selected.add(id);
+    this.canvas.setSelectedPrimitives([...selected]);
+  }
+
   onPointerDown(e: InputEvent): void {
     this.selectionBox = null;
     this.pointerDownOnEmpty = false;
@@ -174,6 +181,7 @@ export class SelectTool implements Tool {
     const hitDevice = this.hitTestDevice(e.screenPoint);
     const hitCable = this.hitTestCable(e.screenPoint);
     const hitDimension = this.hitTestDimension(e.screenPoint);
+    const hitPrimitive = this.canvas.primitiveRenderer.hitTest(e.screenPoint);
     const hitTableHandle = this.hitTestTableResizeHandle(e.screenPoint);
     const hitTable = this.hitTestSheetTable(e.screenPoint);
     const hitOpening = this.hitTestOpening(e.screenPoint);
@@ -226,6 +234,14 @@ export class SelectTool implements Tool {
       } else {
         this.clearSelection();
         this.canvas.setSelectedDimension(hitDimension.id);
+      }
+      this.dragOpening = null;
+    } else if (hitPrimitive) {
+      if (this.isMultiSelect(e)) {
+        this.togglePrimitiveSelection(hitPrimitive.id);
+      } else {
+        this.clearSelection();
+        this.canvas.setSelectedPrimitive(hitPrimitive.id);
       }
       this.dragOpening = null;
     } else if (hitTableHandle) {
@@ -664,6 +680,7 @@ export class SelectTool implements Tool {
     this.canvas.setSelectedDimension(null);
     this.canvas.setSelectedRoom(null);
     this.canvas.setSelectedSheetTable(null);
+    this.canvas.setSelectedPrimitive(null);
     this.activeRoomVertex = null;
   }
 
