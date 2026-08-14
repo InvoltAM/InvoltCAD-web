@@ -17,6 +17,7 @@ interface TableData {
   rows: TableRow[];
   colWeights: number[];
   colExtraChars?: number[];
+  autoWidth?: boolean;
 }
 
 const TABLE_WIDTH_MM = 120;
@@ -24,7 +25,7 @@ const ROW_HEIGHT_MM = 7;
 const HEADER_HEIGHT_MM = 8;
 const TITLE_HEIGHT_MM = 8;
 const PADDING_MM = 2.5;
-const FONT_SIZE_MM = 2.5;
+const FONT_SIZE_MM = 2.0;
 const LINE_WIDTH_MM = 0.35;
 const SELECTED_LINE_WIDTH_MM = 0.6;
 const FALLBACK_HEIGHT_MM = 40;
@@ -64,7 +65,11 @@ export class TableRenderer {
     for (const table of tables) {
       const data = this.buildTableData(table.type);
       if (!data) continue;
-      this.drawTable(ctx, table, data);
+      const width = this.computeTableWidth(ctx, table, data);
+      const height = this.tableHeight(data, table);
+      table.width = width;
+      table.height = height;
+      this.drawTable(ctx, table, data, width, height);
     }
 
     ctx.restore();
@@ -76,7 +81,7 @@ export class TableRenderer {
   getTableBounds(table: SheetTable, data?: TableData): { min: Vector2; max: Vector2 } {
     const d = data ?? this.buildTableData(table.type);
     const height = d ? this.tableHeight(d, table) : this.mm(FALLBACK_HEIGHT_MM) * this.tableScale(table);
-    const width = this.tableWidth(table);
+    const width = d ? this.tableWidth(table, d) : this.mm(TABLE_WIDTH_MM) * this.tableScale(table);
     const pos = new Vector2(table.position.x, table.position.y);
     return {
       min: pos,
@@ -158,8 +163,65 @@ export class TableRenderer {
     return table.scale ?? 1;
   }
 
-  private tableWidth(table: SheetTable): number {
+  private computeTableWidth(ctx: CanvasRenderingContext2D, table: SheetTable, data: TableData): number {
+    const scale = this.tableScale(table);
+    const padding = this.mm(PADDING_MM) * scale;
+    const fontSize = this.px(FONT_SIZE_MM) * scale;
+    if (data.autoWidth) {
+      const colWidths = this.measureColWidths(ctx, data, fontSize).map((w) => w + padding);
+      return colWidths.reduce((a, b) => a + b, 0) + padding;
+    }
+    return this.mm(TABLE_WIDTH_MM) * scale;
+  }
+
+  private tableWidth(table: SheetTable, data?: TableData): number {
+    const d = data ?? this.buildTableData(table.type);
+    if (!d) return this.mm(TABLE_WIDTH_MM) * this.tableScale(table);
+    if (d.autoWidth) {
+      return this.approximateTableWidth(table, d);
+    }
     return this.mm(TABLE_WIDTH_MM) * this.tableScale(table);
+  }
+
+  private approximateTableWidth(table: SheetTable, data: TableData): number {
+    const scale = this.tableScale(table);
+    const padding = this.mm(PADDING_MM) * scale;
+    const fontSize = this.px(FONT_SIZE_MM) * scale;
+    const charWidth = fontSize * 0.6;
+    const extra = data.colExtraChars ?? data.colWeights.map(() => 0);
+    let total = 0;
+    for (let i = 0; i < data.headers.length; i++) {
+      const header = data.headers[i];
+      let maxLen = header.length;
+      for (const row of data.rows) {
+        if (i < row.cells.length) {
+          maxLen = Math.max(maxLen, row.cells[i].length);
+        }
+      }
+      total += maxLen * charWidth + (extra[i] ?? 0) * charWidth + padding;
+    }
+    return total + padding;
+  }
+
+  private measureColWidths(ctx: CanvasRenderingContext2D, data: TableData, fontSize: number): number[] {
+    const charWidth = ctx.measureText('0').width || fontSize * 0.5;
+    const extra = data.colExtraChars ?? data.colWeights.map(() => 0);
+    const widths: number[] = [];
+    for (let i = 0; i < data.headers.length; i++) {
+      ctx.font = `bold ${fontSize}px ui-sans-serif, system-ui, sans-serif`;
+      const headerWidth = ctx.measureText(data.headers[i]).width;
+      let maxCellWidth = 0;
+      for (const row of data.rows) {
+        if (i < row.cells.length) {
+          const isBold = row.bold ?? false;
+          ctx.font = `${isBold ? 'bold ' : ''}${fontSize}px ui-sans-serif, system-ui, sans-serif`;
+          const w = ctx.measureText(row.cells[i]).width;
+          if (w > maxCellWidth) maxCellWidth = w;
+        }
+      }
+      widths.push(Math.max(headerWidth, maxCellWidth) + (extra[i] ?? 0) * charWidth);
+    }
+    return widths;
   }
 
   private tableHeight(data: TableData, table: SheetTable): number {
@@ -237,7 +299,7 @@ export class TableRenderer {
       title: 'Спецификация листа',
       headers: ['Наименование', 'Кол-во'],
       rows,
-      colWeights: [2, 0.5],
+      colWeights: [0.5, 1],
       colExtraChars: [0, 4],
     };
   }
@@ -251,16 +313,22 @@ export class TableRenderer {
       title: '№ помещения',
       headers: ['№', 'Наименование'],
       rows,
-      colWeights: [0.5, 2],
+      colWeights: [0, 0],
+      colExtraChars: [0, 0],
+      autoWidth: true,
     };
   }
 
-  private drawTable(ctx: CanvasRenderingContext2D, table: SheetTable, data: TableData): void {
+  private drawTable(
+    ctx: CanvasRenderingContext2D,
+    table: SheetTable,
+    data: TableData,
+    width: number,
+    height: number,
+  ): void {
     const x = table.position.x;
     const y = table.position.y;
     const scale = this.tableScale(table);
-    const width = this.tableWidth(table);
-    const height = this.tableHeight(data, table);
     const padding = this.mm(PADDING_MM) * scale;
     const titleHeight = this.mm(TITLE_HEIGHT_MM) * scale;
     const headerHeight = this.mm(HEADER_HEIGHT_MM) * scale;
@@ -369,6 +437,12 @@ export class TableRenderer {
     ctx: CanvasRenderingContext2D,
     fontSize: number,
   ): number[] {
+    if (data.autoWidth) {
+      // При автоширине колонка = содержимое + внутренний отступ.
+      // Внешние отступы таблицы добавляются в computeTableWidth.
+      return this.measureColWidths(ctx, data, fontSize).map((w) => w + padding);
+    }
+
     const weights = data.colWeights;
     const extraChars = data.colExtraChars ?? weights.map(() => 0);
     const totalWeight = weights.reduce((a, b) => a + b, 0);

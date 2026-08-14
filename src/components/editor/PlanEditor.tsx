@@ -276,28 +276,33 @@ export default function PlanEditor() {
   }, [selectedWallId, selectedOpeningId, selectedDeviceId, selectedCableId, selectedDimensionId, selectedRoomIndex])
 
   // Синхронизация выделения engine -> cadStore (чтобы панели реагировали на клики в canvas)
-  // Для мультивыделения рамкой обновляем cadStore только если выбран не более чем один объект данного типа.
   useEffect(() => {
     const engine = engineRef.current
     if (!engine) return
     const subs = [
       engine.editorState.subscribe('selectedWallIds', (ids) => {
-        if (ids.length <= 1) useCadStore.getState().setSelectedWall(ids[0] ?? null)
+        useCadStore.getState().setSelectedWalls(ids)
+        useCadStore.getState().setSelectedWall(ids.length <= 1 ? (ids[0] ?? null) : null)
       }),
       engine.editorState.subscribe('selectedOpeningIds', (ids) => {
-        if (ids.length <= 1) useCadStore.getState().setSelectedOpening(ids[0] ?? null)
+        useCadStore.getState().setSelectedOpenings(ids)
+        useCadStore.getState().setSelectedOpening(ids.length <= 1 ? (ids[0] ?? null) : null)
       }),
       engine.editorState.subscribe('selectedDeviceIds', (ids) => {
-        if (ids.length <= 1) useCadStore.getState().setSelectedDevice(ids[0] ?? null)
+        useCadStore.getState().setSelectedDevices(ids)
+        useCadStore.getState().setSelectedDevice(ids.length <= 1 ? (ids[0] ?? null) : null)
       }),
       engine.editorState.subscribe('selectedCableIds', (ids) => {
-        if (ids.length <= 1) useCadStore.getState().setSelectedCable(ids[0] ?? null)
+        useCadStore.getState().setSelectedCables(ids)
+        useCadStore.getState().setSelectedCable(ids.length <= 1 ? (ids[0] ?? null) : null)
       }),
       engine.editorState.subscribe('selectedDimensionIds', (ids) => {
-        if (ids.length <= 1) useCadStore.getState().setSelectedDimension(ids[0] ?? null)
+        useCadStore.getState().setSelectedDimensions(ids)
+        useCadStore.getState().setSelectedDimension(ids.length <= 1 ? (ids[0] ?? null) : null)
       }),
       engine.editorState.subscribe('selectedRoomIndices', (indices) => {
-        if (indices.length <= 1) useCadStore.getState().setSelectedRoom(indices[0] ?? null)
+        useCadStore.getState().setSelectedRooms(indices)
+        useCadStore.getState().setSelectedRoom(indices.length <= 1 ? (indices[0] ?? null) : null)
       }),
     ]
     return () => subs.forEach((unsub) => unsub())

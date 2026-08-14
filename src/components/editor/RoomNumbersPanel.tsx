@@ -36,7 +36,8 @@ export default function RoomNumbersPanel() {
 
   const commit = (id: string) => {
     if (!plan) return
-    const value = editing[id] ?? ''
+    const value = editing[id]
+    if (value === undefined) return
     plan.updateRoomName(id, value.trim())
     setEditing((prev) => {
       const next = { ...prev }
