@@ -300,7 +300,6 @@ export default function Toolbar() {
         'ortho',
         'panels',
         'validation',
-        'roomNumbers',
         'theme',
       ] as string[]
       const idx = allIds.indexOf(id)
@@ -366,13 +365,6 @@ export default function Toolbar() {
       icon: icon('validation'),
       active: panelManagerRef.current?.isVisible('validation') ?? false,
       onClick: handleToggleValidation,
-    },
-    {
-      id: 'roomNumbers',
-      label: '№ помещения',
-      icon: icon('roomNumbers'),
-      active: panelManagerRef.current?.isVisible('roomNumbers') ?? false,
-      onClick: () => panelManagerRef.current?.toggle('roomNumbers'),
     },
     {
       id: 'theme',
