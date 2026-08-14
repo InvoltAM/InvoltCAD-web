@@ -23,6 +23,7 @@ const categories: DeviceCategory[] = [
   { id: 'sks', label: 'СКС', iconName: 'sks' },
   { id: 'drive', label: 'Привод', iconName: 'drive' },
   { id: 'smartHome', label: 'УД', iconName: 'smartHome' },
+  { id: 'panel', label: 'Щиты', iconName: 'panel' },
 ]
 
 interface DeviceItem {
