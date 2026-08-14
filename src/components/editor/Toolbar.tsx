@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useCadStore } from '@/stores/cadStore'
 import { useEditor } from './EditorContext'
 import type { ToolName } from '@core/tools/ToolManager'
@@ -475,13 +475,14 @@ export default function Toolbar() {
           setWallMenuOpen(false)
         }}
       >
-        {drawingTools.map((tool) => {
+        {drawingTools.flatMap((tool) => {
+          const elements: React.ReactNode[] = []
           if (tool.name === 'wall') {
             const activeWallTool =
               wallTools.find((wt) => wt.name === currentTool) ?? wallTools[0]
             const isWallToolActive =
               currentTool === 'wall' || currentTool === 'door' || currentTool === 'window'
-            return (
+            elements.push(
               <div key="wall" className="editor-dock-group">
                 <button
                   ref={wallMenuBtnRef}
@@ -513,36 +514,47 @@ export default function Toolbar() {
                 )}
               </div>
             )
+          } else {
+            elements.push(
+              <button
+                key={tool.name}
+                onClick={() => setTool(tool.name)}
+                onMouseEnter={() => setHoveredDockId(tool.name)}
+                className={`editor-dock-item ${currentTool === tool.name ? 'active' : ''}`}
+                title={tool.label}
+                style={{ transform: `scale(${getDockScale(tool.name)})` }}
+              >
+                <span className="ui-icon" dangerouslySetInnerHTML={{ __html: tool.icon }} />
+                <span className="editor-dock-tooltip">{tool.label}</span>
+              </button>
+            )
           }
-          return (
-            <button
-              key={tool.name}
-              onClick={() => setTool(tool.name)}
-              onMouseEnter={() => setHoveredDockId(tool.name)}
-              className={`editor-dock-item ${currentTool === tool.name ? 'active' : ''}`}
-              title={tool.label}
-              style={{ transform: `scale(${getDockScale(tool.name)})` }}
-            >
-              <span className="ui-icon" dangerouslySetInnerHTML={{ __html: tool.icon }} />
-              <span className="editor-dock-tooltip">{tool.label}</span>
-            </button>
-          )
+          if (tool.name === 'cable') {
+            elements.push(<div key="divider-after-cable" className="editor-dock-divider" />)
+          }
+          return elements
         })}
         <div className="editor-dock-divider" />
-        {dockActions.map((action) => (
-          <button
-            key={action.id}
-            ref={action.id === 'panels' ? panelMenuBtnRef : undefined}
-            onClick={action.onClick}
-            onMouseEnter={() => setHoveredDockId(action.id)}
-            className={`editor-dock-item ${action.active ? 'active' : ''}`}
-            title={action.label}
-            style={{ transform: `scale(${getDockScale(action.id)})` }}
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: action.icon }} />
-            <span className="editor-dock-tooltip">{action.label}</span>
-          </button>
-        ))}
+        {dockActions.flatMap((action) => {
+          const elements: React.ReactNode[] = [
+            <button
+              key={action.id}
+              ref={action.id === 'panels' ? panelMenuBtnRef : undefined}
+              onClick={action.onClick}
+              onMouseEnter={() => setHoveredDockId(action.id)}
+              className={`editor-dock-item ${action.active ? 'active' : ''}`}
+              title={action.label}
+              style={{ transform: `scale(${getDockScale(action.id)})` }}
+            >
+              <span className="ui-icon" dangerouslySetInnerHTML={{ __html: action.icon }} />
+              <span className="editor-dock-tooltip">{action.label}</span>
+            </button>,
+          ]
+          if (action.id === 'clear') {
+            elements.push(<div key="divider-after-clear" className="editor-dock-divider" />)
+          }
+          return elements
+        })}
       </div>
 
       {panelMenuOpen && (
