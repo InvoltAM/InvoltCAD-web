@@ -1,11 +1,12 @@
 import { Camera } from '../engine/Camera';
 import { Plan } from '../model/Plan';
-import { Device, DEVICE_LABELS, getDeviceIconScale } from '../model/Device';
+import { Device, getDeviceIconScale } from '../model/Device';
 import { EditorState } from '../editor/EditorState';
 import { wallDirection } from '../model/Wall';
 import { Vector2 } from '../geometry/Vector2';
 import { findDeviceCatalogItem } from '../model/Device';
 import { ThemeManager, ThemeColorKey } from '../editor/ThemeManager';
+import { drawDeviceSymbol } from './DeviceSymbolRenderer';
 
 const CATEGORY_THEME_KEY: Record<string, ThemeColorKey> = {
   socket: 'deviceSocket',
@@ -117,10 +118,8 @@ export class DeviceRenderer {
 
       // Иконка устройства
       ctx.fillStyle = color;
-      ctx.font = `${sizeWorld * 0.55}px ui-sans-serif, system-ui, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(DEVICE_LABELS[device.type], 0, 0);
+      ctx.strokeStyle = color;
+      drawDeviceSymbol(ctx, device.type, sizeWorld);
       ctx.restore();
 
       // Имя устройства (атрибут блока) — горизонтально, можно перетаскивать
