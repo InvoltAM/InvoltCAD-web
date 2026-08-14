@@ -192,6 +192,59 @@ export class SnapEngine {
         break;
       }
 
+      // 3.6. Примитивы рисования — концы, середины, центры
+      for (const primitive of this.plan.primitives) {
+        if (primitive.type === 'segment') {
+          const [a, b] = primitive.points;
+          if (!a || !b) continue;
+          for (const end of [a, b]) {
+            const distPx = this.camera.worldToScreen(end).distanceTo(screenPoint);
+            if (distPx < this.endpointThresholdPx) {
+              consider({ point: end.clone(), type: 'endpoint' }, distPx, 0);
+            }
+          }
+          const mid = a.add(b).scale(0.5);
+          const distPx = this.camera.worldToScreen(mid).distanceTo(screenPoint);
+          if (distPx < this.objectThresholdPx) {
+            consider({ point: mid, type: 'midpoint' }, distPx, 40);
+          }
+        } else if (primitive.type === 'polyline') {
+          for (const p of primitive.points) {
+            const distPx = this.camera.worldToScreen(p).distanceTo(screenPoint);
+            if (distPx < this.endpointThresholdPx) {
+              consider({ point: p.clone(), type: 'endpoint' }, distPx, 0);
+            }
+          }
+        } else if (primitive.type === 'rectangle') {
+          const [min, max] = primitive.points;
+          if (!min || !max) continue;
+          const corners = [
+            min.clone(),
+            new Vector2(max.x, min.y),
+            max.clone(),
+            new Vector2(min.x, max.y),
+          ];
+          for (const p of corners) {
+            const distPx = this.camera.worldToScreen(p).distanceTo(screenPoint);
+            if (distPx < this.endpointThresholdPx) {
+              consider({ point: p.clone(), type: 'endpoint' }, distPx, 0);
+            }
+          }
+          const center = min.add(max).scale(0.5);
+          const distPx = this.camera.worldToScreen(center).distanceTo(screenPoint);
+          if (distPx < this.objectThresholdPx) {
+            consider({ point: center, type: 'center' }, distPx, 40);
+          }
+        } else if (primitive.type === 'circle') {
+          const [center] = primitive.points;
+          if (!center) continue;
+          const distPx = this.camera.worldToScreen(center).distanceTo(screenPoint);
+          if (distPx < this.objectThresholdPx) {
+            consider({ point: center.clone(), type: 'center' }, distPx, 40);
+          }
+        }
+      }
+
       // 4. Пересечения осевых линий стен
       const walls = this.plan.walls;
       for (let i = 0; i < walls.length; i++) {
