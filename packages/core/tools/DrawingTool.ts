@@ -93,6 +93,9 @@ export class DrawingTool implements Tool {
       // Вне режима рисования просто обновляем snap-индикатор
       this.lastSnap = this.snapEngine.snap(e.screenPoint);
       this.canvas.setSnap(this.lastSnap);
+      this.canvas.setGhost((ctx) => {
+        if (this.lastSnap) this.canvas.ghostRenderer.drawSnapMarker(ctx, this.lastSnap);
+      });
       this.canvas.requestRender();
       return;
     }
