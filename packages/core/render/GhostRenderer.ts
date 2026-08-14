@@ -2,6 +2,7 @@ import { Camera } from '../engine/Camera';
 import { Vector2 } from '../geometry/Vector2';
 import { SnapResult } from '../snap/SnapEngine';
 import { ThemeManager, ThemeColorKey } from '../editor/ThemeManager';
+import { DrawingPrimitive } from '../model/DrawingPrimitive';
 
 /**
  * Слой предпросмотра: рисуемая стена, маркер snap, подсветка стены,
@@ -170,8 +171,18 @@ export class GhostRenderer {
 
     // Захваченные точки (до двух) либо сама snap-точка
     const guides = snap.guides ?? [
-      { point: snap.point, type: snap.type, wall: snap.wall, wall2: snap.wall2 },
+      { point: snap.point, type: snap.type, wall: snap.wall, wall2: snap.wall2, primitive: snap.primitive },
     ];
+
+    // Подсветка примитивов, к которым произошла привязка
+    const highlightedPrimitives = new Set<DrawingPrimitive>();
+    if (snap.primitive) highlightedPrimitives.add(snap.primitive);
+    for (const guide of guides) {
+      if (guide.primitive) highlightedPrimitives.add(guide.primitive);
+    }
+    for (const primitive of highlightedPrimitives) {
+      this.drawPrimitiveHighlight(ctx, primitive);
+    }
 
     for (const guide of guides) {
       this.drawSnapMarkerShape(ctx, guide.point, guide.type, r);
@@ -199,6 +210,56 @@ export class GhostRenderer {
       ctx.arc(snap.point.x, snap.point.y, r * 0.5, 0, Math.PI * 2);
       ctx.stroke();
     }
+  }
+
+  /** Подсветка примитива, к которому произошла привязка. */
+  private drawPrimitiveHighlight(ctx: CanvasRenderingContext2D, primitive: DrawingPrimitive): void {
+    const points = primitive.points;
+    if (points.length === 0) return;
+
+    ctx.save();
+    ctx.strokeStyle = this.getColor('accent');
+    ctx.lineWidth = 5 / this.camera.scale;
+
+    switch (primitive.type) {
+      case 'segment': {
+        if (points.length < 2) break;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        ctx.lineTo(points[1].x, points[1].y);
+        ctx.stroke();
+        break;
+      }
+      case 'polyline': {
+        if (points.length < 2) break;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+          ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.stroke();
+        break;
+      }
+      case 'rectangle': {
+        if (points.length < 2) break;
+        const x = Math.min(points[0].x, points[1].x);
+        const y = Math.min(points[0].y, points[1].y);
+        const w = Math.abs(points[1].x - points[0].x);
+        const h = Math.abs(points[1].y - points[0].y);
+        ctx.strokeRect(x, y, w, h);
+        break;
+      }
+      case 'circle': {
+        if (points.length < 2) break;
+        const radius = points[0].distanceTo(points[1]);
+        ctx.beginPath();
+        ctx.arc(points[0].x, points[0].y, radius, 0, Math.PI * 2);
+        ctx.stroke();
+        break;
+      }
+    }
+
+    ctx.restore();
   }
 
   /** Маркер конкретного типа привязки в точке p. */

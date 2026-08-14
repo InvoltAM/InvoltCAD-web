@@ -4,6 +4,7 @@ import { Room } from '../geometry/RoomDetector';
 import { Camera } from '../engine/Camera';
 import { Plan } from '../model/Plan';
 import { Wall } from '../model/Wall';
+import { DrawingPrimitive } from '../model/DrawingPrimitive';
 
 export type SnapType =
   | 'endpoint'
@@ -23,6 +24,8 @@ export interface SnapGuide {
   type: SnapType;
   wall?: Wall;
   wall2?: Wall;
+  /** Привязка произошла к этому примитиву (для подсветки). */
+  primitive?: DrawingPrimitive;
 }
 
 export interface SnapResult {
@@ -36,6 +39,8 @@ export interface SnapResult {
   extensionFrom?: Vector2;
   /** Захваченные точки привязки (до двух) — от них рисуются лучи. */
   guides?: SnapGuide[];
+  /** Привязка произошла к этому примитиву (для подсветки). */
+  primitive?: DrawingPrimitive;
 }
 
 /**
@@ -192,7 +197,7 @@ export class SnapEngine {
         break;
       }
 
-      // 3.6. Примитивы рисования — концы, середины, центры
+      // 3.6. Примитивы рисования — концы, середины, центры, грани
       for (const primitive of this.plan.primitives) {
         if (primitive.type === 'segment') {
           const [a, b] = primitive.points;
@@ -200,19 +205,31 @@ export class SnapEngine {
           for (const end of [a, b]) {
             const distPx = this.camera.worldToScreen(end).distanceTo(screenPoint);
             if (distPx < this.endpointThresholdPx) {
-              consider({ point: end.clone(), type: 'endpoint' }, distPx, 0);
+              consider({ point: end.clone(), type: 'endpoint', primitive }, distPx, 0);
             }
           }
           const mid = a.add(b).scale(0.5);
           const distPx = this.camera.worldToScreen(mid).distanceTo(screenPoint);
           if (distPx < this.objectThresholdPx) {
-            consider({ point: mid, type: 'midpoint' }, distPx, 40);
+            consider({ point: mid, type: 'midpoint', primitive }, distPx, 40);
           }
         } else if (primitive.type === 'polyline') {
-          for (const p of primitive.points) {
+          const pts = primitive.points;
+          for (let i = 0; i < pts.length; i++) {
+            const p = pts[i];
+            if (!p) continue;
             const distPx = this.camera.worldToScreen(p).distanceTo(screenPoint);
             if (distPx < this.endpointThresholdPx) {
-              consider({ point: p.clone(), type: 'endpoint' }, distPx, 0);
+              consider({ point: p.clone(), type: 'endpoint', primitive }, distPx, 0);
+            }
+            if (i > 0) {
+              const prev = pts[i - 1];
+              if (!prev) continue;
+              const mid = p.add(prev).scale(0.5);
+              const distPx = this.camera.worldToScreen(mid).distanceTo(screenPoint);
+              if (distPx < this.objectThresholdPx) {
+                consider({ point: mid, type: 'midpoint', primitive }, distPx, 40);
+              }
             }
           }
         } else if (primitive.type === 'rectangle') {
@@ -227,20 +244,49 @@ export class SnapEngine {
           for (const p of corners) {
             const distPx = this.camera.worldToScreen(p).distanceTo(screenPoint);
             if (distPx < this.endpointThresholdPx) {
-              consider({ point: p.clone(), type: 'endpoint' }, distPx, 0);
+              consider({ point: p.clone(), type: 'endpoint', primitive }, distPx, 0);
+            }
+          }
+          const edges: Array<[Vector2, Vector2]> = [
+            [corners[0], corners[1]],
+            [corners[1], corners[2]],
+            [corners[2], corners[3]],
+            [corners[3], corners[0]],
+          ];
+          for (const [a, b] of edges) {
+            const mid = a.add(b).scale(0.5);
+            const distPx = this.camera.worldToScreen(mid).distanceTo(screenPoint);
+            if (distPx < this.objectThresholdPx) {
+              consider({ point: mid, type: 'midpoint', primitive }, distPx, 40);
             }
           }
           const center = min.add(max).scale(0.5);
           const distPx = this.camera.worldToScreen(center).distanceTo(screenPoint);
           if (distPx < this.objectThresholdPx) {
-            consider({ point: center, type: 'center' }, distPx, 40);
+            consider({ point: center, type: 'center', primitive }, distPx, 40);
           }
         } else if (primitive.type === 'circle') {
-          const [center] = primitive.points;
+          const [center, rim] = primitive.points;
           if (!center) continue;
           const distPx = this.camera.worldToScreen(center).distanceTo(screenPoint);
           if (distPx < this.objectThresholdPx) {
-            consider({ point: center.clone(), type: 'center' }, distPx, 40);
+            consider({ point: center.clone(), type: 'center', primitive }, distPx, 40);
+          }
+          const radius = rim ? center.distanceTo(rim) : 0;
+          if (radius > 0) {
+            const rimPoints = [
+              rim.clone(),
+              center.add(new Vector2(radius, 0)),
+              center.add(new Vector2(-radius, 0)),
+              center.add(new Vector2(0, radius)),
+              center.add(new Vector2(0, -radius)),
+            ];
+            for (const p of rimPoints) {
+              const distPx = this.camera.worldToScreen(p).distanceTo(screenPoint);
+              if (distPx < this.endpointThresholdPx) {
+                consider({ point: p.clone(), type: 'endpoint', primitive }, distPx, 0);
+              }
+            }
           }
         }
       }
