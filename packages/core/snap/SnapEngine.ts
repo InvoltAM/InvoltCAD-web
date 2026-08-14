@@ -13,6 +13,7 @@ export type SnapType =
   | 'intersection'
   | 'extension'
   | 'wall-line'
+  | 'primitive-line'
   | 'tracking'
   | 'grid';
 
@@ -41,6 +42,10 @@ export interface SnapResult {
   guides?: SnapGuide[];
   /** Привязка произошла к этому примитиву (для подсветки). */
   primitive?: DrawingPrimitive;
+  /** Ребро примитива, к которому произошла привязка к линии (для подсветки). */
+  primitiveEdge?: { a: Vector2; b: Vector2 };
+  /** Окружность примитива, к которой произошла привязка к линии (для подсветки). */
+  primitiveCircle?: { center: Vector2; radius: number };
 }
 
 /**
@@ -287,6 +292,95 @@ export class SnapEngine {
                 consider({ point: p.clone(), type: 'endpoint', primitive }, distPx, 0);
               }
             }
+          }
+        }
+      }
+
+      // 3.7. Привязка к линиям/граням/окружностям примитивов
+      for (const primitive of this.plan.primitives) {
+        if (primitive.type === 'segment') {
+          const [a, b] = primitive.points;
+          if (!a || !b) continue;
+          const proj = projectPointToSegment(world, a, b);
+          if (proj.t <= 0 || proj.t >= 1) continue;
+          const screenProj = this.camera.worldToScreen(proj.point);
+          const distPx = screenProj.distanceTo(screenPoint);
+          if (distPx < this.lineThresholdPx) {
+            consider(
+              { point: proj.point, type: 'primitive-line', primitive, primitiveEdge: { a: a.clone(), b: b.clone() } },
+              distPx,
+              100,
+            );
+          }
+        } else if (primitive.type === 'polyline') {
+          const pts = primitive.points;
+          let bestProj: { point: Vector2; a: Vector2; b: Vector2; distPx: number } | null = null;
+          for (let i = 1; i < pts.length; i++) {
+            const prev = pts[i - 1];
+            const curr = pts[i];
+            if (!prev || !curr) continue;
+            const proj = projectPointToSegment(world, prev, curr);
+            if (proj.t <= 0 || proj.t >= 1) continue;
+            const screenProj = this.camera.worldToScreen(proj.point);
+            const distPx = screenProj.distanceTo(screenPoint);
+            if (distPx < this.lineThresholdPx && (!bestProj || distPx < bestProj.distPx)) {
+              bestProj = { point: proj.point, a: prev.clone(), b: curr.clone(), distPx };
+            }
+          }
+          if (bestProj) {
+            consider(
+              { point: bestProj.point, type: 'primitive-line', primitive, primitiveEdge: { a: bestProj.a, b: bestProj.b } },
+              bestProj.distPx,
+              100,
+            );
+          }
+        } else if (primitive.type === 'rectangle') {
+          const [min, max] = primitive.points;
+          if (!min || !max) continue;
+          const corners = [
+            min.clone(),
+            new Vector2(max.x, min.y),
+            max.clone(),
+            new Vector2(min.x, max.y),
+          ];
+          const edges: Array<[Vector2, Vector2]> = [
+            [corners[0], corners[1]],
+            [corners[1], corners[2]],
+            [corners[2], corners[3]],
+            [corners[3], corners[0]],
+          ];
+          let bestProj: { point: Vector2; a: Vector2; b: Vector2; distPx: number } | null = null;
+          for (const [a, b] of edges) {
+            const proj = projectPointToSegment(world, a, b);
+            if (proj.t <= 0 || proj.t >= 1) continue;
+            const screenProj = this.camera.worldToScreen(proj.point);
+            const distPx = screenProj.distanceTo(screenPoint);
+            if (distPx < this.lineThresholdPx && (!bestProj || distPx < bestProj.distPx)) {
+              bestProj = { point: proj.point, a: a.clone(), b: b.clone(), distPx };
+            }
+          }
+          if (bestProj) {
+            consider(
+              { point: bestProj.point, type: 'primitive-line', primitive, primitiveEdge: { a: bestProj.a, b: bestProj.b } },
+              bestProj.distPx,
+              100,
+            );
+          }
+        } else if (primitive.type === 'circle') {
+          const [center, rim] = primitive.points;
+          if (!center || !rim) continue;
+          const radius = center.distanceTo(rim);
+          if (radius <= 0) continue;
+          const dir = world.sub(center);
+          const distWorld = Math.abs(dir.length() - radius);
+          const distPx = distWorld * this.camera.scale;
+          if (distPx < this.lineThresholdPx) {
+            const nearest = center.add(dir.normalized().scale(radius));
+            consider(
+              { point: nearest, type: 'primitive-line', primitive, primitiveCircle: { center: center.clone(), radius } },
+              distPx,
+              100,
+            );
           }
         }
       }

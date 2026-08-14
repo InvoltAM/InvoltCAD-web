@@ -174,14 +174,18 @@ export class GhostRenderer {
       { point: snap.point, type: snap.type, wall: snap.wall, wall2: snap.wall2, primitive: snap.primitive },
     ];
 
-    // Подсветка примитивов, к которым произошла привязка
+    // Подсветка примитивов, к которым произошла привязка.
+    // Для привязки к линии (primitive-line) подсвечиваем именно ребро/дугу, а не весь примитив.
     const highlightedPrimitives = new Set<DrawingPrimitive>();
-    if (snap.primitive) highlightedPrimitives.add(snap.primitive);
+    if (snap.primitive && snap.type !== 'primitive-line') highlightedPrimitives.add(snap.primitive);
     for (const guide of guides) {
-      if (guide.primitive) highlightedPrimitives.add(guide.primitive);
+      if (guide.primitive && guide.type !== 'primitive-line') highlightedPrimitives.add(guide.primitive);
     }
     for (const primitive of highlightedPrimitives) {
       this.drawPrimitiveHighlight(ctx, primitive);
+    }
+    if (snap.type === 'primitive-line') {
+      this.drawPrimitiveLineHighlight(ctx, snap);
     }
 
     for (const guide of guides) {
@@ -210,6 +214,26 @@ export class GhostRenderer {
       ctx.arc(snap.point.x, snap.point.y, r * 0.5, 0, Math.PI * 2);
       ctx.stroke();
     }
+  }
+
+  /** Подсветка конкретного ребра/окружности при привязке к линии примитива. */
+  private drawPrimitiveLineHighlight(ctx: CanvasRenderingContext2D, snap: SnapResult): void {
+    ctx.save();
+    ctx.strokeStyle = this.getColor('accent');
+    ctx.lineWidth = 5 / this.camera.scale;
+
+    if (snap.primitiveEdge) {
+      ctx.beginPath();
+      ctx.moveTo(snap.primitiveEdge.a.x, snap.primitiveEdge.a.y);
+      ctx.lineTo(snap.primitiveEdge.b.x, snap.primitiveEdge.b.y);
+      ctx.stroke();
+    } else if (snap.primitiveCircle) {
+      ctx.beginPath();
+      ctx.arc(snap.primitiveCircle.center.x, snap.primitiveCircle.center.y, snap.primitiveCircle.radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.restore();
   }
 
   /** Подсветка примитива, к которому произошла привязка. */
