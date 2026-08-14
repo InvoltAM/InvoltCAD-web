@@ -148,6 +148,16 @@ export default function PlanEditor() {
       },
     })
 
+    // Инструменты модификации (заглушки — логика будет добавлена позже)
+    for (const name of ['move', 'rotate', 'trim', 'extend'] as const) {
+      engine.toolManager.register({
+        name,
+        onActivate() {
+          engine.setGhost(null)
+        },
+      })
+    }
+
     // Подписка на изменения плана для валидации и автосохранения
     engine.onChange = () => {
       const rooms = plan.getRooms()

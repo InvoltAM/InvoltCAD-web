@@ -39,6 +39,13 @@ const navigationTools: DockTool[] = [
   { name: 'hand', label: 'Рука', icon: icon('hand') },
 ]
 
+const modifyTools: DockTool[] = [
+  { name: 'move', label: 'Перенести', icon: icon('move') },
+  { name: 'rotate', label: 'Повернуть', icon: icon('rotate') },
+  { name: 'trim', label: 'Обрезать', icon: icon('trim') },
+  { name: 'extend', label: 'Удлинить', icon: icon('extend') },
+]
+
 interface DockAction {
   id: string
   label: string
@@ -94,6 +101,9 @@ export default function Toolbar() {
   const [drawingMenuOpen, setDrawingMenuOpen] = useState(false)
   const drawingMenuBtnRef = useRef<HTMLButtonElement>(null)
 
+  const [modifyMenuOpen, setModifyMenuOpen] = useState(false)
+  const modifyMenuBtnRef = useRef<HTMLButtonElement>(null)
+
   // macOS dock hover state
   const [hoveredDockId, setHoveredDockId] = useState<string | null>(null)
   const dockRef = useRef<HTMLDivElement>(null)
@@ -137,6 +147,17 @@ export default function Toolbar() {
     return () => document.removeEventListener('click', onDocClick)
   }, [drawingMenuOpen])
 
+  useEffect(() => {
+    if (!modifyMenuOpen) return
+    const onDocClick = (e: MouseEvent) => {
+      if (!modifyMenuBtnRef.current?.contains(e.target as Node)) {
+        setModifyMenuOpen(false)
+      }
+    }
+    document.addEventListener('click', onDocClick)
+    return () => document.removeEventListener('click', onDocClick)
+  }, [modifyMenuOpen])
+
   const handleToggleWallMenu = () => {
     setWallMenuOpen((prev) => !prev)
   }
@@ -153,6 +174,15 @@ export default function Toolbar() {
   const handleSelectDrawingTool = (name: ToolName) => {
     setTool(name)
     setDrawingMenuOpen(false)
+  }
+
+  const handleToggleModifyMenu = () => {
+    setModifyMenuOpen((prev) => !prev)
+  }
+
+  const handleSelectModifyTool = (name: ToolName) => {
+    setTool(name)
+    setModifyMenuOpen(false)
   }
 
   const handleTogglePanelMenu = () => {
@@ -292,6 +322,8 @@ export default function Toolbar() {
         ...drawingTools.map((t) => t.name),
         'drawing',
         ...navigationTools.map((t) => t.name),
+        'modify',
+        ...modifyTools.map((t) => t.name),
         'undo',
         'redo',
         'zoomOut',
@@ -612,6 +644,45 @@ export default function Toolbar() {
               <span className="editor-dock-tooltip">{tool.label}</span>
             </button>,
           ]
+          if (tool.name === 'select') {
+            elements.push(
+              <div key="modify" className="editor-dock-group">
+                {(() => {
+                  const activeModifyTool =
+                    modifyTools.find((mt) => mt.name === currentTool) ?? modifyTools[0]
+                  const isModifyToolActive = modifyTools.some((mt) => mt.name === currentTool)
+                  return (
+                    <button
+                      ref={modifyMenuBtnRef}
+                      onClick={handleToggleModifyMenu}
+                      onMouseEnter={() => setHoveredDockId('modify')}
+                      className={`editor-dock-item editor-dock-item-menu ${isModifyToolActive ? 'active' : ''}`}
+                      title={`${activeModifyTool.label} ▼`}
+                      style={{ transform: `scale(${getDockScale('modify')})` }}
+                    >
+                      <span className="ui-icon" dangerouslySetInnerHTML={{ __html: activeModifyTool.icon }} />
+                      <span className="editor-dock-arrow">▼</span>
+                      <span className="editor-dock-tooltip">{activeModifyTool.label}</span>
+                    </button>
+                  )
+                })()}
+                {modifyMenuOpen && (
+                  <div className="editor-dock-submenu">
+                    {modifyTools.map((mt) => (
+                      <button
+                        key={mt.name}
+                        className={`editor-dock-submenu-item ${currentTool === mt.name ? 'active' : ''}`}
+                        onClick={() => handleSelectModifyTool(mt.name)}
+                      >
+                        <span className="ui-icon" dangerouslySetInnerHTML={{ __html: mt.icon }} />
+                        <span>{mt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          }
           if (tool.name === 'hand') {
             elements.push(<div key="divider-after-hand" className="editor-dock-divider" />)
           }
