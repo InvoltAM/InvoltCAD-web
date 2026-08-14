@@ -197,6 +197,7 @@ function createSingleRoomTemplate(): ProjectTemplateData {
     ],
     cables: [],
     dimensions: [],
+    primitives: [],
     electrical: {
       consumers: [], circuits: [], distributionBoards: [], cableRuns: [],
       priceItems: [], priceWorkItems: [], estimates: [], invoices: [], documents: [], automationConfigs: [],
@@ -236,6 +237,7 @@ function createTwoRoomTemplate(): ProjectTemplateData {
     ],
     cables: [],
     dimensions: [],
+    primitives: [],
     electrical: {
       consumers: [], circuits: [], distributionBoards: [], cableRuns: [],
       priceItems: [], priceWorkItems: [], estimates: [], invoices: [], documents: [], automationConfigs: [],
@@ -271,6 +273,7 @@ function createOfficeCellTemplate(): ProjectTemplateData {
     ],
     cables: [],
     dimensions: [],
+    primitives: [],
     electrical: {
       consumers: [], circuits: [], distributionBoards: [], cableRuns: [],
       priceItems: [], priceWorkItems: [], estimates: [], invoices: [], documents: [], automationConfigs: [],

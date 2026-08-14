@@ -710,6 +710,29 @@ export class ResizeSheetTableCommand implements Command {
   }
 }
 
+/** Команда удаления примитива рисования. */
+export class RemovePrimitiveCommand implements Command {
+  private primitive: DrawingPrimitive | null = null;
+
+  constructor(
+    private plan: Plan,
+    private primitiveId: string,
+  ) {}
+
+  execute(): void {
+    const idx = this.plan.primitives.findIndex(p => p.id === this.primitiveId);
+    if (idx === -1) return;
+    this.primitive = this.plan.primitives[idx];
+    this.plan.primitives.splice(idx, 1);
+  }
+
+  undo(): void {
+    if (this.primitive) {
+      this.plan.primitives.push(this.primitive);
+    }
+  }
+}
+
 /** Команда добавления примитива рисования. */
 export class AddPrimitiveCommand implements Command {
   private primitiveId = '';

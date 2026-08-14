@@ -1,6 +1,7 @@
 import { Camera } from '../engine/Camera';
 import { Plan } from '../model/Plan';
 import { ThemeManager } from '../editor/ThemeManager';
+import { Vector2 } from '../geometry/Vector2';
 
 /**
  * Отрисовка примитивов рисования (полилиния, отрезок, прямоугольник, круг).
@@ -69,12 +70,14 @@ export class PrimitiveRenderer {
   /** Hit-test примитива: ближайший сегмент/грань/окружность в пределах thresholdPx. */
   hitTest(screenPoint: { x: number; y: number }, thresholdPx = 8): import('../model/DrawingPrimitive').DrawingPrimitive | null {
     const { projectPointToSegment } = require('../geometry/Geometry');
-    const world = this.camera.screenToWorld({ x: screenPoint.x, y: screenPoint.y } as any);
+    const world = this.camera.screenToWorld(new Vector2(screenPoint.x, screenPoint.y));
     const thresholdWorld = thresholdPx / this.camera.scale;
     let best: { primitive: import('../model/DrawingPrimitive').DrawingPrimitive; distWorld: number } | null = null;
 
+    const toV2 = (p: { x: number; y: number }) => (p instanceof Vector2 ? p : new Vector2(p.x, p.y));
+
     for (const primitive of this.plan.primitives) {
-      const points = primitive.points;
+      const points = primitive.points.map(toV2);
       if (points.length === 0) continue;
 
       if (primitive.type === 'segment' || primitive.type === 'polyline') {
@@ -92,13 +95,8 @@ export class PrimitiveRenderer {
         if (points.length < 2) continue;
         const min = points[0];
         const max = points[1];
-        const corners = [
-          min,
-          { x: max.x, y: min.y } as any,
-          max,
-          { x: min.x, y: max.y } as any,
-        ];
-        const edges: Array<[any, any]> = [
+        const corners = [min, new Vector2(max.x, min.y), max, new Vector2(min.x, max.y)];
+        const edges: Array<[Vector2, Vector2]> = [
           [corners[0], corners[1]],
           [corners[1], corners[2]],
           [corners[2], corners[3]],

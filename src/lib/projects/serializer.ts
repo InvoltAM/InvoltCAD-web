@@ -4,6 +4,7 @@ import { Opening } from '@core/model/Opening'
 import { Device, DeviceType } from '@core/model/Device'
 import { Cable, CableType } from '@core/model/Cable'
 import { Dimension } from '@core/model/Dimension'
+import { DrawingPrimitiveType } from '@core/model/DrawingPrimitive'
 import { Vector2 } from '@core/geometry/Vector2'
 
 export interface SerializedWall {
@@ -64,12 +65,19 @@ export interface SerializedDimension {
   text?: string
 }
 
+export interface SerializedPrimitive {
+  id: string
+  type: DrawingPrimitiveType
+  points: Array<{ x: number; y: number }>
+}
+
 export interface SerializedPlan {
   walls: SerializedWall[]
   openings: SerializedOpening[]
   devices: SerializedDevice[]
   cables: SerializedCable[]
   dimensions: SerializedDimension[]
+  primitives: SerializedPrimitive[]
   electrical: {
     consumers: any[]
     circuits: any[]
@@ -153,7 +161,13 @@ export function serializePlan(plan: Plan): SerializedPlan {
     text: dim.text,
   }))
 
-  return { walls, openings, devices, cables, dimensions, electrical: plan.electrical ?? createEmptyElectrical() }
+  const primitives: SerializedPrimitive[] = plan.primitives.map((primitive) => ({
+    id: primitive.id,
+    type: primitive.type,
+    points: primitive.points.map((p) => ({ x: p.x, y: p.y })),
+  }))
+
+  return { walls, openings, devices, cables, dimensions, primitives, electrical: plan.electrical ?? createEmptyElectrical() }
 }
 
 /**
@@ -245,6 +259,12 @@ export function deserializePlan(data: SerializedPlan): Plan {
       text: d.text,
     }
     plan.dimensions.push(dimension)
+  }
+
+  // Создаём примитивы рисования
+  for (const p of data.primitives ?? []) {
+    const primitive = plan.addPrimitive(p.type, p.points.map((pt) => new Vector2(pt.x, pt.y)))
+    primitive.id = p.id
   }
 
   plan.electrical = data.electrical ?? createEmptyElectrical()

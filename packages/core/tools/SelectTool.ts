@@ -23,6 +23,7 @@ import {
   RemoveSheetTableCommand,
   MoveSheetTableCommand,
   ResizeSheetTableCommand,
+  RemovePrimitiveCommand,
 } from '../editor/CommandManager';
 import { TableResizeCorner } from '../render/TableRenderer';
 
@@ -618,18 +619,23 @@ export class SelectTool implements Tool {
       const cables = this.canvas.getSelectedCables();
       const dimensions = this.canvas.getSelectedDimensions();
       const tables = this.canvas.getSelectedSheetTables();
+      const primitives = this.canvas.getSelectedPrimitives();
       const hasAny =
         walls.length > 0 ||
         openings.length > 0 ||
         devices.length > 0 ||
         cables.length > 0 ||
         dimensions.length > 0 ||
-        tables.length > 0;
+        tables.length > 0 ||
+        primitives.length > 0;
 
       if (hasAny) {
         // Удаляем сначала независимые объекты, затем стены.
         // removeWall также удаляет устройства и кабели на стене,
         // поэтому отдельные команды на них просто станут no-op.
+        for (const id of primitives) {
+          this.canvas.commandManager.execute(new RemovePrimitiveCommand(this.plan, id));
+        }
         for (const id of tables) {
           this.canvas.commandManager.execute(new RemoveSheetTableCommand(this.plan, id));
         }
@@ -654,6 +660,7 @@ export class SelectTool implements Tool {
         this.canvas.setSelectedCables([]);
         this.canvas.setSelectedDimensions([]);
         this.canvas.setSelectedSheetTables([]);
+        this.canvas.setSelectedPrimitives([]);
         this.canvas.notifyChanged();
         return true;
       }
@@ -1065,6 +1072,7 @@ export class SelectTool implements Tool {
     dimensions: string[];
     rooms: number[];
     tables: string[];
+    primitives: string[];
   } {
     const devices: string[] = [];
     for (const device of this.plan.devices) {
@@ -1104,7 +1112,12 @@ export class SelectTool implements Tool {
       if (this.tableInBox(table, box, isWindow)) tables.push(table.id);
     }
 
-    return { walls, openings, devices, cables, dimensions, rooms, tables };
+    const primitives: string[] = [];
+    for (const primitive of this.plan.primitives) {
+      if (this.primitiveInBox(primitive, box, isWindow)) primitives.push(primitive.id);
+    }
+
+    return { walls, openings, devices, cables, dimensions, rooms, tables, primitives };
   }
 
   private applySelection(
@@ -1116,6 +1129,7 @@ export class SelectTool implements Tool {
       dimensions: string[];
       rooms: number[];
       tables: string[];
+      primitives: string[];
     },
     additive = false,
   ): void {
@@ -1126,7 +1140,8 @@ export class SelectTool implements Tool {
       selected.cables.length > 0 ||
       selected.dimensions.length > 0 ||
       selected.rooms.length > 0 ||
-      selected.tables.length > 0;
+      selected.tables.length > 0 ||
+      selected.primitives.length > 0;
     if (!hasAny && !additive) {
       this.clearSelection();
       return;
@@ -1141,6 +1156,7 @@ export class SelectTool implements Tool {
       this.canvas.setSelectedDimensions([...new Set([...this.canvas.getSelectedDimensions(), ...selected.dimensions])]);
       this.canvas.setSelectedRooms([...new Set([...this.canvas.getSelectedRooms(), ...selected.rooms])]);
       this.canvas.setSelectedSheetTables([...new Set([...this.canvas.getSelectedSheetTables(), ...selected.tables])]);
+      this.canvas.setSelectedPrimitives([...new Set([...this.canvas.getSelectedPrimitives(), ...selected.primitives])]);
     } else {
       this.canvas.setSelectedWalls(selected.walls);
       this.canvas.setSelectedOpenings(selected.openings);
@@ -1149,6 +1165,7 @@ export class SelectTool implements Tool {
       this.canvas.setSelectedDimensions(selected.dimensions);
       this.canvas.setSelectedRooms(selected.rooms);
       this.canvas.setSelectedSheetTables(selected.tables);
+      this.canvas.setSelectedPrimitives(selected.primitives);
     }
   }
 
@@ -1336,6 +1353,73 @@ export class SelectTool implements Tool {
     const bounds = this.canvas.tableRenderer.getTableBounds(table);
     if (isWindow) return this.rectInBox(bounds, box);
     return this.rectIntersectsBox(bounds, box);
+  }
+
+  private primitiveInBox(
+    primitive: import('../model/DrawingPrimitive').DrawingPrimitive,
+    box: { min: Vector2; max: Vector2 },
+    isWindow: boolean,
+  ): boolean {
+    const pts = primitive.points;
+    if (pts.length === 0) return false;
+
+    if (primitive.type === 'segment' || primitive.type === 'polyline') {
+      if (isWindow) {
+        return pts.every(p => this.pointInBox(p, box));
+      }
+      for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1];
+        const b = pts[i];
+        if (this.pointInBox(a, box) || this.pointInBox(b, box) || this.lineIntersectsBox(a, b, box)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    if (primitive.type === 'rectangle') {
+      if (pts.length < 2) return false;
+      const min = new Vector2(Math.min(pts[0].x, pts[1].x), Math.min(pts[0].y, pts[1].y));
+      const max = new Vector2(Math.max(pts[0].x, pts[1].x), Math.max(pts[0].y, pts[1].y));
+      if (isWindow) return this.rectInBox({ min, max }, box);
+      return this.rectIntersectsBox({ min, max }, box);
+    }
+
+    if (primitive.type === 'circle') {
+      if (pts.length < 2) return false;
+      const center = pts[0];
+      const radius = center.distanceTo(pts[1]);
+      if (isWindow) {
+        // Окно: весь круг внутри рамки
+        return (
+          this.pointInBox(center.add(new Vector2(-radius, 0)), box) &&
+          this.pointInBox(center.add(new Vector2(radius, 0)), box) &&
+          this.pointInBox(center.add(new Vector2(0, -radius)), box) &&
+          this.pointInBox(center.add(new Vector2(0, radius)), box)
+        );
+      }
+      // Crossing: центр внутри или окружность пересекает рамку
+      if (this.pointInBox(center, box)) return true;
+      const corners = [
+        box.min,
+        new Vector2(box.max.x, box.min.y),
+        box.max,
+        new Vector2(box.min.x, box.max.y),
+      ];
+      for (const corner of corners) {
+        if (center.distanceTo(corner) <= radius) return true;
+      }
+      // Пересечение окружности со сторонами рамки
+      for (let i = 0; i < 4; i++) {
+        const a = corners[i];
+        const b = corners[(i + 1) % 4];
+        const proj = this.projectPointToSegment(center, a, b);
+        if (proj.dist <= radius && proj.t >= 0 && proj.t <= 1) return true;
+      }
+      return false;
+    }
+
+    return false;
   }
 
   private polygonCentroid(polygon: Vector2[]): Vector2 {

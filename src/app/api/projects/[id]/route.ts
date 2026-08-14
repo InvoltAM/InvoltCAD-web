@@ -106,6 +106,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         length: d.length,
         text: d.text ?? undefined,
       })),
+      primitives: [],
       electrical: {
         consumers: fullProject.consumers,
         circuits: fullProject.circuits.map((c) => ({ ...c, consumers: undefined })),
