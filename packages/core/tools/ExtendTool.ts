@@ -7,13 +7,24 @@ import { Tool } from './ToolManager';
 import { UpdatePrimitiveCommand } from '../editor/ModifyCommands';
 import { lineIntersection, projectPointToSegment } from '../geometry/Geometry';
 
+type ExtendState = 'idle' | 'boundary' | 'target';
+
+type ExtendBoundary =
+  | { type: 'segment'; a: Vector2; b: Vector2 }
+  | { type: 'circle'; center: Vector2; radius: number };
+
 /**
  * Инструмент "Удлинить".
- * Клик по отрезку/сегменту полилинии удлиняет его до ближайшего пересечения
- * с другим примитивом или стеной. Удлиняется конец, ближайший к курсору.
+ * Два шага:
+ *  1. Клик по границе (стена, отрезок, сегмент полилинии, грань прямоугольника, окружность).
+ *  2. Клик по удлиняемому отрезку/сегменту полилинии — ближайший к курсору конец
+ *     удлиняется до пересечения с выбранной границей.
  */
 export class ExtendTool implements Tool {
   readonly name = 'extend' as const;
+
+  private state: ExtendState = 'idle';
+  private boundary: ExtendBoundary | null = null;
 
   constructor(
     private canvas: CanvasEngine,
@@ -22,32 +33,97 @@ export class ExtendTool implements Tool {
   ) {}
 
   onActivate(): void {
+    this.state = 'idle';
+    this.boundary = null;
     this.canvas.setGhost(null);
     this.canvas.setSnap(null);
   }
 
   onDeactivate(): void {
+    this.state = 'idle';
+    this.boundary = null;
     this.canvas.setGhost(null);
     this.canvas.setSnap(null);
     this.snapEngine.clearTracking();
   }
 
   onPointerDown(e: InputEvent): void {
-    const hit = this.canvas.primitiveRenderer.hitTest(e.screenPoint);
-    if (!hit) return;
+    const world = this.canvas.camera.screenToWorld(new Vector2(e.screenPoint.x, e.screenPoint.y));
 
-    const points = hit.points;
-    if (points.length < 2) return;
+    if (this.state === 'idle') {
+      const picked = this.pickBoundary(e.screenPoint);
+      if (!picked) return;
+      this.boundary = picked;
+      this.state = 'target';
+      this.drawBoundaryGhost();
+      return;
+    }
 
-    let segmentIndex = 0;
-    let closestT = 0;
-    let minDist = Infinity;
-    const world = this.canvas.camera.screenToWorld(e.screenPoint);
+    if (this.state === 'target') {
+      if (!this.boundary) return;
+      const target = this.pickTarget(e.screenPoint);
+      if (!target) return;
+      this.applyExtend(target, world, e.screenPoint);
+      // Остаёмся в режиме target для удлинения следующих объектов той же границей.
+      this.drawBoundaryGhost();
+    }
+  }
 
-    if (hit.type === 'segment') {
-      const proj = projectPointToSegment(world, points[0], points[1]);
-      closestT = proj.t;
-    } else if (hit.type === 'polyline') {
+  onPointerMove(e: InputEvent): void {
+    if (this.state === 'target' && this.boundary) {
+      this.drawBoundaryGhost();
+    }
+  }
+
+  onPointerUp(e: InputEvent): void {}
+
+  onKeyDown(e: KeyboardEvent): boolean {
+    if (e.key === 'Escape') {
+      this.state = 'idle';
+      this.boundary = null;
+      this.canvas.setGhost(null);
+      this.canvas.setSnap(null);
+      return true;
+    }
+    return false;
+  }
+
+  /** Выбор граничной линии. */
+  private pickBoundary(screenPoint: { x: number; y: number }): ExtendBoundary | null {
+    const world = this.canvas.camera.screenToWorld(new Vector2(screenPoint.x, screenPoint.y));
+
+    // Сначала проверяем примитивы
+    const hitPrimitive = this.canvas.primitiveRenderer.hitTest(screenPoint);
+    if (hitPrimitive) {
+      const boundary = this.primitiveSegment(hitPrimitive, world, screenPoint);
+      if (boundary) return boundary;
+    }
+
+    // Затем стены
+    const hitWall = this.hitTestWall(screenPoint);
+    if (hitWall) {
+      return { type: 'segment', a: hitWall.a, b: hitWall.b };
+    }
+
+    return null;
+  }
+
+  /** Выбор удлиняемого сегмента. */
+  private pickTarget(screenPoint: { x: number; y: number }): { primitiveId: string; segmentIndex: number; points: Vector2[] } | null {
+    const hitPrimitive = this.canvas.primitiveRenderer.hitTest(screenPoint);
+    if (!hitPrimitive) return null;
+
+    const world = this.canvas.camera.screenToWorld(new Vector2(screenPoint.x, screenPoint.y));
+    const points = hitPrimitive.points;
+    if (points.length < 2) return null;
+
+    if (hitPrimitive.type === 'segment') {
+      return { primitiveId: hitPrimitive.id, segmentIndex: 0, points };
+    }
+
+    if (hitPrimitive.type === 'polyline') {
+      let segmentIndex = 0;
+      let minDist = Infinity;
       for (let i = 1; i < points.length; i++) {
         const a = points[i - 1];
         const b = points[i];
@@ -56,143 +132,229 @@ export class ExtendTool implements Tool {
         const screenA = this.canvas.camera.worldToScreen(a);
         const screenB = this.canvas.camera.worldToScreen(b);
         const distToSegment = Math.min(
-          screenA.distanceTo(e.screenPoint),
-          screenB.distanceTo(e.screenPoint),
-          this.canvas.camera.worldToScreen(proj.point).distanceTo(e.screenPoint),
+          screenA.distanceTo(new Vector2(screenPoint.x, screenPoint.y)),
+          screenB.distanceTo(new Vector2(screenPoint.x, screenPoint.y)),
+          this.canvas.camera.worldToScreen(proj.point).distanceTo(new Vector2(screenPoint.x, screenPoint.y)),
         );
         if (distToSegment < minDist) {
           minDist = distToSegment;
           segmentIndex = i - 1;
-          closestT = proj.t;
         }
       }
-    } else {
-      return;
+      return { primitiveId: hitPrimitive.id, segmentIndex, points };
     }
 
-    const a = points[segmentIndex];
-    const b = points[segmentIndex + 1];
+    return null;
+  }
+
+  private primitiveSegment(
+    primitive: import('../model/DrawingPrimitive').DrawingPrimitive,
+    world: Vector2,
+    screenPoint: { x: number; y: number },
+  ): ExtendBoundary | null {
+    const pts = primitive.points;
+    if (pts.length < 2) return null;
+
+    if (primitive.type === 'segment') {
+      return { type: 'segment', a: pts[0], b: pts[1] };
+    }
+
+    if (primitive.type === 'polyline') {
+      let best: { a: Vector2; b: Vector2; dist: number } | null = null;
+      const screenV = new Vector2(screenPoint.x, screenPoint.y);
+      for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1];
+        const b = pts[i];
+        if (!a || !b) continue;
+        const proj = projectPointToSegment(world, a, b);
+        const screenA = this.canvas.camera.worldToScreen(a);
+        const screenB = this.canvas.camera.worldToScreen(b);
+        const distToSegment = Math.min(
+          screenA.distanceTo(screenV),
+          screenB.distanceTo(screenV),
+          this.canvas.camera.worldToScreen(proj.point).distanceTo(screenV),
+        );
+        if (!best || distToSegment < best.dist) {
+          best = { a, b, dist: distToSegment };
+        }
+      }
+      return best ? { type: 'segment', a: best.a, b: best.b } : null;
+    }
+
+    if (primitive.type === 'rectangle') {
+      const [min, max] = pts;
+      if (!min || !max) return null;
+      const corners = [
+        min,
+        new Vector2(max.x, min.y),
+        max,
+        new Vector2(min.x, max.y),
+      ];
+      const edges: Array<[Vector2, Vector2]> = [
+        [corners[0], corners[1]],
+        [corners[1], corners[2]],
+        [corners[2], corners[3]],
+        [corners[3], corners[0]],
+      ];
+      let best: { a: Vector2; b: Vector2; dist: number } | null = null;
+      const screenV = new Vector2(screenPoint.x, screenPoint.y);
+      for (const [a, b] of edges) {
+        const proj = projectPointToSegment(world, a, b);
+        const screenA = this.canvas.camera.worldToScreen(a);
+        const screenB = this.canvas.camera.worldToScreen(b);
+        const distToSegment = Math.min(
+          screenA.distanceTo(screenV),
+          screenB.distanceTo(screenV),
+          this.canvas.camera.worldToScreen(proj.point).distanceTo(screenV),
+        );
+        if (!best || distToSegment < best.dist) {
+          best = { a, b, dist: distToSegment };
+        }
+      }
+      return best ? { type: 'segment', a: best.a, b: best.b } : null;
+    }
+
+    if (primitive.type === 'circle') {
+      const [center, rim] = pts;
+      if (!center || !rim) return null;
+      return { type: 'circle', center, radius: center.distanceTo(rim) };
+    }
+
+    return null;
+  }
+
+  private hitTestWall(screenPoint: { x: number; y: number }): import('../model/Wall').Wall | null {
+    const { projectPointToSegment } = require('../geometry/Geometry');
+    const world = this.canvas.camera.screenToWorld(new Vector2(screenPoint.x, screenPoint.y));
+    const thresholdMm = 8 / this.canvas.camera.scale;
+    const searchRadius = Math.max(500, thresholdMm + 200);
+
+    const tree = this.plan.getWallQuadtree();
+    const candidates = tree.query({
+      min: new Vector2(world.x - searchRadius, world.y - searchRadius),
+      max: new Vector2(world.x + searchRadius, world.y + searchRadius),
+    });
+
+    for (const wall of candidates) {
+      const proj = projectPointToSegment(world, wall.a, wall.b);
+      const halfThick = wall.thickness / 2;
+      if (proj.dist <= halfThick + thresholdMm) {
+        return wall;
+      }
+    }
+    return null;
+  }
+
+  private applyExtend(
+    target: { primitiveId: string; segmentIndex: number; points: Vector2[] },
+    world: Vector2,
+    screenPoint: { x: number; y: number },
+  ): void {
+    if (!this.boundary) return;
+
+    const idx = target.segmentIndex;
+    const a = target.points[idx];
+    const b = target.points[idx + 1];
     if (!a || !b) return;
 
-    const dir = b.sub(a).normalized();
-    if (dir.length() === 0) return;
-
-    // Ближайший конец к курсору — его и удлиняем
-    const extendStart = closestT < 0.5 ? a : b;
-    const rayDir = closestT < 0.5 ? dir.scale(-1) : dir;
-
-    const intersection = this.findNearestIntersection(extendStart, rayDir, hit.id);
+    const intersection = this.findBoundaryIntersection(a, b);
+    console.log('intersection', intersection);
     if (!intersection) return;
 
-    // Проверяем, что точка пересечения лежит за пределами сегмента (для extend).
+    // Для extend пересечение должно лежать за пределами сегмента target.
     // Пересечение на конце сегмента допустимо — до него и удлиняем.
     const local = projectPointToSegment(intersection, a, b);
     if (local.t > 1e-9 && local.t < 1 - 1e-9) return;
 
-    const newPoints = points.map(p => p.clone());
+    // Удлиняем конец, ближайший к курсору
+    const screenV = new Vector2(screenPoint.x, screenPoint.y);
+    const distA = this.canvas.camera.worldToScreen(a).distanceTo(screenV);
+    const distB = this.canvas.camera.worldToScreen(b).distanceTo(screenV);
+    const closestT = distA < distB ? 0 : 1;
+
+    const newPoints = target.points.map(p => p.clone());
     if (closestT < 0.5) {
-      newPoints[segmentIndex] = intersection.clone();
+      newPoints[idx] = intersection.clone();
     } else {
-      newPoints[segmentIndex + 1] = intersection.clone();
+      newPoints[idx + 1] = intersection.clone();
     }
 
-    this.canvas.commandManager.execute(new UpdatePrimitiveCommand(this.plan, hit.id, newPoints));
+    this.canvas.commandManager.execute(new UpdatePrimitiveCommand(this.plan, target.primitiveId, newPoints));
     this.canvas.notifyChanged();
   }
 
-  onPointerMove(e: InputEvent): void {}
+  private findBoundaryIntersection(a: Vector2, b: Vector2): Vector2 | null {
+    if (!this.boundary) return null;
 
-  onPointerUp(e: InputEvent): void {}
+    if (this.boundary.type === 'segment') {
+      return lineIntersection(a, b, this.boundary.a, this.boundary.b);
+    }
 
-  onKeyDown(e: KeyboardEvent): boolean {
-    return false;
+    if (this.boundary.type === 'circle') {
+      return this.segmentCircleIntersection(a, b, this.boundary.center, this.boundary.radius);
+    }
+
+    return null;
   }
 
-  private findNearestIntersection(start: Vector2, dir: Vector2, excludePrimitiveId: string): Vector2 | null {
-    let best: { point: Vector2; t: number } | null = null;
+  private segmentCircleIntersection(a: Vector2, b: Vector2, center: Vector2, radius: number): Vector2 | null {
+    const dir = b.sub(a);
+    const lenSq = dir.dot(dir);
+    if (lenSq === 0) return null;
 
-    for (const primitive of this.plan.primitives) {
-      if (primitive.id === excludePrimitiveId) continue;
-      const pts = primitive.points;
-      if (pts.length < 2) continue;
+    const oc = a.sub(center);
+    const d = dir.scale(1 / Math.sqrt(lenSq));
+    const qx = oc.dot(d);
+    const qy = oc.dot(d.perpendicular());
 
-      if (primitive.type === 'segment' || primitive.type === 'polyline') {
-        const count = primitive.type === 'segment' ? Math.min(2, pts.length) : pts.length;
-        for (let i = 1; i < count; i++) {
-          const a = pts[i - 1];
-          const b = pts[i];
-          if (!a || !b) continue;
-          best = this.checkSegmentIntersection(start, dir, a, b, best);
-        }
-      } else if (primitive.type === 'rectangle') {
-        const [min, max] = pts;
-        if (!min || !max) continue;
-        const corners = [
-          min,
-          new Vector2(max.x, min.y),
-          max,
-          new Vector2(min.x, max.y),
-        ];
-        const edges: Array<[Vector2, Vector2]> = [
-          [corners[0], corners[1]],
-          [corners[1], corners[2]],
-          [corners[2], corners[3]],
-          [corners[3], corners[0]],
-        ];
-        for (const [a, b] of edges) {
-          best = this.checkSegmentIntersection(start, dir, a, b, best);
-        }
-      } else if (primitive.type === 'circle') {
-        const [center, rim] = pts;
-        if (!center || !rim) continue;
-        const radius = center.distanceTo(rim);
-        const intersection = this.rayCircleIntersection(start, dir, center, radius);
-        if (intersection) {
-          const t = intersection.sub(start).dot(dir);
-          if (t > 1e-9 && (!best || t < best.t)) {
-            best = { point: intersection, t };
-          }
-        }
+    const h2 = radius * radius - qy * qy;
+    if (h2 < 0) return null;
+
+    const h = Math.sqrt(h2);
+    const t1 = -qx - h;
+    const t2 = -qx + h;
+
+    const tMax = Math.sqrt(lenSq);
+    const tMin = 0;
+
+    const validT1 = t1 >= tMin - 1e-9 && t1 <= tMax + 1e-9 ? t1 : null;
+    const validT2 = t2 >= tMin - 1e-9 && t2 <= tMax + 1e-9 ? t2 : null;
+
+    if (validT1 !== null && validT2 !== null) {
+      const midT = tMax / 2;
+      const t = Math.abs(t1 - midT) < Math.abs(t2 - midT) ? t1 : t2;
+      return a.add(d.scale(t));
+    }
+    if (validT1 !== null) return a.add(d.scale(validT1));
+    if (validT2 !== null) return a.add(d.scale(validT2));
+    return null;
+  }
+
+  private drawBoundaryGhost(): void {
+    if (!this.boundary) {
+      this.canvas.setGhost(null);
+      return;
+    }
+
+    this.canvas.setGhost((ctx) => {
+      const color = this.canvas.themeManager.getColor('selected');
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3 / this.canvas.camera.scale;
+      ctx.setLineDash([8 / this.canvas.camera.scale, 4 / this.canvas.camera.scale]);
+
+      if (this.boundary!.type === 'segment') {
+        ctx.beginPath();
+        ctx.moveTo(this.boundary!.a.x, this.boundary!.a.y);
+        ctx.lineTo(this.boundary!.b.x, this.boundary!.b.y);
+        ctx.stroke();
+      } else if (this.boundary!.type === 'circle') {
+        ctx.beginPath();
+        ctx.arc(this.boundary!.center.x, this.boundary!.center.y, this.boundary!.radius, 0, Math.PI * 2);
+        ctx.stroke();
       }
-    }
 
-    for (const wall of this.plan.walls) {
-      best = this.checkSegmentIntersection(start, dir, wall.a, wall.b, best);
-    }
-
-    return best?.point ?? null;
-  }
-
-  private checkSegmentIntersection(
-    start: Vector2,
-    dir: Vector2,
-    a: Vector2,
-    b: Vector2,
-    currentBest: { point: Vector2; t: number } | null,
-  ): { point: Vector2; t: number } | null {
-    const p = lineIntersection(start, start.add(dir), a, b);
-    if (!p) return currentBest;
-    const t = p.sub(start).dot(dir);
-    if (t <= 1e-9) return currentBest;
-    const segProj = projectPointToSegment(p, a, b);
-    if (segProj.t < -1e-9 || segProj.t > 1 + 1e-9) return currentBest;
-    if (!currentBest || t < currentBest.t) {
-      return { point: p, t };
-    }
-    return currentBest;
-  }
-
-  private rayCircleIntersection(start: Vector2, dir: Vector2, center: Vector2, radius: number): Vector2 | null {
-    const oc = start.sub(center);
-    const a = dir.dot(dir);
-    const b = 2 * oc.dot(dir);
-    const c = oc.dot(oc) - radius * radius;
-    const discriminant = b * b - 4 * a * c;
-    if (discriminant < 0) return null;
-    const t1 = (-b - Math.sqrt(discriminant)) / (2 * a);
-    const t2 = (-b + Math.sqrt(discriminant)) / (2 * a);
-    const t = t1 > 1e-9 ? t1 : t2 > 1e-9 ? t2 : null;
-    if (t === null) return null;
-    return start.add(dir.scale(t));
+      ctx.setLineDash([]);
+    });
+    this.canvas.requestRender();
   }
 }
