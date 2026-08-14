@@ -25,6 +25,16 @@ const drawingTools: DockTool[] = [
   { name: 'device', label: 'Устройство', icon: icon('device') },
   { name: 'cable', label: 'Кабель', icon: icon('cable') },
   { name: 'dimension', label: 'Размер', icon: icon('dimension') },
+]
+
+const drawingPrimitiveTools: DockTool[] = [
+  { name: 'polyline', label: 'Полилиния', icon: icon('polyline') },
+  { name: 'segment', label: 'Отрезок', icon: icon('segment') },
+  { name: 'rectangle', label: 'Прямоугольник', icon: icon('rectangle') },
+  { name: 'circle', label: 'Круг', icon: icon('circle') },
+]
+
+const navigationTools: DockTool[] = [
   { name: 'select', label: 'Выбор', icon: icon('select') },
   { name: 'hand', label: 'Рука', icon: icon('hand') },
 ]
@@ -81,6 +91,9 @@ export default function Toolbar() {
   const [wallMenuOpen, setWallMenuOpen] = useState(false)
   const wallMenuBtnRef = useRef<HTMLButtonElement>(null)
 
+  const [drawingMenuOpen, setDrawingMenuOpen] = useState(false)
+  const drawingMenuBtnRef = useRef<HTMLButtonElement>(null)
+
   // macOS dock hover state
   const [hoveredDockId, setHoveredDockId] = useState<string | null>(null)
   const dockRef = useRef<HTMLDivElement>(null)
@@ -113,6 +126,17 @@ export default function Toolbar() {
     return () => document.removeEventListener('click', onDocClick)
   }, [wallMenuOpen])
 
+  useEffect(() => {
+    if (!drawingMenuOpen) return
+    const onDocClick = (e: MouseEvent) => {
+      if (!drawingMenuBtnRef.current?.contains(e.target as Node)) {
+        setDrawingMenuOpen(false)
+      }
+    }
+    document.addEventListener('click', onDocClick)
+    return () => document.removeEventListener('click', onDocClick)
+  }, [drawingMenuOpen])
+
   const handleToggleWallMenu = () => {
     setWallMenuOpen((prev) => !prev)
   }
@@ -120,6 +144,15 @@ export default function Toolbar() {
   const handleSelectWallTool = (name: ToolName) => {
     setTool(name)
     setWallMenuOpen(false)
+  }
+
+  const handleToggleDrawingMenu = () => {
+    setDrawingMenuOpen((prev) => !prev)
+  }
+
+  const handleSelectDrawingTool = (name: ToolName) => {
+    setTool(name)
+    setDrawingMenuOpen(false)
   }
 
   const handleTogglePanelMenu = () => {
@@ -257,6 +290,8 @@ export default function Toolbar() {
       if (!hoveredDockId) return 1
       const allIds = [
         ...drawingTools.map((t) => t.name),
+        'drawing',
+        ...navigationTools.map((t) => t.name),
         'undo',
         'redo',
         'zoomOut',
@@ -265,6 +300,7 @@ export default function Toolbar() {
         'ortho',
         'panels',
         'validation',
+        'roomNumbers',
         'theme',
       ] as string[]
       const idx = allIds.indexOf(id)
@@ -473,6 +509,7 @@ export default function Toolbar() {
         onMouseLeave={() => {
           setHoveredDockId(null)
           setWallMenuOpen(false)
+          setDrawingMenuOpen(false)
         }}
       >
         {drawingTools.flatMap((tool) => {
@@ -534,7 +571,60 @@ export default function Toolbar() {
           }
           return elements
         })}
-        <div className="editor-dock-divider" />
+        <div key="drawing" className="editor-dock-group">
+          {(() => {
+            const activeDrawingTool =
+              drawingPrimitiveTools.find((dt) => dt.name === currentTool) ?? drawingPrimitiveTools[0]
+            const isDrawingToolActive = drawingPrimitiveTools.some((dt) => dt.name === currentTool)
+            return (
+              <button
+                ref={drawingMenuBtnRef}
+                onClick={handleToggleDrawingMenu}
+                onMouseEnter={() => setHoveredDockId('drawing')}
+                className={`editor-dock-item editor-dock-item-menu ${isDrawingToolActive ? 'active' : ''}`}
+                title={`${activeDrawingTool.label} ▼`}
+                style={{ transform: `scale(${getDockScale('drawing')})` }}
+              >
+                <span className="ui-icon" dangerouslySetInnerHTML={{ __html: activeDrawingTool.icon }} />
+                <span className="editor-dock-arrow">▼</span>
+                <span className="editor-dock-tooltip">{activeDrawingTool.label}</span>
+              </button>
+            )
+          })()}
+          {drawingMenuOpen && (
+            <div className="editor-dock-submenu">
+              {drawingPrimitiveTools.map((dt) => (
+                <button
+                  key={dt.name}
+                  className={`editor-dock-submenu-item ${currentTool === dt.name ? 'active' : ''}`}
+                  onClick={() => handleSelectDrawingTool(dt.name)}
+                >
+                  <span className="ui-icon" dangerouslySetInnerHTML={{ __html: dt.icon }} />
+                  <span>{dt.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {navigationTools.flatMap((tool) => {
+          const elements: React.ReactNode[] = [
+            <button
+              key={tool.name}
+              onClick={() => setTool(tool.name)}
+              onMouseEnter={() => setHoveredDockId(tool.name)}
+              className={`editor-dock-item ${currentTool === tool.name ? 'active' : ''}`}
+              title={tool.label}
+              style={{ transform: `scale(${getDockScale(tool.name)})` }}
+            >
+              <span className="ui-icon" dangerouslySetInnerHTML={{ __html: tool.icon }} />
+              <span className="editor-dock-tooltip">{tool.label}</span>
+            </button>,
+          ]
+          if (tool.name === 'hand') {
+            elements.push(<div key="divider-after-hand" className="editor-dock-divider" />)
+          }
+          return elements
+        })}
         {dockActions.flatMap((action) => {
           const elements: React.ReactNode[] = [
             <button

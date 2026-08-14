@@ -64,7 +64,7 @@ export class CanvasEngine {
   constructor(
     canvas: HTMLCanvasElement,
     public plan: Plan,
-    private themeManager: ThemeManager,
+    readonly themeManager: ThemeManager,
   ) {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d');

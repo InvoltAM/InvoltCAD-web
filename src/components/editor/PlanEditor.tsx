@@ -11,6 +11,7 @@ import { SelectTool } from '@core/tools/SelectTool'
 import { DeviceTool } from '@core/tools/DeviceTool'
 import { CableTool } from '@core/tools/CableTool'
 import { DimensionTool } from '@core/tools/DimensionTool'
+import { DrawingTool } from '@core/tools/DrawingTool'
 import { ThemeManager } from '@core/editor/ThemeManager'
 import { useCadStore } from '@/stores/cadStore'
 import { EditorProvider } from './EditorContext'
@@ -122,6 +123,10 @@ export default function PlanEditor() {
     const deviceTool = new DeviceTool(engine, plan, engine.snapEngine)
     const cableTool = new CableTool(engine, plan)
     const dimensionTool = new DimensionTool(engine, plan, engine.snapEngine)
+    const polylineTool = new DrawingTool('polyline', engine, plan, engine.snapEngine)
+    const segmentTool = new DrawingTool('segment', engine, plan, engine.snapEngine)
+    const rectangleTool = new DrawingTool('rectangle', engine, plan, engine.snapEngine)
+    const circleTool = new DrawingTool('circle', engine, plan, engine.snapEngine)
 
     engine.registerTool('wall', wallTool)
     engine.registerTool('door', doorTool)
@@ -130,6 +135,10 @@ export default function PlanEditor() {
     engine.registerTool('device', deviceTool)
     engine.registerTool('cable', cableTool)
     engine.registerTool('dimension', dimensionTool)
+    engine.registerTool('polyline', polylineTool)
+    engine.registerTool('segment', segmentTool)
+    engine.registerTool('rectangle', rectangleTool)
+    engine.registerTool('circle', circleTool)
 
     // Инструмент "Рука"
     engine.toolManager.register({

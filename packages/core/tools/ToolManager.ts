@@ -1,6 +1,8 @@
 import { InputEvent } from '../engine/InputManager';
 
-export type ToolName = 'wall' | 'door' | 'window' | 'select' | 'hand' | 'device' | 'cable' | 'dimension';
+export type ToolName =
+  | 'wall' | 'door' | 'window' | 'select' | 'hand' | 'device' | 'cable' | 'dimension'
+  | 'polyline' | 'segment' | 'rectangle' | 'circle';
 
 export interface Tool {
   readonly name: ToolName;
