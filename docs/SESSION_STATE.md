@@ -1,3 +1,42 @@
+# Сессия разработки — 2026-08-15 (палетка устройств)
+
+## Текущий контекст
+
+Работа ведётся в репозитории **InvoltCAD-web**, ветка `main`.
+Dev-сервер Next.js работает на `http://localhost:3002/editor`.
+
+## Что сделано с последнего сохранения
+
+- Откачены UI/UX-правки, сделанные через MCP `ui-ux-suite` (`git reset --hard HEAD~2` + force push).
+- В `src/stores/cadStore.ts` добавлен флаг `devicePaletteOpen` и сеттер `setDevicePaletteOpen`.
+- Создан компонент `src/components/editor/DevicePalettePanel.tsx` — плавающая панель-палетка устройств.
+- В `src/components/editor/icons.ts` добавлены иконки для категорий устройств.
+- В `src/components/editor/PlanEditor.tsx` зарегистрирована плавающая панель `devicePalette` через `PanelManager` (ширина 320, высота 360, изменяемый размер).
+- В `src/components/editor/Toolbar.tsx`:
+  - кнопка «Устройство» убрана из списка `drawingTools`;
+  - добавлена отдельная кнопка «Устройства» на нижней панели (dock);
+  - при нажатии открывается/скрывается панель `devicePalette`.
+- В палетке 9 кнопок-категорий (сетка 3×3): Розетки, Выключатель, Светильник, Датчик, Вывод, В.камера, СКС, Привод, УД.
+- У каждой кнопки есть выпадающее меню (пока пустое, заглушка «В разработке»).
+- Стили палетки (`src/app/globals.css`): кнопки одинакового квадратного размера, иконка 26px, подпись 13px с переносом на 2 строки.
+
+## Последние коммиты
+
+- `050a0f0` — feat(editor): add device palette panel with category buttons and empty submenus
+- `fe37517` — style(editor): unify device palette button sizes and tune label font
+
+## Состояние проверок
+
+- `npx tsc --noEmit` — чисто.
+- `npm test -- --run` — 54 теста passed.
+
+## Следующие шаги
+
+- Заполнить выпадающие меню категорий конкретными типами устройств.
+- Связать выбор устройства в палетке с `selectedDeviceType` и активацией инструмента `device`.
+
+---
+
 # Сессия разработки — 2026-08-14 (примитивы рисования — привязки)
 
 ## Текущий контекст
