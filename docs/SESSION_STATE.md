@@ -1030,20 +1030,35 @@ Dev-сервер Next.js запущен на `http://localhost:3003/editor`.
 
 ### UI/Tools: кнопка «Рисование» с примитивами Полилиния/Отрезок/Прямоугольник/Круг
 
-**Контекст:** коммит `ffe232b`, dev-сервер работает на `http://localhost:3002/editor`.
+**Контекст:** коммиты `ffe232b` и `af8e475`, dev-сервер работает на `http://localhost:3002/editor`.
 
 - `packages/core/tools/ToolManager.ts`:
   - `ToolName` расширен новыми инструментами: `polyline`, `segment`, `rectangle`, `circle`.
-- `packages/core/tools/DrawingTool.ts`:
-  - Создан универсальный класс `DrawingTool` с параметром `DrawingToolType`.
-  - Реализовано ghost-превью для каждого примитива:
-    - `segment` — линия от точки нажатия до текущего курсора;
-    - `rectangle` — прямоугольник по двум угловым точкам;
-    - `circle` — окружность с центром в точке нажатия и радиусом до курсора;
-    - `polyline` — ломаная линия по последовательным кликам, завершается по `Escape`.
-  - Поддерживается орто-режим (Shift / переключатель «Орто»), привязка и направляющие лучи.
+- `packages/core/model/DrawingPrimitive.ts`:
+  - Создана модель `DrawingPrimitive` (`id`, `type`, `points`).
+- `packages/core/model/Sheet.ts`:
+  - В `Sheet` добавлено поле `primitives: DrawingPrimitive[]`.
+  - `createSheet` инициализирует пустой массив `primitives`.
+- `packages/core/model/Plan.ts`:
+  - Добавлены геттер/сеттер `primitives` для активного листа.
+  - Методы `addPrimitive` / `removePrimitive`.
+  - `toJSON` / `fromJSON` сериализуют/десериализуют примитивы по листам.
+- `packages/core/render/PrimitiveRenderer.ts`:
+  - Новый рендерер отрисовывает сохранённые примитивы на чертеже.
 - `packages/core/engine/CanvasEngine.ts`:
   - `themeManager` сделан `readonly` (public), чтобы инструменты могли получать цвета темы.
+  - Создан и подключен `primitiveRenderer` в основном цикле отрисовки.
+- `packages/core/editor/CommandManager.ts`:
+  - Добавлена команда `AddPrimitiveCommand` для undo/redo.
+- `packages/core/tools/DrawingTool.ts`:
+  - Создан универсальный класс `DrawingTool` с параметром `DrawingToolType`.
+  - Реализовано ghost-превью для каждого примитива.
+  - Добавлены направляющие лучи привязок по принципу инструмента «Стена».
+  - Поддерживается орто-режим (Shift / переключатель «Орто») и snap-маркеры.
+  - **Фиксация результата:**
+    - `segment` / `rectangle` / `circle` — фиксируются при отпускании кнопки мыши;
+    - `polyline` — каждый клик добавляет точку, `Enter` или `Escape` завершают и фиксируют ломаную (при ≥ 2 точках).
+  - Результат сохраняется в `plan.primitives` через `AddPrimitiveCommand`.
 - `src/components/editor/PlanEditor.tsx`:
   - Зарегистрированы 4 экземпляра `DrawingTool` для новых инструментов.
 - `src/components/editor/Toolbar.tsx`:
@@ -1057,8 +1072,11 @@ Dev-сервер Next.js запущен на `http://localhost:3003/editor`.
 **Проверки:**
 - `npm test -- --run` — 54/54 тестов пройдены.
 - `npm run build` — сборка успешна.
-- Playwright-проверка: кнопка «Рисование» видна в dock, выпадающее меню содержит 4 пункта, выбор «Прямоугольник» активирует инструмент `rectangle`.
-- Скриншот: кнопка карандаша справа от «Размер», открытое меню показывает все 4 примитива.
+- Playwright-проверка:
+  - кнопка «Рисование» видна в dock, выпадающее меню содержит 4 пункта;
+  - выбор «Отрезок» → рисование → отпускание мыши добавляет `segment` в `plan.primitives`;
+  - выбор «Полилиния» → 3 клика → `Enter` добавляет `polyline` с 3 точками.
+- Скриншот: нарисованный отрезок отображается на плане.
 
 ## Проверки
 
