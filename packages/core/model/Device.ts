@@ -4,6 +4,8 @@ export type DeviceType =
   | 'socket'
   | 'socket-uz'
   | 'socket-usb'
+  | 'socket-ip21'
+  | 'socket-ip44'
   | 'switch'
   | 'switch-2'
   | 'panel'

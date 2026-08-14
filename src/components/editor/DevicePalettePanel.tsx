@@ -1,7 +1,10 @@
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
+import React from 'react'
+import { useCadStore } from '@/stores/cadStore'
 import { icon } from './icons'
+import { SocketIP21Symbol, SocketIP44Symbol } from './DeviceSymbols'
+import type { DeviceType } from '@core/model/Device'
 
 interface DeviceCategory {
   id: string
@@ -21,55 +24,86 @@ const categories: DeviceCategory[] = [
   { id: 'smartHome', label: 'УД', iconName: 'smartHome' },
 ]
 
-export default function DevicePalettePanel() {
-  const [openId, setOpenId] = useState<string | null>(null)
-  const panelRef = useRef<HTMLDivElement>(null)
+interface DeviceItem {
+  type: DeviceType
+  label: string
+  fullName: string
+  symbol: React.ReactNode
+}
 
-  useEffect(() => {
-    if (!openId) return
-    const handleDocClick = (e: MouseEvent) => {
-      if (!panelRef.current?.contains(e.target as Node)) {
-        setOpenId(null)
-      }
-    }
-    document.addEventListener('click', handleDocClick)
-    return () => document.removeEventListener('click', handleDocClick)
-  }, [openId])
+const devicesByCategory: Record<string, DeviceItem[]> = {
+  socket: [
+    {
+      type: 'socket-ip21',
+      label: 'Розетка IP21',
+      fullName: 'Розетка 220В IP21 2Р+РЕ скрытой установки',
+      symbol: <SocketIP21Symbol className="device-palette-symbol" />,
+    },
+    {
+      type: 'socket-ip44',
+      label: 'Розетка IP44',
+      fullName: 'Розетка 220В IP44 2Р+РЕ скрытой установки',
+      symbol: <SocketIP44Symbol className="device-palette-symbol" />,
+    },
+  ],
+}
+
+export default function DevicePalettePanel() {
+  const [view, setView] = React.useState<string | null>(null)
+  const setSelectedDeviceType = useCadStore((s) => s.setSelectedDeviceType)
+  const setTool = useCadStore((s) => s.setTool)
+
+  const handleSelectDevice = (type: DeviceType) => {
+    setSelectedDeviceType(type)
+    setTool('device')
+  }
 
   return (
-    <div ref={panelRef} className="device-palette-panel">
-      <div className="device-palette-grid">
-        <button
-          className="device-palette-editor-btn"
-          onClick={() => alert('Редактор устройств — в разработке')}
-          title="Редактор устройств"
-        >
-          Редактор устройств
-        </button>
-        {categories.map((cat) => {
-          const isOpen = openId === cat.id
-          return (
-            <div key={cat.id} className="device-palette-group">
+    <div className="device-palette-panel">
+      {view === null ? (
+        <div className="device-palette-grid">
+          <button
+            className="device-palette-editor-btn"
+            onClick={() => alert('Редактор устройств — в разработке')}
+            title="Редактор устройств"
+          >
+            Редактор устройств
+          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              className="device-palette-btn"
+              onClick={() => setView(cat.id)}
+              title={cat.label}
+            >
+              <span
+                className="ui-icon device-palette-icon"
+                dangerouslySetInnerHTML={{ __html: icon(cat.iconName) }}
+              />
+              <span className="device-palette-label">{cat.label}</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="device-palette-device-view">
+          <button className="device-palette-back-btn" onClick={() => setView(null)}>
+            ← Назад
+          </button>
+          <div className="device-palette-grid">
+            {(devicesByCategory[view] ?? []).map((item) => (
               <button
-                className={`device-palette-btn ${isOpen ? 'active' : ''}`}
-                onClick={() => setOpenId(isOpen ? null : cat.id)}
-                title={cat.label}
+                key={item.type}
+                className="device-palette-btn"
+                onClick={() => handleSelectDevice(item.type)}
+                title={item.fullName}
               >
-                <span
-                  className="ui-icon device-palette-icon"
-                  dangerouslySetInnerHTML={{ __html: icon(cat.iconName) }}
-                />
-                <span className="device-palette-label">{cat.label}</span>
+                {item.symbol}
+                <span className="device-palette-label">{item.label}</span>
               </button>
-              {isOpen && (
-                <div className="device-palette-submenu">
-                  <div className="device-palette-submenu-empty">В разработке</div>
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

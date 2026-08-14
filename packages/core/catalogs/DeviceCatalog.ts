@@ -17,6 +17,8 @@ export const DEVICE_CATALOG: DeviceCatalogItem[] = [
   { type: 'socket', category: 'socket', label: 'Розетка', fullName: 'Розетка', icon: '⏚', width: 600, height: 600 },
   { type: 'socket-uz', category: 'socket', label: 'Розетка с/з', fullName: 'Розетка с заземлением', icon: '⏚', width: 600, height: 600 },
   { type: 'socket-usb', category: 'socket', label: 'Розетка USB', fullName: 'Розетка USB', icon: '🔌', width: 600, height: 600 },
+  { type: 'socket-ip21', category: 'socket', label: 'Розетка IP21', fullName: 'Розетка 220В IP21 2Р+РЕ скрытой установки', icon: '⏚', width: 600, height: 600 },
+  { type: 'socket-ip44', category: 'socket', label: 'Розетка IP44', fullName: 'Розетка 220В IP44 2Р+РЕ скрытой установки', icon: '⏚', width: 600, height: 600 },
   { type: 'switch', category: 'switch', label: 'Выключатель', fullName: 'Выключатель', icon: '⏻', width: 600, height: 600 },
   { type: 'switch-2', category: 'switch', label: 'Выкл. 2-кл', fullName: 'Выключатель двухклавишный', icon: '⏻', width: 700, height: 700 },
   { type: 'panel', category: 'panel', label: 'Щит', fullName: 'Щит', icon: 'Щ', width: 800, height: 1000 },
