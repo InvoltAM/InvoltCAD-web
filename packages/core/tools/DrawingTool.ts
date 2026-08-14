@@ -16,7 +16,8 @@ const MIN_SIZE = 10; // мм
 /**
  * Инструменты черчения примитивов: полилиния, отрезок, прямоугольник, круг.
  * - Привязка и направляющие лучи работают как у инструмента "Стена".
- * - Для отрезка/прямоугольника/круга: зажали → потянули → отпустили — результат фиксируется.
+ * - Для отрезка/прямоугольника/круга: первый клик — первая точка, второй клик — вторая точка,
+ *   после чего результат фиксируется в плане.
  * - Для полилинии: каждый клик добавляет точку; Enter или Esc завершают и фиксируют ломаную.
  * - Escape во время рисования разовой фигуры — отмена.
  */
@@ -54,6 +55,8 @@ export class DrawingTool implements Tool {
 
   onPointerDown(e: InputEvent): void {
     const snap = this.snapEngine.snap(e.screenPoint);
+    this.lastSnap = snap;
+
     if (this.name === 'polyline') {
       if (this.state === 'idle') {
         this.polylinePoints = [snap.point];
@@ -61,12 +64,20 @@ export class DrawingTool implements Tool {
       } else {
         this.polylinePoints.push(snap.point);
       }
-    } else {
+    } else if (this.state === 'idle') {
+      // Первый клик — фиксируем начальную точку
       this.start = snap.point;
       this.end = snap.point;
       this.state = 'drawing';
+    } else if (this.state === 'drawing') {
+      // Второй клик — фиксируем конечную точку и сохраняем примитив
+      this.end = this.applyOrtho(e, snap.point);
+      this.commitPrimitive();
+      this.state = 'idle';
+      this.canvas.setGhost(null);
+      this.snapEngine.clearTracking();
     }
-    this.lastSnap = snap;
+
     if (e.pointerType === 'touch') {
       this.canvas.showMagnifier(e.screenPoint);
     }
@@ -78,11 +89,17 @@ export class DrawingTool implements Tool {
       this.canvas.showMagnifier(e.screenPoint);
     }
 
+    if (this.state !== 'drawing' || this.name === 'polyline') {
+      // Вне режима рисования просто обновляем snap-индикатор
+      this.lastSnap = this.snapEngine.snap(e.screenPoint);
+      this.canvas.setSnap(this.lastSnap);
+      this.canvas.requestRender();
+      return;
+    }
+
     const snap = this.snapEngine.snap(e.screenPoint);
     this.lastSnap = snap;
-    if (this.state === 'drawing' && this.name !== 'polyline') {
-      this.end = this.applyOrtho(e, snap.point);
-    }
+    this.end = this.applyOrtho(e, snap.point);
     this.updateGhost();
   }
 
@@ -90,22 +107,6 @@ export class DrawingTool implements Tool {
     if (e.pointerType === 'touch') {
       this.canvas.hideMagnifier();
     }
-    if (this.state !== 'drawing') return;
-
-    if (this.name === 'polyline') {
-      return;
-    }
-
-    const points = this.buildPrimitivePoints();
-    if (this.isValid(points)) {
-      this.canvas.commandManager.execute(
-        new AddPrimitiveCommand(this.plan, this.name, points),
-      );
-    }
-
-    this.state = 'idle';
-    this.canvas.setGhost(null);
-    this.canvas.requestRender();
   }
 
   onKeyDown(e: KeyboardEvent): boolean {
@@ -126,6 +127,15 @@ export class DrawingTool implements Tool {
       }
     }
     return false;
+  }
+
+  private commitPrimitive(): void {
+    const points = this.buildPrimitivePoints();
+    if (this.isValid(points)) {
+      this.canvas.commandManager.execute(
+        new AddPrimitiveCommand(this.plan, this.name, points),
+      );
+    }
   }
 
   private applyOrtho(e: InputEvent, point: Vector2): Vector2 {
@@ -234,22 +244,30 @@ export class DrawingTool implements Tool {
       { point: this.lastSnap.point, type: this.lastSnap.type, wall: this.lastSnap.wall, wall2: this.lastSnap.wall2 },
     ];
     for (const guide of guides) {
-      if (guide.type === 'grid') continue;
-      const dirs: Vector2[] = [];
-      for (const w of [guide.wall, guide.wall2]) {
-        if (!w) continue;
-        const d = w.b.sub(w.a);
-        const n = d.perpendicular();
-        dirs.push(d, d.scale(-1), n, n.scale(-1));
+      // Базовые направляющие оси X/Y
+      const dirs: Vector2[] = [
+        new Vector2(1, 0),
+        new Vector2(-1, 0),
+        new Vector2(0, 1),
+        new Vector2(0, -1),
+      ];
+
+      // Для привязок к стенам добавляем направления стены и перпендикуляра
+      if (guide.type !== 'grid') {
+        for (const w of [guide.wall, guide.wall2]) {
+          if (!w) continue;
+          const d = w.b.sub(w.a);
+          const n = d.perpendicular();
+          dirs.push(d, d.scale(-1), n, n.scale(-1));
+        }
       }
-      if (dirs.length > 0) {
-        this.canvas.ghostRenderer.drawGuideRays(
-          ctx,
-          guide.point,
-          dirs,
-          { color: this.canvas.themeManager.getColor('accent') },
-        );
-      }
+
+      this.canvas.ghostRenderer.drawGuideRays(
+        ctx,
+        guide.point,
+        dirs,
+        { color: this.canvas.themeManager.getColor('accent') },
+      );
     }
   }
 }
