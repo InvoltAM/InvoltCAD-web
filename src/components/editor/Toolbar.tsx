@@ -332,6 +332,13 @@ export default function Toolbar() {
       onClick: handleToggleValidation,
     },
     {
+      id: 'roomNumbers',
+      label: '№ помещения',
+      icon: icon('roomNumbers'),
+      active: panelManagerRef.current?.isVisible('roomNumbers') ?? false,
+      onClick: () => panelManagerRef.current?.toggle('roomNumbers'),
+    },
+    {
       id: 'theme',
       label: theme === 'dark' ? 'Светлая тема' : 'Тёмная тема',
       icon: icon(theme === 'dark' ? 'sun' : 'moon'),
@@ -383,14 +390,6 @@ export default function Toolbar() {
           >
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('rooms') }} />
             <span className="project-sidebar-label">Комнаты</span>
-          </button>
-          <button
-            onClick={() => panelManagerRef.current?.toggle('roomNumbers')}
-            className={`project-sidebar-btn ${panelManagerRef.current?.isVisible('roomNumbers') ? 'active' : ''}`}
-            title="№ помещения"
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('roomNumbers') }} />
-            <span className="project-sidebar-label">Помещения</span>
           </button>
           <button
             onClick={() => setCatalogOpen(!catalogOpen)}
