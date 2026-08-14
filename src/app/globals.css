@@ -972,11 +972,12 @@ body {
 .device-palette-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 10px;
 }
 
 .device-palette-group {
   position: relative;
+  min-width: 0;
 }
 
 .device-palette-btn {
@@ -985,9 +986,10 @@ body {
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 80px;
-  gap: 8px;
-  padding: 8px;
+  aspect-ratio: 1 / 1;
+  min-height: 0;
+  gap: 6px;
+  padding: 8px 4px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--panel-bg);
@@ -1009,7 +1011,7 @@ body {
 }
 
 .device-palette-icon {
-  font-size: 24px;
+  font-size: 26px;
   line-height: 1;
 }
 
@@ -1017,10 +1019,9 @@ body {
   font-size: 13px;
   line-height: 1.2;
   text-align: center;
-  white-space: nowrap;
+  word-break: break-word;
+  max-height: 2.4em;
   overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
 }
 
 .device-palette-submenu {
