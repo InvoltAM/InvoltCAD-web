@@ -45,6 +45,12 @@ const modifyTools: DockTool[] = [
   { name: 'extend', label: 'Удлинить', icon: icon('extend') },
 ]
 
+const textModes: Array<{ mode: 'single' | 'multi' | 'callout'; label: string }> = [
+  { mode: 'single', label: 'Однострочный' },
+  { mode: 'multi', label: 'Многострочный' },
+  { mode: 'callout', label: 'Выноска' },
+]
+
 interface DockAction {
   id: string
   label: string
@@ -104,6 +110,12 @@ export default function Toolbar() {
   const [modifyMenuOpen, setModifyMenuOpen] = useState(false)
   const modifyMenuBtnRef = useRef<HTMLButtonElement>(null)
 
+  const [textMenuOpen, setTextMenuOpen] = useState(false)
+  const textMenuBtnRef = useRef<HTMLButtonElement>(null)
+
+  const selectedTextMode = useCadStore((s) => s.selectedTextMode)
+  const setSelectedTextMode = useCadStore((s) => s.setSelectedTextMode)
+
   // macOS dock hover state
   const [hoveredDockId, setHoveredDockId] = useState<string | null>(null)
   const dockRef = useRef<HTMLDivElement>(null)
@@ -158,6 +170,17 @@ export default function Toolbar() {
     return () => document.removeEventListener('click', onDocClick)
   }, [modifyMenuOpen])
 
+  useEffect(() => {
+    if (!textMenuOpen) return
+    const onDocClick = (e: MouseEvent) => {
+      if (!textMenuBtnRef.current?.contains(e.target as Node)) {
+        setTextMenuOpen(false)
+      }
+    }
+    document.addEventListener('click', onDocClick)
+    return () => document.removeEventListener('click', onDocClick)
+  }, [textMenuOpen])
+
   const handleToggleWallMenu = () => {
     setWallMenuOpen((prev) => !prev)
   }
@@ -183,6 +206,16 @@ export default function Toolbar() {
   const handleSelectModifyTool = (name: ToolName) => {
     setTool(name)
     setModifyMenuOpen(false)
+  }
+
+  const handleToggleTextMenu = () => {
+    setTextMenuOpen((prev) => !prev)
+  }
+
+  const handleSelectTextMode = (mode: 'single' | 'multi' | 'callout') => {
+    setSelectedTextMode(mode)
+    setTool('text')
+    setTextMenuOpen(false)
   }
 
   const handleTogglePanelMenu = () => {
@@ -328,6 +361,7 @@ export default function Toolbar() {
         ...drawingTools.filter((t) => t.name !== 'wall').map((t) => t.name),
         'drawing',
         ...navigationTools.map((t) => t.name),
+        'text',
         'modify',
         ...modifyTools.map((t) => t.name),
         'undo',
@@ -540,6 +574,7 @@ export default function Toolbar() {
           setHoveredDockId(null)
           setWallMenuOpen(false)
           setDrawingMenuOpen(false)
+          setTextMenuOpen(false)
         }}
       >
         {drawingTools.flatMap((tool) => {
@@ -709,6 +744,39 @@ export default function Toolbar() {
           }
           return elements
         })}
+        <div key="text" className="editor-dock-group">
+          {(() => {
+            const activeTextMode = textModes.find((tm) => tm.mode === selectedTextMode) ?? textModes[0]
+            return (
+              <button
+                ref={textMenuBtnRef}
+                onClick={handleToggleTextMenu}
+                onMouseEnter={() => setHoveredDockId('text')}
+                className={`editor-dock-item editor-dock-item-menu ${currentTool === 'text' ? 'active' : ''}`}
+                title={`Текст: ${activeTextMode.label} ▼`}
+                style={{ transform: `scale(${getDockScale('text')})` }}
+              >
+                <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('text') }} />
+                <span className="editor-dock-arrow">▼</span>
+                <span className="editor-dock-tooltip">Текст: {activeTextMode.label}</span>
+              </button>
+            )
+          })()}
+          {textMenuOpen && (
+            <div className="editor-dock-submenu">
+              {textModes.map((tm) => (
+                <button
+                  key={tm.mode}
+                  className={`editor-dock-submenu-item ${selectedTextMode === tm.mode && currentTool === 'text' ? 'active' : ''}`}
+                  onClick={() => handleSelectTextMode(tm.mode)}
+                >
+                  <span>{tm.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="editor-dock-divider" />
         {dockActions.flatMap((action) => {
           const elements: React.ReactNode[] = [
             <button

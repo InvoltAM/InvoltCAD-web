@@ -5,7 +5,7 @@ import { wallLength, wallDirection } from '../model/Wall';
 import { CanvasEngine } from '../engine/CanvasEngine';
 import { Tool } from './ToolManager';
 import { AddDeviceCommand, AddFreeDeviceCommand } from '../editor/CommandManager';
-import { findDeviceCatalogItem } from '../model/Device';
+import { findDeviceCatalogItem, type DeviceType } from '../model/Device';
 
 /**
  * Инструмент размещения электрооборудования.
@@ -33,10 +33,19 @@ export class DeviceTool implements Tool {
     this.canvas.requestRender();
   }
 
+  /** Определяет категорию выбранного типа устройства (каталог или custom). */
+  private selectedCategory(): string | undefined {
+    const type = this.canvas.editorState.get('selectedDeviceType');
+    if (type?.startsWith('custom-')) {
+      const id = type.slice('custom-'.length);
+      return this.canvas.editorState.get('customDevices').find((d) => d.id === id)?.category;
+    }
+    return findDeviceCatalogItem(type as DeviceType)?.category;
+  }
+
   /** Светильники можно размещать свободно (потолок, центр комнаты), не только на стене. */
   private isFreePlaceable(): boolean {
-    const type = this.canvas.editorState.get('selectedDeviceType');
-    return findDeviceCatalogItem(type)?.category === 'light';
+    return this.selectedCategory() === 'light';
   }
 
   onPointerMove(e: InputEvent): void {
@@ -66,6 +75,7 @@ export class DeviceTool implements Tool {
     this.updateGhost();
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onPointerDown(e: InputEvent): void {
     if (this.preview) {
       const wall = this.plan.findWall(this.preview.wallId);
@@ -83,6 +93,13 @@ export class DeviceTool implements Tool {
       );
       this.canvas.notifyChanged();
     }
+  }
+
+  /** Базовый размер иконки для выбранного типа (мм). */
+  private baseDeviceSize(type: DeviceType): number {
+    if (type.startsWith('custom-')) return 600;
+    const item = findDeviceCatalogItem(type);
+    return item ? Math.max(item.width, item.height) : 600;
   }
 
   /** Определяет, с какой стороны от стены находится курсор. */
@@ -109,10 +126,8 @@ export class DeviceTool implements Tool {
           const pos = centerOnWall.add(n.scale(wall.thickness / 2 * this.preview.side));
           const iconScale = this.canvas.editorState.get('deviceIconScale') ?? 1;
           const type = this.canvas.editorState.get('selectedDeviceType');
-          const item = findDeviceCatalogItem(type);
-          const baseSize = item ? Math.max(item.width, item.height) : 600;
           // Мировой размер в мм — ghost масштабируется вместе с планом
-          const worldSize = baseSize * iconScale;
+          const worldSize = this.baseDeviceSize(type) * iconScale;
           // Поворот по углу стены (как в DeviceRenderer)
           let angle = Math.atan2(dir.y, dir.x);
           if (angle > Math.PI / 2) angle -= Math.PI;
@@ -123,9 +138,7 @@ export class DeviceTool implements Tool {
         // Ghost свободного размещения (светильник на потолке)
         const iconScale = this.canvas.editorState.get('deviceIconScale') ?? 1;
         const type = this.canvas.editorState.get('selectedDeviceType');
-        const item = findDeviceCatalogItem(type);
-        const baseSize = item ? Math.max(item.width, item.height) : 600;
-        const worldSize = baseSize * iconScale;
+        const worldSize = this.baseDeviceSize(type) * iconScale;
         this.canvas.ghostRenderer.drawDeviceGhost(ctx, this.previewFree, type, worldSize, worldSize, 1, 0);
       }
       if (this.canvas.snap) {

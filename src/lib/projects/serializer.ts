@@ -69,6 +69,8 @@ export interface SerializedPrimitive {
   id: string
   type: DrawingPrimitiveType
   points: Array<{ x: number; y: number }>
+  text?: string
+  fontSize?: number
 }
 
 export interface SerializedPlan {
@@ -165,6 +167,8 @@ export function serializePlan(plan: Plan): SerializedPlan {
     id: primitive.id,
     type: primitive.type,
     points: primitive.points.map((p) => ({ x: p.x, y: p.y })),
+    text: primitive.text,
+    fontSize: primitive.fontSize,
   }))
 
   return { walls, openings, devices, cables, dimensions, primitives, electrical: plan.electrical ?? createEmptyElectrical() }
@@ -263,7 +267,12 @@ export function deserializePlan(data: SerializedPlan): Plan {
 
   // Создаём примитивы рисования
   for (const p of data.primitives ?? []) {
-    const primitive = plan.addPrimitive(p.type, p.points.map((pt) => new Vector2(pt.x, pt.y)))
+    const primitive = plan.addPrimitive(
+      p.type,
+      p.points.map((pt) => new Vector2(pt.x, pt.y)),
+      p.text,
+      p.fontSize,
+    )
     primitive.id = p.id
   }
 

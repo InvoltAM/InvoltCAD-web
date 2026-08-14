@@ -2,6 +2,7 @@ export type IconName =
   | 'wall' | 'door' | 'window' | 'device' | 'cable' | 'dimension' | 'select' | 'hand'
   | 'drawing' | 'polyline' | 'segment' | 'rectangle' | 'circle'
   | 'move' | 'rotate' | 'trim' | 'extend'
+  | 'text'
   | 'properties' | 'layers' | 'spec' | 'menu' | 'collapseDown' | 'collapseUp'
   | 'undo' | 'redo' | 'zoomIn' | 'zoomOut' | 'save' | 'exportPng' | 'exportXlsx' | 'exportSvg' | 'print' | 'import' | 'clear'
   | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects'
@@ -28,6 +29,7 @@ const MAP: Record<IconName, string> = {
   rotate: 'rotate-right',
   trim: 'scissors',
   extend: 'arrows-out-line-horizontal',
+  text: 'text-t',
   properties: 'sliders-horizontal',
   layers: 'stack',
   spec: 'table',

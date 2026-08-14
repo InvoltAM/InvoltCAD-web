@@ -10,7 +10,8 @@ export type DeviceType =
   | 'switch-2'
   | 'panel'
   | 'breaker'
-  | 'light';
+  | 'light'
+  | `custom-${string}`;
 
 export interface Device {
   id: string;

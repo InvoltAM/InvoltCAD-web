@@ -3,7 +3,8 @@ import { InputEvent } from '../engine/InputManager';
 export type ToolName =
   | 'wall' | 'door' | 'window' | 'select' | 'hand' | 'device' | 'cable' | 'dimension'
   | 'polyline' | 'segment' | 'rectangle' | 'circle'
-  | 'move' | 'rotate' | 'trim' | 'extend';
+  | 'move' | 'rotate' | 'trim' | 'extend'
+  | 'text';
 
 export interface Tool {
   readonly name: ToolName;

@@ -105,8 +105,8 @@ export class Plan {
     this.activeSheet.primitives = value;
   }
 
-  addPrimitive(type: DrawingPrimitiveType, points: Vector2[]): DrawingPrimitive {
-    const primitive = createDrawingPrimitive(type, points);
+  addPrimitive(type: DrawingPrimitiveType, points: Vector2[], text?: string, fontSize?: number): DrawingPrimitive {
+    const primitive = createDrawingPrimitive(type, points, text, fontSize);
     this.primitives.push(primitive);
     return primitive;
   }
@@ -403,7 +403,7 @@ export class Plan {
     if (len === 0) return null;
 
     // Отступ от концов стены и от проемов с учётом масштаба иконки
-    const size = DEVICE_SIZE[type];
+    const size = DEVICE_SIZE[type] ?? { width: 600, height: 600 };
     const scale = iconScale ?? 1;
     const half = (Math.max(size.width, size.height) * scale) / 2;
     const minT = (half + 20) / len;
@@ -525,7 +525,7 @@ export class Plan {
   }
 
   private generateDeviceName(type: DeviceType): string {
-    const base = DEFAULT_DEVICE_NAMES[type];
+    const base = DEFAULT_DEVICE_NAMES[type] ?? 'Устройство';
     const count = this.devices.filter(d => d.type === type).length + 1;
     return `${base} ${count}`;
   }

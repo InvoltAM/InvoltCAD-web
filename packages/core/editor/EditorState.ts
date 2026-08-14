@@ -1,5 +1,6 @@
 import { ToolName } from '../tools/ToolManager';
 import { DeviceType } from '../model/Device';
+import { CustomDevice } from '../model/CustomDevice';
 import { ValidationIssue } from '../rules/ValidationTypes';
 import { ThemeName } from './ThemeManager';
 
@@ -56,6 +57,8 @@ export interface EditorStateData {
   uiScale: number;
   compactPanels: boolean;
   orthoMode: boolean;
+  customDevices: CustomDevice[];
+  selectedTextMode: 'single' | 'multi' | 'callout';
 }
 
 type Listener<T> = (value: T) => void;
@@ -100,6 +103,8 @@ export class EditorState {
     uiScale: 1,
     compactPanels: false,
     orthoMode: false,
+    customDevices: [],
+    selectedTextMode: 'single',
   };
 
   private listeners: {

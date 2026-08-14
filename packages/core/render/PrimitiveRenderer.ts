@@ -63,6 +63,34 @@ export class PrimitiveRenderer {
             ctx.stroke();
           }
           break;
+
+        case 'text': {
+          if (!primitive.text || points.length === 0) continue;
+          const pos = points[0];
+          const fontSize = primitive.fontSize ?? 140;
+          ctx.font = `${isSelected ? 'bold ' : ''}${fontSize}px ui-sans-serif, system-ui, sans-serif`;
+          ctx.fillStyle = isSelected ? selectedColor : color;
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'top';
+
+          // Линия выноски для callout (второй точкой задаётся конец выноски)
+          if (points.length >= 2) {
+            const end = points[1];
+            ctx.strokeStyle = isSelected ? selectedColor : color;
+            ctx.lineWidth = 1 / this.camera.scale;
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            ctx.lineTo(end.x, end.y);
+            ctx.stroke();
+          }
+
+          const lines = primitive.text.split('\n');
+          const lineHeight = fontSize * 1.2;
+          for (let i = 0; i < lines.length; i++) {
+            ctx.fillText(lines[i] ?? '', pos.x, pos.y + i * lineHeight);
+          }
+          break;
+        }
       }
     }
   }
@@ -116,6 +144,36 @@ export class PrimitiveRenderer {
         const distWorld = Math.abs(world.distanceTo(center) - radius);
         if (distWorld < thresholdWorld && (!best || distWorld < best.distWorld)) {
           best = { primitive, distWorld };
+        }
+      } else if (primitive.type === 'text') {
+        if (!primitive.text || points.length === 0) continue;
+        const pos = points[0];
+        const fontSize = primitive.fontSize ?? 140;
+        const lineHeight = fontSize * 1.2;
+        const lines = primitive.text.split('\n');
+        const textWidth = Math.max(
+          ...lines.map((line) => {
+            // Приблизительная ширина: 0.55 от высоты символа
+            return line.length * fontSize * 0.55;
+          }),
+        );
+        const textHeight = lines.length * lineHeight;
+        const minX = pos.x;
+        const minY = pos.y;
+        const maxX = pos.x + textWidth;
+        const maxY = pos.y + textHeight;
+        if (
+          world.x >= minX - thresholdWorld &&
+          world.x <= maxX + thresholdWorld &&
+          world.y >= minY - thresholdWorld &&
+          world.y <= maxY + thresholdWorld
+        ) {
+          const cx = (minX + maxX) / 2;
+          const cy = (minY + maxY) / 2;
+          const distWorld = Math.hypot(world.x - cx, world.y - cy);
+          if (!best || distWorld < best.distWorld) {
+            best = { primitive, distWorld };
+          }
         }
       }
     }

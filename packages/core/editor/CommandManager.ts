@@ -741,10 +741,12 @@ export class AddPrimitiveCommand implements Command {
     private plan: Plan,
     private type: DrawingPrimitiveType,
     private points: Vector2[],
+    private text?: string,
+    private fontSize?: number,
   ) {}
 
   execute(): void {
-    const primitive = this.plan.addPrimitive(this.type, this.points);
+    const primitive = this.plan.addPrimitive(this.type, this.points, this.text, this.fontSize);
     this.primitiveId = primitive.id;
   }
 

@@ -5,7 +5,10 @@ import { useCadStore } from '@/stores/cadStore'
 import { useEditor } from './EditorContext'
 import { icon } from './icons'
 import { SocketIP21Symbol, SocketIP44Symbol } from './DeviceSymbols'
+import DeviceEditorModal from './DeviceEditorModal'
+import { customDeviceToSvg } from '@core/render/DeviceSymbolRenderer'
 import type { DeviceType } from '@core/model/Device'
+import type { CustomDevice } from '@core/model/CustomDevice'
 
 interface DeviceCategory {
   id: string
@@ -33,7 +36,7 @@ interface DeviceItem {
   symbol: React.ReactNode
 }
 
-const devicesByCategory: Record<string, DeviceItem[]> = {
+const builtInDevicesByCategory: Record<string, DeviceItem[]> = {
   socket: [
     {
       type: 'socket-ip21',
@@ -50,11 +53,23 @@ const devicesByCategory: Record<string, DeviceItem[]> = {
   ],
 }
 
+function CustomDeviceSymbol({ primitives }: { primitives: CustomDevice['primitives'] }) {
+  const svg = React.useMemo(() => customDeviceToSvg(primitives, 38), [primitives])
+  return (
+    <span
+      className="device-palette-symbol"
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  )
+}
+
 export default function DevicePalettePanel() {
   const [view, setView] = React.useState<string | null>(null)
+  const [editorOpen, setEditorOpen] = React.useState(false)
   const setSelectedDeviceType = useCadStore((s) => s.setSelectedDeviceType)
   const setTool = useCadStore((s) => s.setTool)
   const selectedDeviceType = useCadStore((s) => s.selectedDeviceType)
+  const customDevices = useCadStore((s) => s.customDevices)
   const { engineRef } = useEditor()
 
   const handleSelectDevice = (type: DeviceType) => {
@@ -65,52 +80,69 @@ export default function DevicePalettePanel() {
     engineRef.current?.setTool('device')
   }
 
+  const devicesByCategory = React.useMemo(() => {
+    const map: Record<string, DeviceItem[]> = { ...builtInDevicesByCategory }
+    for (const device of customDevices) {
+      if (!map[device.category]) map[device.category] = []
+      map[device.category].push({
+        type: `custom-${device.id}` as DeviceType,
+        label: device.name,
+        fullName: device.name,
+        symbol: <CustomDeviceSymbol primitives={device.primitives} />,
+      })
+    }
+    return map
+  }, [customDevices])
+
   return (
-    <div className="device-palette-panel">
-      {view === null ? (
-        <div className="device-palette-grid">
-          <button
-            className="device-palette-editor-btn"
-            onClick={() => alert('Редактор устройств — в разработке')}
-            title="Редактор устройств"
-          >
-            Редактор устройств
-          </button>
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              className="device-palette-btn"
-              onClick={() => setView(cat.id)}
-              title={cat.label}
-            >
-              <span
-                className="ui-icon device-palette-icon"
-                dangerouslySetInnerHTML={{ __html: icon(cat.iconName) }}
-              />
-              <span className="device-palette-label">{cat.label}</span>
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div className="device-palette-device-view">
-          <button className="device-palette-back-btn" onClick={() => setView(null)}>
-            ← Назад
-          </button>
+    <>
+      <div className="device-palette-panel">
+        {view === null ? (
           <div className="device-palette-grid">
-            {(devicesByCategory[view] ?? []).map((item) => (
+            <button
+              className="device-palette-editor-btn"
+              onClick={() => setEditorOpen(true)}
+              title="Редактор устройств"
+            >
+              Редактор устройств
+            </button>
+            {categories.map((cat) => (
               <button
-                key={item.type}
-                className={`device-palette-btn ${selectedDeviceType === item.type ? 'active' : ''}`}
-                onClick={() => handleSelectDevice(item.type)}
-                title={item.fullName}
+                key={cat.id}
+                className="device-palette-btn"
+                onClick={() => setView(cat.id)}
+                title={cat.label}
               >
-                {item.symbol}
-                <span className="device-palette-label">{item.label}</span>
+                <span
+                  className="ui-icon device-palette-icon"
+                  dangerouslySetInnerHTML={{ __html: icon(cat.iconName) }}
+                />
+                <span className="device-palette-label">{cat.label}</span>
               </button>
             ))}
           </div>
-        </div>
-      )}
-    </div>
+        ) : (
+          <div className="device-palette-device-view">
+            <button className="device-palette-back-btn" onClick={() => setView(null)}>
+              ← Назад
+            </button>
+            <div className="device-palette-grid">
+              {(devicesByCategory[view] ?? []).map((item) => (
+                <button
+                  key={item.type}
+                  className={`device-palette-btn ${selectedDeviceType === item.type ? 'active' : ''}`}
+                  onClick={() => handleSelectDevice(item.type)}
+                  title={item.fullName}
+                >
+                  {item.symbol}
+                  <span className="device-palette-label">{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      {editorOpen && <DeviceEditorModal onClose={() => setEditorOpen(false)} />}
+    </>
   )
 }

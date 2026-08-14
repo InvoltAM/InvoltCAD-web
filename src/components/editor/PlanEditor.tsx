@@ -16,6 +16,7 @@ import { MoveTool } from '@core/tools/MoveTool'
 import { RotateTool } from '@core/tools/RotateTool'
 import { TrimTool } from '@core/tools/TrimTool'
 import { ExtendTool } from '@core/tools/ExtendTool'
+import { TextTool } from '@core/tools/TextTool'
 import { ThemeManager } from '@core/editor/ThemeManager'
 import { useCadStore } from '@/stores/cadStore'
 import { EditorProvider } from './EditorContext'
@@ -96,6 +97,7 @@ export default function PlanEditor() {
     engine.editorState.set('defaultCableSection', initial.defaultCableSection)
     engine.editorState.set('layers', initial.layers)
     engine.editorState.set('snap', initial.snap)
+    engine.editorState.set('customDevices', initial.customDevices)
 
     // Подписка на изменения cadStore, чтобы инструменты всегда видели актуальные значения
     const syncKeys: Array<keyof typeof initial & string> = [
@@ -109,6 +111,8 @@ export default function PlanEditor() {
       'defaultCableSection',
       'layers',
       'snap',
+      'customDevices',
+      'selectedTextMode',
     ]
     const unsubscribe = useCadStore.subscribe((state, prevState) => {
       for (const key of syncKeys) {
@@ -159,11 +163,13 @@ export default function PlanEditor() {
     const rotateTool = new RotateTool(engine, plan, engine.snapEngine)
     const trimTool = new TrimTool(engine, plan, engine.snapEngine)
     const extendTool = new ExtendTool(engine, plan, engine.snapEngine)
+    const textTool = new TextTool(engine, plan, engine.snapEngine)
 
     engine.registerTool('move', moveTool)
     engine.registerTool('rotate', rotateTool)
     engine.registerTool('trim', trimTool)
     engine.registerTool('extend', extendTool)
+    engine.registerTool('text', textTool)
 
     // Подписка на изменения плана для валидации и автосохранения
     engine.onChange = () => {

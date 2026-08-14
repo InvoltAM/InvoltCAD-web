@@ -89,11 +89,9 @@ export class DeviceRenderer {
       const wall = this.plan.findWall(device.wallId);
       let iconPos = surfacePos;
       let angle = 0;
-      let normal = new Vector2(0, 1);
       if (wall) {
         const dir = wallDirection(wall);
         const n = dir.perpendicular();
-        normal = n;
         iconPos = surfacePos.add(n.scale(half * device.side));
         // Поворот значка по углу стены (нормализован, чтобы символ не был перевёрнут)
         angle = Math.atan2(dir.y, dir.x);
@@ -119,7 +117,7 @@ export class DeviceRenderer {
       // Иконка устройства
       ctx.fillStyle = color;
       ctx.strokeStyle = color;
-      drawDeviceSymbol(ctx, device.type, sizeWorld);
+      drawDeviceSymbol(ctx, device.type, sizeWorld, this.editorState.get('customDevices'));
       ctx.restore();
 
       // Имя устройства (атрибут блока) — горизонтально, можно перетаскивать

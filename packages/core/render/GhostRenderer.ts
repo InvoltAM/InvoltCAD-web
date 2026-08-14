@@ -3,6 +3,8 @@ import { Vector2 } from '../geometry/Vector2';
 import { SnapResult } from '../snap/SnapEngine';
 import { ThemeManager, ThemeColorKey } from '../editor/ThemeManager';
 import { DrawingPrimitive } from '../model/DrawingPrimitive';
+import { EditorState } from '../editor/EditorState';
+import { drawDeviceSymbol } from './DeviceSymbolRenderer';
 
 /**
  * Слой предпросмотра: рисуемая стена, маркер snap, подсветка стены,
@@ -12,7 +14,11 @@ export class GhostRenderer {
   private magnifier: HTMLCanvasElement | null = null;
   private magnifierCtx: CanvasRenderingContext2D | null = null;
 
-  constructor(private camera: Camera, private themeManager?: ThemeManager) {}
+  constructor(
+    private camera: Camera,
+    private themeManager?: ThemeManager,
+    private editorState?: EditorState,
+  ) {}
 
   private getColor(key: ThemeColorKey): string {
     if (this.themeManager) return this.themeManager.getColor(key);
@@ -376,6 +382,7 @@ export class GhostRenderer {
     type: string,
     width: number,
     height: number,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     side = 1,
     angle = 0,
   ): void {
@@ -389,6 +396,16 @@ export class GhostRenderer {
     ctx.rect(-width / 2, -height / 2, width, height);
     ctx.fill();
     ctx.stroke();
+
+    // Условное обозначение устройства поверх рамки ghost
+    ctx.fillStyle = this.getColor('deviceDefault');
+    ctx.strokeStyle = this.getColor('deviceDefault');
+    drawDeviceSymbol(
+      ctx,
+      type as import('../model/Device').DeviceType,
+      Math.max(width, height),
+      this.editorState?.get('customDevices'),
+    );
     ctx.restore();
   }
 

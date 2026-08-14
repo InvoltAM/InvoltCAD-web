@@ -1,9 +1,49 @@
 import { create } from 'zustand'
 import type { ToolName } from '@core/tools/ToolManager'
 import type { DeviceType } from '@core/model/Device'
+import { Vector2 } from '@core/geometry/Vector2'
 import type { ValidationIssue } from '@core/rules/ValidationTypes'
 import type { ThemeName } from '@core/editor/ThemeManager'
 import type { WallJoinStyle } from '@core/editor/EditorState'
+import type { CustomDevice } from '@core/model/CustomDevice'
+import type { DrawingPrimitive } from '@core/model/DrawingPrimitive'
+
+export type { CustomDevice } from '@core/model/CustomDevice'
+
+const CUSTOM_DEVICES_KEY = 'involtcad-custom-devices'
+
+function serializeCustomDevices(devices: CustomDevice[]): string {
+  return JSON.stringify(
+    devices.map((d) => ({
+      ...d,
+      primitives: d.primitives.map((p) => ({
+        ...p,
+        points: p.points.map((pt) => ({ x: pt.x, y: pt.y })),
+      })),
+    }))
+  )
+}
+
+function deserializeCustomDevices(raw: string | null): CustomDevice[] {
+  try {
+    const parsed = JSON.parse(raw ?? '[]') as Array<{
+      id: string
+      name: string
+      category: string
+      primitives: Array<{ id: string; type: string; points: Array<{ x: number; y: number }> }>
+    }>
+    return parsed.map((d) => ({
+      ...d,
+      primitives: d.primitives.map((p) => ({
+        id: p.id,
+        type: p.type as DrawingPrimitive['type'],
+        points: p.points.map((pt) => new Vector2(pt.x, pt.y)),
+      })),
+    }))
+  } catch {
+    return []
+  }
+}
 
 export interface DisplayLayers {
   rooms: boolean
@@ -65,6 +105,8 @@ interface CadStoreState {
   templatesOpen: boolean
   cableJournalOpen: boolean
   devicePaletteOpen: boolean
+  customDevices: CustomDevice[]
+  selectedTextMode: 'single' | 'multi' | 'callout'
 
   setTool: (tool: ToolName) => void
   setSelectedWall: (id: string | null) => void
@@ -109,6 +151,11 @@ interface CadStoreState {
   setTemplatesOpen: (open: boolean) => void
   setCableJournalOpen: (open: boolean) => void
   setDevicePaletteOpen: (open: boolean) => void
+  addCustomDevice: (device: CustomDevice) => void
+  updateCustomDevice: (id: string, device: Partial<CustomDevice>) => void
+  removeCustomDevice: (id: string) => void
+  setCustomDevices: (devices: CustomDevice[]) => void
+  setSelectedTextMode: (mode: 'single' | 'multi' | 'callout') => void
   clearSelection: () => void
 }
 
@@ -164,6 +211,11 @@ export const useCadStore = create<CadStoreState>((set) => ({
   templatesOpen: false,
   cableJournalOpen: false,
   devicePaletteOpen: false,
+  customDevices:
+    typeof window !== 'undefined'
+      ? deserializeCustomDevices(localStorage.getItem(CUSTOM_DEVICES_KEY))
+      : [],
+  selectedTextMode: 'single',
 
   setTool: (tool) => set({ currentTool: tool }),
   setSelectedWall: (id) => set({ selectedWallId: id }),
@@ -208,6 +260,16 @@ export const useCadStore = create<CadStoreState>((set) => ({
   setTemplatesOpen: (templatesOpen) => set({ templatesOpen }),
   setCableJournalOpen: (cableJournalOpen) => set({ cableJournalOpen }),
   setDevicePaletteOpen: (devicePaletteOpen) => set({ devicePaletteOpen }),
+  addCustomDevice: (device) =>
+    set((state) => ({ customDevices: [...state.customDevices, device] })),
+  updateCustomDevice: (id, device) =>
+    set((state) => ({
+      customDevices: state.customDevices.map((d) => (d.id === id ? { ...d, ...device } : d)),
+    })),
+  removeCustomDevice: (id) =>
+    set((state) => ({ customDevices: state.customDevices.filter((d) => d.id !== id) })),
+  setCustomDevices: (customDevices) => set({ customDevices }),
+  setSelectedTextMode: (selectedTextMode) => set({ selectedTextMode }),
   clearSelection: () =>
     set({
       selectedWallId: null,
@@ -224,3 +286,12 @@ export const useCadStore = create<CadStoreState>((set) => ({
       selectedRoomIndices: [],
     }),
 }))
+
+// Персистентность пользовательских устройств в localStorage
+if (typeof window !== 'undefined') {
+  useCadStore.subscribe((state, prevState) => {
+    if (state.customDevices !== prevState.customDevices) {
+      localStorage.setItem(CUSTOM_DEVICES_KEY, serializeCustomDevices(state.customDevices))
+    }
+  })
+}
