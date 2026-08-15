@@ -1485,7 +1485,35 @@ export class SelectTool implements Tool {
       return false;
     }
 
+    if (primitive.type === 'text') {
+      if (!primitive.text || pts.length === 0) return false;
+      const bounds = this.getTextPrimitiveBounds(primitive);
+      if (isWindow) return this.rectInBox(bounds, box);
+      return this.rectIntersectsBox(bounds, box);
+    }
+
     return false;
+  }
+
+  private getTextPrimitiveBounds(
+    primitive: import('../model/DrawingPrimitive').DrawingPrimitive,
+  ): { min: Vector2; max: Vector2 } {
+    const pos = primitive.points[0]!;
+    const fontSize = primitive.fontSize ?? 250;
+    const lineHeight = fontSize * 1.2;
+    const lines = primitive.text!.split('\n');
+    const textWidth = Math.max(...lines.map((line) => line.length * fontSize * 0.55), 0);
+    const textHeight = lines.length * lineHeight;
+    let minX = pos.x;
+    if (primitive.textAlign === 'center') minX = pos.x - textWidth / 2;
+    else if (primitive.textAlign === 'right') minX = pos.x - textWidth;
+    const minY = pos.y;
+    const maxX = minX + textWidth;
+    const maxY = minY + textHeight;
+    return {
+      min: new Vector2(minX, minY),
+      max: new Vector2(maxX, maxY),
+    };
   }
 
   private polygonCentroid(polygon: Vector2[]): Vector2 {
