@@ -25,6 +25,7 @@ import {
   ResizeSheetTableCommand,
   RemovePrimitiveCommand,
 } from '../editor/CommandManager';
+import { MoveSelectionCommand, type MoveSelectionState } from '../editor/ModifyCommands';
 import { TableResizeCorner } from '../render/TableRenderer';
 
 const ROOM_VERTEX_SCREEN_THRESHOLD = 8; // px
@@ -76,6 +77,13 @@ interface ResizeTable {
   moved: boolean;
 }
 
+interface DragPrimitive {
+  ids: string[];
+  startWorld: Vector2;
+  originalPoints: Map<string, Vector2[]>;
+  moved: boolean;
+}
+
 /**
  * Инструмент "Выбор".
  * Выделение, перемещение проема, удаление через CommandManager,
@@ -92,6 +100,7 @@ export class SelectTool implements Tool {
   private dragDevice: DragDevice | null = null;
   private dragTable: DragTable | null = null;
   private resizeTable: ResizeTable | null = null;
+  private dragPrimitive: DragPrimitive | null = null;
   private selectionBox: {
     startWorld: Vector2;
     currentWorld: Vector2;
@@ -241,8 +250,25 @@ export class SelectTool implements Tool {
       if (this.isMultiSelect(e)) {
         this.togglePrimitiveSelection(hitPrimitive.id);
       } else {
-        this.clearSelection();
-        this.canvas.setSelectedPrimitive(hitPrimitive.id);
+        const selectedPrimitives = this.canvas.getSelectedPrimitives();
+        if (!selectedPrimitives.includes(hitPrimitive.id)) {
+          this.clearSelection();
+          this.canvas.setSelectedPrimitive(hitPrimitive.id);
+        }
+        const ids = this.canvas.getSelectedPrimitives();
+        const originalPoints = new Map<string, Vector2[]>();
+        for (const id of ids) {
+          const primitive = this.plan.findPrimitive(id);
+          if (primitive) {
+            originalPoints.set(id, primitive.points.map(p => p.clone()));
+          }
+        }
+        this.dragPrimitive = {
+          ids,
+          startWorld: this.canvas.camera.screenToWorld(e.screenPoint),
+          originalPoints,
+          moved: false,
+        };
       }
       this.dragOpening = null;
     } else if (hitTableHandle) {
@@ -361,6 +387,20 @@ export class SelectTool implements Tool {
     if (this.resizeTable) {
       const world = this.canvas.camera.screenToWorld(e.screenPoint);
       this.applyResizeTable(world);
+      return;
+    }
+
+    if (this.dragPrimitive) {
+      const world = this.canvas.camera.screenToWorld(e.screenPoint);
+      const delta = world.sub(this.dragPrimitive.startWorld);
+      for (const id of this.dragPrimitive.ids) {
+        const primitive = this.plan.findPrimitive(id);
+        const original = this.dragPrimitive.originalPoints.get(id);
+        if (!primitive || !original) continue;
+        primitive.points = original.map(p => p.add(delta));
+      }
+      this.dragPrimitive.moved = true;
+      this.canvas.notifyChanged();
       return;
     }
 
@@ -494,6 +534,32 @@ export class SelectTool implements Tool {
         );
       }
       this.resizeTable = null;
+      this.canvas.notifyChanged();
+      return;
+    }
+
+    if (this.dragPrimitive) {
+      const { ids, startWorld, originalPoints, moved } = this.dragPrimitive;
+      if (moved) {
+        const world = this.canvas.camera.screenToWorld(e.screenPoint);
+        const delta = world.sub(startWorld);
+        const primitives = [];
+        for (const id of ids) {
+          const original = originalPoints.get(id);
+          if (!original) continue;
+          primitives.push({ id, points: original.map(p => p.clone()) });
+        }
+        const state: MoveSelectionState = {
+          walls: [],
+          primitives,
+          dimensions: [],
+          cables: [],
+          tables: [],
+          freeDevices: [],
+        };
+        this.canvas.commandManager.execute(new MoveSelectionCommand(this.plan, state, delta));
+      }
+      this.dragPrimitive = null;
       this.canvas.notifyChanged();
       return;
     }

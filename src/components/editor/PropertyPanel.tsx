@@ -10,6 +10,7 @@ import { Opening } from '@core/model/Opening'
 import { Device, DEVICE_SIZE } from '@core/model/Device'
 import { Cable } from '@core/model/Cable'
 import { Dimension } from '@core/model/Dimension'
+import { DrawingPrimitive } from '@core/model/DrawingPrimitive'
 import { UpdateWallArcCommand } from '@core/editor/CommandManager'
 import { DEVICE_CATALOG, DEVICE_CATEGORIES } from '@core/catalogs/DeviceCatalog'
 
@@ -24,6 +25,7 @@ export default function PropertyPanel() {
   const selectedDeviceIds = useCadStore((s) => s.selectedDeviceIds)
   const selectedCableIds = useCadStore((s) => s.selectedCableIds)
   const selectedDimensionIds = useCadStore((s) => s.selectedDimensionIds)
+  const selectedPrimitiveIds = useCadStore((s) => s.selectedPrimitiveIds)
   const currentTool = useCadStore((s) => s.currentTool)
   const { engineRef } = useEditor()
   const [plan, setPlan] = useState<Plan | null>(null)
@@ -47,7 +49,8 @@ export default function PropertyPanel() {
     selectedOpeningIds.length > 0 ||
     selectedDeviceIds.length > 0 ||
     selectedCableIds.length > 0 ||
-    selectedDimensionIds.length > 0
+    selectedDimensionIds.length > 0 ||
+    selectedPrimitiveIds.length > 0
 
   const hasToolSettings =
     currentTool === 'wall' ||
@@ -82,6 +85,9 @@ export default function PropertyPanel() {
   const dimensions = selectedDimensionIds
     .map((id) => plan.dimensions.find((d) => d.id === id))
     .filter((d): d is Dimension => !!d)
+  const primitives = selectedPrimitiveIds
+    .map((id) => plan.primitives.find((p) => p.id === id))
+    .filter((p): p is DrawingPrimitive => !!p)
 
   return (
     <>
@@ -90,6 +96,7 @@ export default function PropertyPanel() {
       {walls.length === 0 && openings.length === 0 && devices.length > 0 && <DeviceProperties devices={devices} plan={plan} />}
       {walls.length === 0 && openings.length === 0 && devices.length === 0 && cables.length > 0 && <CableProperties cables={cables} />}
       {walls.length === 0 && openings.length === 0 && devices.length === 0 && cables.length === 0 && dimensions.length > 0 && <DimensionProperties dimensions={dimensions} />}
+      {walls.length === 0 && openings.length === 0 && devices.length === 0 && cables.length === 0 && dimensions.length === 0 && primitives.length > 0 && <PrimitiveProperties primitives={primitives} plan={plan} />}
 
       {!hasSelection && currentTool === 'wall' && <WallToolSettings />}
       {!hasSelection && currentTool === 'door' && <DoorToolSettings />}
@@ -929,6 +936,150 @@ function DeviceToolSettings() {
           }}
           className="w-full"
         />
+      </div>
+    </div>
+  )
+}
+
+function PrimitiveProperties({ primitives }: { primitives: DrawingPrimitive[]; plan: Plan }) {
+  const { engineRef } = useEditor()
+  const textPrimitives = primitives.filter((p) => p.type === 'text')
+  const count = textPrimitives.length
+
+  if (count === 0) {
+    return (
+      <div className="text-sm text-gray-500 dark:text-gray-400">
+        Выбрано примитивов: {primitives.length}
+      </div>
+    )
+  }
+
+  const commonText = commonValue(textPrimitives, (p) => p.text) ?? ''
+  const commonFontSize = commonValue(textPrimitives, (p) => p.fontSize) ?? 140
+  const commonFontFamily = commonValue(textPrimitives, (p) => p.fontFamily) ?? 'ui-sans-serif, system-ui, sans-serif'
+  const commonColor = commonValue(textPrimitives, (p) => p.color) ?? ''
+  const commonItalic = commonValue(textPrimitives, (p) => p.italic) ?? false
+  const commonTextAlign = commonValue(textPrimitives, (p) => p.textAlign) ?? 'left'
+
+  const apply = (patch: Partial<DrawingPrimitive>) => {
+    for (const p of textPrimitives) {
+      if (patch.text !== undefined) p.text = patch.text
+      if (patch.fontSize !== undefined) p.fontSize = patch.fontSize
+      if (patch.fontFamily !== undefined) p.fontFamily = patch.fontFamily
+      if (patch.color !== undefined) p.color = patch.color || undefined
+      if (patch.italic !== undefined) p.italic = patch.italic
+      if (patch.textAlign !== undefined) p.textAlign = patch.textAlign
+    }
+    engineRef.current?.notifyChanged()
+    engineRef.current?.requestRender()
+  }
+
+  return (
+    <div className="space-y-3">
+      {count > 1 && (
+        <div className="text-xs text-gray-500 dark:text-gray-400">Выбрано текстовых блоков: {count}</div>
+      )}
+
+      <div>
+        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Текст</label>
+        <textarea
+          rows={3}
+          value={commonText}
+          onChange={(e) => apply({ text: e.target.value })}
+          className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Размер шрифта, мм</label>
+        <input
+          type="number"
+          min={10}
+          step={10}
+          value={commonFontSize}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value)
+            if (Number.isFinite(v) && v > 0) apply({ fontSize: v })
+          }}
+          className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Шрифт</label>
+        <select
+          value={commonFontFamily}
+          onChange={(e) => apply({ fontFamily: e.target.value })}
+          className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        >
+          <option value="ui-sans-serif, system-ui, sans-serif">Без засечек</option>
+          <option value="serif">С засечками</option>
+          <option value="monospace">Моноширинный</option>
+          <option value="Arial, Helvetica, sans-serif">Arial</option>
+          <option value="Times New Roman, Times, serif">Times New Roman</option>
+          <option value="Courier New, Courier, monospace">Courier New</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Цвет</label>
+        <div className="flex items-center gap-2">
+          <input
+            type="color"
+            value={commonColor || '#000000'}
+            onChange={(e) => apply({ color: e.target.value })}
+            className="h-8 w-8 cursor-pointer rounded border border-gray-300 dark:border-gray-600"
+          />
+          <input
+            type="text"
+            value={commonColor || ''}
+            onChange={(e) => apply({ color: e.target.value })}
+            placeholder="#000000"
+            className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          />
+          {commonColor && (
+            <button
+              onClick={() => apply({ color: undefined })}
+              className="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+            >
+              Авто
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <label className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
+          <input
+            type="checkbox"
+            checked={commonItalic}
+            onChange={(e) => apply({ italic: e.target.checked })}
+          />
+          Курсив
+        </label>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Выравнивание</label>
+        <div className="flex rounded border border-gray-300 dark:border-gray-600">
+          {[
+            { value: 'left', label: 'Лево' },
+            { value: 'center', label: 'Центр' },
+            { value: 'right', label: 'Право' },
+          ].map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => apply({ textAlign: opt.value as DrawingPrimitive['textAlign'] })}
+              className={`flex-1 px-2 py-1 text-xs ${
+                commonTextAlign === opt.value
+                  ? 'bg-orange-500 text-white'
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )

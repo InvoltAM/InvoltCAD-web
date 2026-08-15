@@ -352,6 +352,10 @@ export default function PlanEditor() {
         useCadStore.getState().setSelectedRooms(indices)
         useCadStore.getState().setSelectedRoom(indices.length <= 1 ? (indices[0] ?? null) : null)
       }),
+      engine.editorState.subscribe('selectedPrimitiveIds', (ids) => {
+        useCadStore.getState().setSelectedPrimitives(ids)
+        useCadStore.getState().setSelectedPrimitive(ids.length <= 1 ? (ids[0] ?? null) : null)
+      }),
     ]
     return () => subs.forEach((unsub) => unsub())
   }, [])

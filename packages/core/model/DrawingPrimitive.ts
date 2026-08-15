@@ -10,6 +10,14 @@ export interface DrawingPrimitive {
   text?: string;
   /** Размер шрифта в миллиметрах (для типа 'text'). */
   fontSize?: number;
+  /** Семейство шрифта (для типа 'text'). */
+  fontFamily?: string;
+  /** Цвет текста в формате hex/rgb (для типа 'text'). */
+  color?: string;
+  /** Курсив (для типа 'text'). */
+  italic?: boolean;
+  /** Выравнивание текста: left | center | right (для типа 'text'). */
+  textAlign?: 'left' | 'center' | 'right';
 }
 
 export function createDrawingPrimitive(
@@ -17,6 +25,10 @@ export function createDrawingPrimitive(
   points: Vector2[],
   text?: string,
   fontSize?: number,
+  fontFamily?: string,
+  color?: string,
+  italic?: boolean,
+  textAlign?: 'left' | 'center' | 'right',
 ): DrawingPrimitive {
   return {
     id: crypto.randomUUID(),
@@ -24,5 +36,9 @@ export function createDrawingPrimitive(
     points: points.map((p) => p.clone()),
     text,
     fontSize,
+    fontFamily,
+    color,
+    italic,
+    textAlign,
   };
 }

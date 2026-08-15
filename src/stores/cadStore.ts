@@ -75,6 +75,8 @@ interface CadStoreState {
   selectedCableIds: string[]
   selectedDimensionIds: string[]
   selectedRoomIndices: number[]
+  selectedPrimitiveId: string | null
+  selectedPrimitiveIds: string[]
   selectedDeviceType: DeviceType
   zoom: number
   layers: DisplayLayers
@@ -121,6 +123,8 @@ interface CadStoreState {
   setSelectedCables: (ids: string[]) => void
   setSelectedDimensions: (ids: string[]) => void
   setSelectedRooms: (indices: number[]) => void
+  setSelectedPrimitive: (id: string | null) => void
+  setSelectedPrimitives: (ids: string[]) => void
   setSelectedDeviceType: (type: DeviceType) => void
   setZoom: (zoom: number) => void
   setLayers: (layers: DisplayLayers) => void
@@ -173,6 +177,8 @@ export const useCadStore = create<CadStoreState>((set) => ({
   selectedCableIds: [],
   selectedDimensionIds: [],
   selectedRoomIndices: [],
+  selectedPrimitiveId: null,
+  selectedPrimitiveIds: [],
   selectedDeviceType: 'socket',
   zoom: 0.1,
   layers: {
@@ -230,6 +236,8 @@ export const useCadStore = create<CadStoreState>((set) => ({
   setSelectedCables: (ids) => set({ selectedCableIds: ids }),
   setSelectedDimensions: (ids) => set({ selectedDimensionIds: ids }),
   setSelectedRooms: (indices) => set({ selectedRoomIndices: indices }),
+  setSelectedPrimitive: (id) => set({ selectedPrimitiveId: id }),
+  setSelectedPrimitives: (ids) => set({ selectedPrimitiveIds: ids }),
   setSelectedDeviceType: (type) => set({ selectedDeviceType: type }),
   setZoom: (zoom) => set({ zoom }),
   setLayers: (layers) => set({ layers }),

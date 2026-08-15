@@ -743,10 +743,23 @@ export class AddPrimitiveCommand implements Command {
     private points: Vector2[],
     private text?: string,
     private fontSize?: number,
+    private fontFamily?: string,
+    private color?: string,
+    private italic?: boolean,
+    private textAlign?: 'left' | 'center' | 'right',
   ) {}
 
   execute(): void {
-    const primitive = this.plan.addPrimitive(this.type, this.points, this.text, this.fontSize);
+    const primitive = this.plan.addPrimitive(
+      this.type,
+      this.points,
+      this.text,
+      this.fontSize,
+      this.fontFamily,
+      this.color,
+      this.italic,
+      this.textAlign,
+    );
     this.primitiveId = primitive.id;
   }
 

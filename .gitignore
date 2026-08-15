@@ -46,6 +46,12 @@ yarn-error.log*
 # local test outputs
 /test-fixtures
 
+# local runtime artifacts
+.playwright-mcp/
+sqlite_mcp_server.db
+*.png
+room-panel-plan.png
+
 
 # typescript
 *.tsbuildinfo

@@ -105,8 +105,17 @@ export class Plan {
     this.activeSheet.primitives = value;
   }
 
-  addPrimitive(type: DrawingPrimitiveType, points: Vector2[], text?: string, fontSize?: number): DrawingPrimitive {
-    const primitive = createDrawingPrimitive(type, points, text, fontSize);
+  addPrimitive(
+    type: DrawingPrimitiveType,
+    points: Vector2[],
+    text?: string,
+    fontSize?: number,
+    fontFamily?: string,
+    color?: string,
+    italic?: boolean,
+    textAlign?: 'left' | 'center' | 'right',
+  ): DrawingPrimitive {
+    const primitive = createDrawingPrimitive(type, points, text, fontSize, fontFamily, color, italic, textAlign);
     this.primitives.push(primitive);
     return primitive;
   }

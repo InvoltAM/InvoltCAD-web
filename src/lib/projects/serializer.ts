@@ -71,6 +71,10 @@ export interface SerializedPrimitive {
   points: Array<{ x: number; y: number }>
   text?: string
   fontSize?: number
+  fontFamily?: string
+  color?: string
+  italic?: boolean
+  textAlign?: 'left' | 'center' | 'right'
 }
 
 export interface SerializedPlan {
@@ -169,6 +173,10 @@ export function serializePlan(plan: Plan): SerializedPlan {
     points: primitive.points.map((p) => ({ x: p.x, y: p.y })),
     text: primitive.text,
     fontSize: primitive.fontSize,
+    fontFamily: primitive.fontFamily,
+    color: primitive.color,
+    italic: primitive.italic,
+    textAlign: primitive.textAlign,
   }))
 
   return { walls, openings, devices, cables, dimensions, primitives, electrical: plan.electrical ?? createEmptyElectrical() }
@@ -272,6 +280,10 @@ export function deserializePlan(data: SerializedPlan): Plan {
       p.points.map((pt) => new Vector2(pt.x, pt.y)),
       p.text,
       p.fontSize,
+      p.fontFamily,
+      p.color,
+      p.italic,
+      p.textAlign,
     )
     primitive.id = p.id
   }

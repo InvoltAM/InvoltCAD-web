@@ -68,15 +68,18 @@ export class PrimitiveRenderer {
           if (!primitive.text || points.length === 0) continue;
           const pos = points[0];
           const fontSize = primitive.fontSize ?? 140;
-          ctx.font = `${isSelected ? 'bold ' : ''}${fontSize}px ui-sans-serif, system-ui, sans-serif`;
-          ctx.fillStyle = isSelected ? selectedColor : color;
-          ctx.textAlign = 'left';
+          const fontFamily = primitive.fontFamily ?? 'ui-sans-serif, system-ui, sans-serif';
+          const fontStyle = primitive.italic ? 'italic ' : '';
+          const fontWeight = isSelected ? 'bold ' : '';
+          ctx.font = `${fontWeight}${fontStyle}${fontSize}px ${fontFamily}`;
+          ctx.fillStyle = primitive.color && !isSelected ? primitive.color : (isSelected ? selectedColor : color);
+          ctx.textAlign = primitive.textAlign ?? 'left';
           ctx.textBaseline = 'top';
 
           // Линия выноски для callout (второй точкой задаётся конец выноски)
           if (points.length >= 2) {
             const end = points[1];
-            ctx.strokeStyle = isSelected ? selectedColor : color;
+            ctx.strokeStyle = primitive.color && !isSelected ? primitive.color : (isSelected ? selectedColor : color);
             ctx.lineWidth = 1 / this.camera.scale;
             ctx.beginPath();
             ctx.moveTo(pos.x, pos.y);
@@ -86,8 +89,21 @@ export class PrimitiveRenderer {
 
           const lines = primitive.text.split('\n');
           const lineHeight = fontSize * 1.2;
+          let x = pos.x;
+          if (ctx.textAlign === 'center') x = pos.x;
+          else if (ctx.textAlign === 'right') x = pos.x;
+
           for (let i = 0; i < lines.length; i++) {
-            ctx.fillText(lines[i] ?? '', pos.x, pos.y + i * lineHeight);
+            const line = lines[i] ?? '';
+            let lineX = x;
+            if (ctx.textAlign === 'center') {
+              const metrics = ctx.measureText(line);
+              lineX = pos.x - metrics.width / 2;
+            } else if (ctx.textAlign === 'right') {
+              const metrics = ctx.measureText(line);
+              lineX = pos.x - metrics.width;
+            }
+            ctx.fillText(line, lineX, pos.y + i * lineHeight);
           }
           break;
         }
@@ -158,9 +174,11 @@ export class PrimitiveRenderer {
           }),
         );
         const textHeight = lines.length * lineHeight;
-        const minX = pos.x;
+        let minX = pos.x;
+        if (primitive.textAlign === 'center') minX = pos.x - textWidth / 2;
+        else if (primitive.textAlign === 'right') minX = pos.x - textWidth;
         const minY = pos.y;
-        const maxX = pos.x + textWidth;
+        const maxX = minX + textWidth;
         const maxY = pos.y + textHeight;
         if (
           world.x >= minX - thresholdWorld &&
