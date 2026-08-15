@@ -1,9 +1,39 @@
+# Сессия разработки — 2026-08-16 (свойства примитивов рисования)
+
+## Текущий контекст
+
+Работа ведётся в репозитории **InvoltCAD-web**, ветка `main`.
+Dev-сервер Next.js работает на `http://localhost:3003/editor`.
+
+## Что сделано с последнего сохранения
+
+- Добавлена возможность менять свойства примитивов рисования (линии, полилинии, прямоугольники, круги, таблицы):
+  - `packages/core/model/DrawingPrimitive.ts` — добавлены поля `lineWidth`, `lineColor`, `lineStyle`, `fillColor`.
+  - `packages/core/model/Plan.ts` — `addPrimitive` принимает новые параметры.
+  - `packages/core/editor/CommandManager.ts` — `AddPrimitiveCommand` сохраняет новые свойства.
+  - `src/lib/projects/serializer.ts` — сериализация/десериализация поддерживают новые поля.
+  - `packages/core/render/PrimitiveRenderer.ts` — рендер учитывает `lineWidth`, `lineColor`, `lineStyle`, `fillColor`; добавлен метод `getLineDash` для пунктирных/штриховых стилей.
+  - `src/components/editor/PropertyPanel.tsx` — в панели свойств для примитивов рисования добавлены редакторы толщины линии, стиля линии (сплошная, пунктирная, штрихпунктирная, точечная), цвета линии и цвета заливки (для замкнутых фигур).
+- Исправлены ошибки TypeScript в `packages/core/render/PrimitiveRenderer.ts` (неопределённые `color`, отсутствующий импорт `DrawingPrimitive`).
+- Проверки:
+  - `npx tsc --noEmit` — чисто.
+  - `npm test` — 63/63 тестов пройдены.
+- Сделан коммит: `feat: add primitive properties editing (line width, color, style, fill)`.
+- Dev-сервер перезапущен на `http://localhost:3003`.
+
+## Следующие шаги
+
+- Продолжить доработку редактора (UI/UX, инструменты, устройства, печать листов).
+- При необходимости обновить `docs/SESSION_STATE.md` и делать коммиты.
+
+---
+
 # Сессия разработки — 2026-08-15 (drag примитивов в SelectTool)
 
 ## Текущий контекст
 
 Работа ведётся в репозитории **InvoltCAD-web**, ветка `main`.
-Dev-сервер Next.js работает на `http://localhost:3002/editor`.
+Dev-сервер Next.js работал на `http://localhost:3002/editor`.
 
 ## Что сделано с последнего сохранения
 
