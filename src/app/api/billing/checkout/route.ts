@@ -11,11 +11,12 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { planSlug, interval, creditsAmount } = body
+  const { planSlug, interval, creditsAmount, itemId, itemType } = body
 
   let amountRub: number
   let description: string
   let purpose: string
+  let metadata: Record<string, string> = {}
 
   if (planSlug) {
     // Оплата подписки
@@ -30,13 +31,70 @@ export async function POST(request: NextRequest) {
     amountRub = interval === 'year' ? plan.priceYearly : plan.priceMonthly
     description = `Подписка ${plan.name} (${interval === 'year' ? 'год' : 'месяц'})`
     purpose = 'subscription'
+    metadata = {
+      userId: user.id,
+      planSlug: planSlug ?? '',
+      interval: interval ?? '',
+      creditsAmount: String(creditsAmount ?? 0),
+    }
   } else if (creditsAmount) {
     // Покупка кредитов
     amountRub = creditsAmount * 10 // 1 кредит = 10 руб (настроить)
     description = `Покупка ${creditsAmount} кредитов`
     purpose = 'credits'
+    metadata = {
+      userId: user.id,
+      planSlug: planSlug ?? '',
+      interval: interval ?? '',
+      creditsAmount: String(creditsAmount ?? 0),
+    }
+  } else if (itemId && itemType) {
+    // Покупка маркетплейс-айтема
+    if (itemType !== 'device' && itemType !== 'template') {
+      return NextResponse.json({ error: 'Неверный тип товара' }, { status: 400 })
+    }
+
+    let item: { name: string; price: number | null; sellerId: string | null } | null = null
+    if (itemType === 'device') {
+      item = await prisma.deviceCatalogItem.findUnique({
+        where: { id: itemId, published: true },
+        select: { name: true, nameRu: true, price: true, sellerId: true },
+      })
+    } else {
+      item = await prisma.projectTemplate.findUnique({
+        where: { id: itemId, published: true },
+        select: { name: true, price: true, sellerId: true },
+      })
+    }
+
+    if (!item) {
+      return NextResponse.json({ error: 'Товар не найден' }, { status: 404 })
+    }
+
+    const existingPurchase = await prisma.purchase.findFirst({
+      where: {
+        buyerId: user.id,
+        itemType,
+        deviceCatalogItemId: itemType === 'device' ? itemId : undefined,
+        projectTemplateId: itemType === 'template' ? itemId : undefined,
+      },
+    })
+    if (existingPurchase) {
+      return NextResponse.json({ error: 'Товар уже куплен' }, { status: 400 })
+    }
+
+    const price = item.price ?? 0
+    amountRub = price
+    description = `Покупка «${item.name}»`
+    purpose = 'marketplace'
+    metadata = {
+      userId: user.id,
+      itemId,
+      itemType,
+      sellerId: item.sellerId ?? '',
+    }
   } else {
-    return NextResponse.json({ error: 'Не указан план или кредиты' }, { status: 400 })
+    return NextResponse.json({ error: 'Не указан план, кредиты или товар' }, { status: 400 })
   }
 
   try {
@@ -44,12 +102,7 @@ export async function POST(request: NextRequest) {
       amountRub,
       description,
       `${process.env.NEXT_PUBLIC_APP_URL}/billing/success`,
-      {
-        userId: user.id,
-        planSlug: planSlug ?? '',
-        interval: interval ?? '',
-        creditsAmount: String(creditsAmount ?? 0),
-      }
+      metadata
     )
 
     // Сохраняем платёж в БД
@@ -62,11 +115,7 @@ export async function POST(request: NextRequest) {
         currency: 'RUB',
         status: 'pending',
         purpose,
-        metadata: {
-          planSlug: planSlug ?? '',
-          interval: interval ?? '',
-          creditsAmount: creditsAmount ?? 0,
-        },
+        metadata,
       },
     })
 

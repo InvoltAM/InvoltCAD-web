@@ -37,6 +37,7 @@ import PanelEditor from './PanelEditor'
 import RoomsPanel from './RoomsPanel'
 import RoomNumbersPanel from './RoomNumbersPanel'
 import DevicePalettePanel from './DevicePalettePanel'
+import AiChatPanel from './AiChatPanel'
 import CatalogPanel from './CatalogPanel'
 import EstimatesPanel from './EstimatesPanel'
 import InvoicesPanel from './InvoicesPanel'
@@ -63,7 +64,8 @@ export default function PlanEditor() {
     cableJournal: HTMLElement | null
     roomNumbers: HTMLElement | null
     devicePalette: HTMLElement | null
-  }>({ property: null, layers: null, spec: null, sheetCables: null, validation: null, cableJournal: null, roomNumbers: null, devicePalette: null })
+    aiChat: HTMLElement | null
+  }>({ property: null, layers: null, spec: null, sheetCables: null, validation: null, cableJournal: null, roomNumbers: null, devicePalette: null, aiChat: null })
 
   const currentTool = useCadStore((s) => s.currentTool)
   const theme = useCadStore((s) => s.theme)
@@ -212,6 +214,7 @@ export default function PlanEditor() {
       const cableJournalBody = document.createElement('div')
       const roomNumbersBody = document.createElement('div')
       const devicePaletteBody = document.createElement('div')
+      const aiChatBody = document.createElement('div')
 
       panelManagerRef.current = new PanelManager(
         [
@@ -241,6 +244,16 @@ export default function PlanEditor() {
             menuVisible: false,
             onVisibilityChange: (visible) => useCadStore.getState().setDevicePaletteOpen(visible),
           },
+          {
+            id: 'aiChat',
+            title: 'AI',
+            icon: icon('ai'),
+            body: aiChatBody,
+            width: 320,
+            height: 420,
+            menuVisible: false,
+            onVisibilityChange: (visible) => useCadStore.getState().setAiChatOpen(visible),
+          },
         ],
         app,
         sheetsBarRef.current.element
@@ -262,12 +275,13 @@ export default function PlanEditor() {
         cableJournal: cableJournalBody,
         roomNumbers: roomNumbersBody,
         devicePalette: devicePaletteBody,
+        aiChat: aiChatBody,
       })
     }
 
     return () => {
       unsubscribe()
-      setPanelBodies({ property: null, layers: null, spec: null, sheetCables: null, validation: null, cableJournal: null, roomNumbers: null, devicePalette: null })
+      setPanelBodies({ property: null, layers: null, spec: null, sheetCables: null, validation: null, cableJournal: null, roomNumbers: null, devicePalette: null, aiChat: null })
       engine.destroy()
       engineRef.current = null
       panelManagerRef.current?.destroy()
@@ -391,6 +405,7 @@ export default function PlanEditor() {
         {panelBodies.cableJournal && createPortal(<CableJournalPanel />, panelBodies.cableJournal)}
         {panelBodies.roomNumbers && createPortal(<RoomNumbersPanel />, panelBodies.roomNumbers)}
         {panelBodies.devicePalette && createPortal(<DevicePalettePanel />, panelBodies.devicePalette)}
+        {panelBodies.aiChat && createPortal(<AiChatPanel />, panelBodies.aiChat)}
       </div>
     </EditorProvider>
   )

@@ -94,6 +94,7 @@ export default function Toolbar() {
   const setTemplatesOpen = useCadStore((s) => s.setTemplatesOpen)
   const cableJournalOpen = useCadStore((s) => s.cableJournalOpen)
   const devicePaletteOpen = useCadStore((s) => s.devicePaletteOpen)
+  const aiChatOpen = useCadStore((s) => s.aiChatOpen)
   const { engineRef, themeManagerRef, panelManagerRef } = useEditor()
 
   const [panelMenuOpen, setPanelMenuOpen] = useState(false)
@@ -250,6 +251,10 @@ export default function Toolbar() {
 
   const handleToggleValidation = () => {
     panelManagerRef.current?.toggle('validation')
+  }
+
+  const handleToggleAiChat = () => {
+    panelManagerRef.current?.toggle('aiChat')
   }
 
   const handlePanelMenuItemClick = (id: string) => {
@@ -488,6 +493,14 @@ export default function Toolbar() {
           >
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('panel') }} />
             <span className="project-sidebar-label">Щит</span>
+          </button>
+          <button
+            onClick={handleToggleAiChat}
+            className={`project-sidebar-btn ${aiChatOpen ? 'active' : ''}`}
+            title="AI-ассистент"
+          >
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('ai') }} />
+            <span className="project-sidebar-label">AI</span>
           </button>
           <button
             onClick={() => setRoomsOpen(!roomsOpen)}

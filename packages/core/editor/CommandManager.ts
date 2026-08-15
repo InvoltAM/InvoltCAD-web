@@ -7,6 +7,7 @@ import { Cable, CableType, DEFAULT_CABLE } from '../model/Cable';
 import { Dimension } from '../model/Dimension';
 import { Vector2 } from '../geometry/Vector2';
 import { SheetTable, SheetTableType } from '../model/SheetTable';
+import { autoDesign } from '../ai/autoDesign';
 
 export interface Command {
   execute(): void;
@@ -794,5 +795,34 @@ export class AddPrimitiveCommand implements Command {
 
   undo(): void {
     this.plan.removePrimitive(this.primitiveId);
+  }
+}
+
+/** Команда автоматической расстановки устройств (AI-анализ плана). */
+export class AiAutoDesignCommand implements Command {
+  private previousDevices: Device[] = [];
+  private previousCables: Cable[] = [];
+  private addedDeviceIds: string[] = [];
+  private addedCableIds: string[] = [];
+
+  constructor(private plan: Plan) {}
+
+  execute(): void {
+    this.previousDevices = this.plan.devices.map(d => ({ ...d }));
+    this.previousCables = this.plan.cables.map(c => ({ ...c }));
+
+    const beforeDeviceIds = new Set(this.plan.devices.map(d => d.id));
+    const beforeCableIds = new Set(this.plan.cables.map(c => c.id));
+
+    autoDesign(this.plan);
+
+    this.addedDeviceIds = this.plan.devices.map(d => d.id).filter(id => !beforeDeviceIds.has(id));
+    this.addedCableIds = this.plan.cables.map(c => c.id).filter(id => !beforeCableIds.has(id));
+  }
+
+  undo(): void {
+    this.plan.devices = this.previousDevices.filter(d => !this.addedDeviceIds.includes(d.id));
+    this.plan.cables = this.previousCables.filter(c => !this.addedCableIds.includes(c.id));
+    this.plan.recalcCableRoutes();
   }
 }

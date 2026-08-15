@@ -107,6 +107,7 @@ interface CadStoreState {
   templatesOpen: boolean
   cableJournalOpen: boolean
   devicePaletteOpen: boolean
+  aiChatOpen: boolean
   customDevices: CustomDevice[]
   selectedTextMode: 'single' | 'multi' | 'callout'
 
@@ -155,6 +156,7 @@ interface CadStoreState {
   setTemplatesOpen: (open: boolean) => void
   setCableJournalOpen: (open: boolean) => void
   setDevicePaletteOpen: (open: boolean) => void
+  setAiChatOpen: (open: boolean) => void
   addCustomDevice: (device: CustomDevice) => void
   updateCustomDevice: (id: string, device: Partial<CustomDevice>) => void
   removeCustomDevice: (id: string) => void
@@ -217,6 +219,7 @@ export const useCadStore = create<CadStoreState>((set) => ({
   templatesOpen: false,
   cableJournalOpen: false,
   devicePaletteOpen: false,
+  aiChatOpen: false,
   customDevices:
     typeof window !== 'undefined'
       ? deserializeCustomDevices(localStorage.getItem(CUSTOM_DEVICES_KEY))
@@ -268,6 +271,7 @@ export const useCadStore = create<CadStoreState>((set) => ({
   setTemplatesOpen: (templatesOpen) => set({ templatesOpen }),
   setCableJournalOpen: (cableJournalOpen) => set({ cableJournalOpen }),
   setDevicePaletteOpen: (devicePaletteOpen) => set({ devicePaletteOpen }),
+  setAiChatOpen: (aiChatOpen) => set({ aiChatOpen }),
   addCustomDevice: (device) =>
     set((state) => ({ customDevices: [...state.customDevices, device] })),
   updateCustomDevice: (id, device) =>

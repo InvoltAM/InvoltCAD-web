@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyWebhookToken, getPayment } from '@/lib/billing/yookassa'
-import { activateSubscription, addCredits } from '@/lib/billing/fulfillment'
+import { activateSubscription, addCredits, fulfillMarketplacePurchase } from '@/lib/billing/fulfillment'
 import { prisma } from '@/lib/prisma'
 
 // POST /api/billing/webhook — обработка webhook от YooKassa
@@ -61,8 +61,29 @@ export async function POST(request: NextRequest) {
       dbPayment.id
     )
   } else if (dbPayment.purpose === 'marketplace') {
-    // Маркетплейс обрабатывается отдельно
-    // TODO: реализовать покупку маркетплейс-айтема
+    const itemId = metadata.itemId
+    const itemType = metadata.itemType as 'device' | 'template' | undefined
+
+    if (!itemId || !itemType) {
+      return NextResponse.json({ error: 'Неверные метаданные маркетплейс-платежа' }, { status: 400 })
+    }
+
+    try {
+      const result = await fulfillMarketplacePurchase(
+        dbPayment.id,
+        userId,
+        { itemId, itemType }
+      )
+
+      if (!result.success) {
+        // YooKassa ожидает 200 даже при логических ошибках; логируем, но не ретраим
+        console.warn('Marketplace fulfillment failed:', result.error)
+        return NextResponse.json({ status: 'ignored', error: result.error })
+      }
+    } catch (error) {
+      console.error('Marketplace fulfillment error:', error)
+      return NextResponse.json({ status: 'error' }, { status: 500 })
+    }
   } else if (dbPayment.purpose === 'estimate') {
     const estimateId = metadata.estimateId
     const projectId = metadata.projectId

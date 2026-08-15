@@ -3,7 +3,7 @@ export type IconName =
   | 'drawing' | 'polyline' | 'segment' | 'rectangle' | 'circle'
   | 'move' | 'rotate' | 'trim' | 'extend'
   | 'text' | 'table'
-  | 'properties' | 'layers' | 'spec' | 'menu' | 'collapseDown' | 'collapseUp'
+  | 'properties' | 'layers' | 'spec' | 'menu' | 'collapseDown' | 'collapseUp' | 'ai'
   | 'undo' | 'redo' | 'zoomIn' | 'zoomOut' | 'save' | 'exportPng' | 'exportXlsx' | 'exportSvg' | 'print' | 'import' | 'clear'
   | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects'
   | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects'
@@ -37,6 +37,7 @@ const MAP: Record<IconName, string> = {
   menu: 'list',
   collapseDown: 'caret-down',
   collapseUp: 'caret-up',
+  ai: 'sparkle',
   undo: 'arrow-counter-clockwise',
   redo: 'arrow-clockwise',
   zoomIn: 'magnifying-glass-plus',
