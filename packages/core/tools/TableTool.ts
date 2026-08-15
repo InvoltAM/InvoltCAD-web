@@ -47,7 +47,7 @@ export class TableTool implements Tool {
 
     const end = snap.point.clone();
     const width = Math.max(Math.abs(end.x - this.startPoint.x), 600);
-    const height = Math.max(Math.abs(end.y - this.startPoint.y), 300);
+    const height = Math.max(Math.abs(end.y - this.startPoint.y), 15);
     const cols = 3;
     const rows = 3;
     const colWidth = width / cols;

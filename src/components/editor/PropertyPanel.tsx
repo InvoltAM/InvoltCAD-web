@@ -1134,7 +1134,7 @@ function TableProperties({ primitives }: { primitives: DrawingPrimitive[] }) {
   const addRow = () => {
     const newRow = table.rows
     table.rows++
-    table.rowHeights.push(300)
+    table.rowHeights.push(5)
     for (let c = 0; c < table.cols; c++) {
       table.cells.push({ row: newRow, col: c })
     }
@@ -1259,8 +1259,8 @@ function TableProperties({ primitives }: { primitives: DrawingPrimitive[] }) {
                 <td className="border border-gray-300 px-1 py-1 dark:border-gray-600">
                   <input
                     type="number"
-                    min={10}
-                    step={10}
+                    min={5}
+                    step={5}
                     value={table.rowHeights[r]}
                     onChange={(e) => updateRowHeight(r, parseFloat(e.target.value))}
                     className="w-16 rounded border border-gray-300 px-1 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-white"
