@@ -18,6 +18,9 @@ Dev-сервер Next.js работает на `http://localhost:3002/editor`.
   - `packages/core/tools/TextTool.ts` (однострочный и многострочный текст);
   - `packages/core/render/PrimitiveRenderer.ts` (fallback при отсутствии `fontSize`);
   - `src/components/editor/PropertyPanel.tsx` (значение по умолчанию в панели свойств).
+- Исправлен баг с повторной активацией инструмента «Текст»:
+  - В `Toolbar.tsx` `handleSelectTextMode` всегда вызывает `engineRef.current?.setTool('text')`, чтобы перезапустить инструмент и сбросить его состояние.
+  - Клик по кнопке «Текст» теперь активирует инструмент, если он не был активен.
 - `npx tsc --noEmit` и `npm test -- --run` проходят чисто.
 
 ## Последние коммиты

@@ -209,12 +209,17 @@ export default function Toolbar() {
   }
 
   const handleToggleTextMenu = () => {
+    if (currentTool !== 'text') {
+      setTool('text')
+      engineRef.current?.setTool('text')
+    }
     setTextMenuOpen((prev) => !prev)
   }
 
   const handleSelectTextMode = (mode: 'single' | 'multi' | 'callout') => {
     setSelectedTextMode(mode)
     setTool('text')
+    engineRef.current?.setTool('text')
     setTextMenuOpen(false)
   }
 
