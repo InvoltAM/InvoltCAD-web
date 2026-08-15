@@ -3,14 +3,6 @@ import { Plan } from '../model/Plan';
 import { CABLE_TYPES, CableType } from '../model/Cable';
 import { DEVICE_CATALOG } from '../catalogs/DeviceCatalog';
 import { ThemeManager } from '../editor/ThemeManager';
-import { PngExporter } from './PngExporter';
-
-const PAGE_SIZES = {
-  A4: { width: 210, height: 297 },
-  A3: { width: 297, height: 420 },
-};
-
-const MARGIN = 15;
 
 const DEVICE_COLORS: Record<string, string> = {
   socket: '#2563eb',
@@ -28,22 +20,23 @@ const CABLE_COLORS: Record<CableType, string> = {
   lighting: '#f59e0b',
   'low-current': '#10b981',
 };
+import { renderSheetToDataURL } from './SheetRenderer';
+import { getSheetDimensions, Sheet } from '../model/Sheet';
 
 export interface PrintOptions {
-  pageSize?: 'A4' | 'A3';
-  orientation?: 'portrait' | 'landscape' | 'auto';
-  printScale?: number | 'auto';
   title?: string;
   includeSpec?: boolean;
   includeLegend?: boolean;
   /** Если true, iframe создаётся, но диалог печати не вызывается (для тестов). */
   _testMode?: boolean;
+  /** Разрешение рендера листа в px на мм. По умолчанию 96 DPI (~3.78). */
+  resolution?: number;
 }
 
 /**
- * Печать плана и экспорт в PDF через диалог печати браузера.
- * Использует PngExporter для рендеринга плана и формирует HTML-страницу
- * с заголовком, масштабом, легендой и спецификацией.
+ * Печать всех листов проекта через диалог печати браузера.
+ * Каждый лист рендерится в собственном формате (A4/A3, альбомный/портретный)
+ * внутри своей рамки и печатается на отдельной странице.
  */
 export class PrintExporter {
   constructor(
@@ -53,55 +46,44 @@ export class PrintExporter {
   ) {}
 
   print(options: PrintOptions = {}): void {
-    const pageSize = options.pageSize ?? 'A4';
-    let orientation = options.orientation ?? 'auto';
-    let printScale: number | 'auto' = options.printScale ?? 'auto';
     const title = options.title ?? 'План помещения';
     const includeSpec = options.includeSpec ?? true;
     const includeLegend = options.includeLegend ?? true;
     const testMode = options._testMode ?? false;
+    const resolution = options.resolution ?? 3.7795275591; // 96 DPI
 
-    const pngExporter = new PngExporter(this.plan, this.editorState, this.themeManager);
-    const dataUrl = pngExporter.renderToDataURL({ scale: 2, title: '' });
-    if (!dataUrl) return;
+    if (this.plan.sheets.length === 0) {
+      alert('Нет листов для печати');
+      return;
+    }
 
-    const bounds = this.plan.getBounds(200);
-    const worldW = bounds.max.x - bounds.min.x;
-    const worldH = bounds.max.y - bounds.min.y;
+    const previousActiveSheetId = this.plan.activeSheetId;
 
-    if (!isFinite(worldW) || !isFinite(worldH) || worldW <= 0 || worldH <= 0) {
+    const pages: Array<{ sheet: Sheet; dataUrl: string }> = [];
+    for (const sheet of this.plan.sheets) {
+      const dataUrl = renderSheetToDataURL(
+        this.plan,
+        this.editorState,
+        this.themeManager,
+        sheet,
+        { resolution }
+      );
+      if (dataUrl) {
+        pages.push({ sheet, dataUrl });
+      }
+    }
+
+    // Восстанавливаем активный лист
+    this.plan.setActiveSheet(previousActiveSheetId);
+
+    if (pages.length === 0) {
       alert('Нечего печатать');
       return;
     }
 
-    const page = PAGE_SIZES[pageSize];
-    if (orientation === 'auto') {
-      orientation = worldW > worldH ? 'landscape' : 'portrait';
-    }
-
-    const printableW = orientation === 'landscape' ? page.height - MARGIN * 2 : page.width - MARGIN * 2;
-    const printableH = orientation === 'landscape' ? page.width - MARGIN * 2 : page.height - MARGIN * 2;
-
-    if (printScale === 'auto') {
-      printScale = Math.max(worldW / printableW, worldH / printableH);
-      // Округляем до «красивого" значения вверх
-      const steps = [5, 10, 20, 25, 50, 75, 100, 150, 200, 250, 500];
-      const scaled = printScale;
-      const next = steps.find(s => s >= scaled);
-      printScale = next ?? Math.ceil(printScale / 10) * 10;
-    }
-
-    const imageW = worldW / printScale;
-    const imageH = worldH / printScale;
-
     const html = this.buildHtml({
       title,
-      dataUrl,
-      imageW,
-      imageH,
-      printScale,
-      pageSize,
-      orientation,
+      pages,
       includeLegend,
       includeSpec,
     });
@@ -138,12 +120,7 @@ export class PrintExporter {
 
   private buildHtml(params: {
     title: string;
-    dataUrl: string;
-    imageW: number;
-    imageH: number;
-    printScale: number;
-    pageSize: 'A4' | 'A3';
-    orientation: 'portrait' | 'landscape';
+    pages: Array<{ sheet: Sheet; dataUrl: string }>;
     includeLegend: boolean;
     includeSpec: boolean;
   }): string {
@@ -151,26 +128,65 @@ export class PrintExporter {
     const legendHtml = params.includeLegend ? this.buildLegendHtml() : '';
     const specHtml = params.includeSpec ? this.buildSpecHtml() : '';
 
+    const pagesHtml = params.pages.map(({ sheet, dataUrl }, index) => {
+      const dims = getSheetDimensions(sheet.pageSize, sheet.orientation);
+      const isFirstPage = index === 0;
+
+      // Аспект-ратио листа для корректного отображения внутри страницы
+      const aspectClass = dims.width > dims.height ? 'landscape' : 'portrait';
+
+      return `
+<div class="sheet-page ${aspectClass}" data-size="${sheet.pageSize}" data-orientation="${sheet.orientation}">
+  ${isFirstPage ? `
+  <div class="header">
+    <div class="header-title">${this.escapeHtml(params.title)}</div>
+    <div class="header-meta">${this.escapeHtml(sheet.name)} &nbsp;|&nbsp; ${date}</div>
+  </div>
+  <img class="plan-image" src="${dataUrl}" alt="${this.escapeHtml(sheet.name)}">
+  ${legendHtml}
+  ${specHtml}
+  ` : `
+  <div class="header">
+    <div class="header-title">${this.escapeHtml(params.title)}</div>
+    <div class="header-meta">${this.escapeHtml(sheet.name)} &nbsp;|&nbsp; ${date}</div>
+  </div>
+  <img class="plan-image" src="${dataUrl}" alt="${this.escapeHtml(sheet.name)}">
+  `}
+</div>`;
+    }).join('');
+
     return `<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
 <title>${this.escapeHtml(params.title)}</title>
 <style>
-  @page {
-    size: ${params.pageSize} ${params.orientation};
-    margin: ${MARGIN}mm;
-  }
   * { box-sizing: border-box; }
-  body {
-    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: #111827;
+  html, body {
     margin: 0;
     padding: 0;
     background: #fff;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #111827;
   }
-  .sheet { width: 100%; }
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+  .sheet-page {
+    width: 100%;
+    min-height: 100vh;
+    page-break-after: always;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8mm;
+  }
+  .sheet-page:last-child {
+    page-break-after: auto;
+  }
   .header {
+    width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: baseline;
@@ -183,20 +199,24 @@ export class PrintExporter {
   .plan-image {
     display: block;
     max-width: 100%;
+    max-height: 245mm;
     height: auto;
-    margin-bottom: 4mm;
+    width: auto;
     border: 1px solid #e5e7eb;
+    margin-bottom: 4mm;
   }
   .section-title {
     font-size: 11pt;
     font-weight: 700;
     margin: 4mm 0 2mm;
+    width: 100%;
   }
   .legend-table, .spec-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 9pt;
     margin-bottom: 4mm;
+    max-width: 190mm;
   }
   .legend-table td, .spec-table th, .spec-table td {
     border: 1px solid #d1d5db;
@@ -223,18 +243,13 @@ export class PrintExporter {
     vertical-align: middle;
     margin-right: 6px;
   }
+  @media print {
+    .sheet-page { padding: 0; }
+  }
 </style>
 </head>
 <body>
-<div class="sheet">
-  <div class="header">
-    <div class="header-title">${this.escapeHtml(params.title)}</div>
-    <div class="header-meta">Масштаб 1:${params.printScale} &nbsp;|&nbsp; ${date}</div>
-  </div>
-  <img class="plan-image" src="${params.dataUrl}" style="width: ${params.imageW.toFixed(1)}mm;" alt="План">
-  ${legendHtml}
-  ${specHtml}
-</div>
+${pagesHtml}
 </body>
 </html>`;
   }
