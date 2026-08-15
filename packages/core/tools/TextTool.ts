@@ -98,7 +98,7 @@ export class TextTool implements Tool {
     const text = this.promptText();
     if (!text || !text.trim()) return;
 
-    this.canvas.commandManager.execute(new AddPrimitiveCommand(this.plan, 'text', [point.clone()], text.trim(), 140));
+    this.canvas.commandManager.execute(new AddPrimitiveCommand(this.plan, 'text', [point.clone()], text.trim(), 250));
     this.canvas.notifyChanged();
   }
 
@@ -106,7 +106,7 @@ export class TextTool implements Tool {
     const text = this.promptText();
     if (!text || !text.trim()) return;
 
-    this.canvas.commandManager.execute(new AddPrimitiveCommand(this.plan, 'text', [start.clone(), end.clone()], text.trim(), 140));
+    this.canvas.commandManager.execute(new AddPrimitiveCommand(this.plan, 'text', [start.clone(), end.clone()], text.trim(), 250));
     this.canvas.notifyChanged();
   }
 

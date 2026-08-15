@@ -67,7 +67,7 @@ export class PrimitiveRenderer {
         case 'text': {
           if (!primitive.text || points.length === 0) continue;
           const pos = points[0];
-          const fontSize = primitive.fontSize ?? 140;
+          const fontSize = primitive.fontSize ?? 250;
           const fontFamily = primitive.fontFamily ?? 'ui-sans-serif, system-ui, sans-serif';
           const fontStyle = primitive.italic ? 'italic ' : '';
           const fontWeight = isSelected ? 'bold ' : '';
@@ -164,7 +164,7 @@ export class PrimitiveRenderer {
       } else if (primitive.type === 'text') {
         if (!primitive.text || points.length === 0) continue;
         const pos = points[0];
-        const fontSize = primitive.fontSize ?? 140;
+        const fontSize = primitive.fontSize ?? 250;
         const lineHeight = fontSize * 1.2;
         const lines = primitive.text.split('\n');
         const textWidth = Math.max(

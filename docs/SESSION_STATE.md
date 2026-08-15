@@ -14,6 +14,10 @@ Dev-сервер Next.js работает на `http://localhost:3002/editor`.
   - При `onPointerUp` формируется `MoveSelectionState` и выполняется `MoveSelectionCommand` с финальным вектором смещения.
 - Исправлены импорты: `MoveSelectionCommand`/`MoveSelectionState` берутся из `packages/core/editor/ModifyCommands.ts`.
 - Убрано удаление выделенных объектов по `Backspace` — теперь удаление только по `Delete` (`packages/core/tools/SelectTool.ts`).
+- Базовый размер шрифта текстовых примитивов изменён с `140` мм на `250` мм:
+  - `packages/core/tools/TextTool.ts` (однострочный и многострочный текст);
+  - `packages/core/render/PrimitiveRenderer.ts` (fallback при отсутствии `fontSize`);
+  - `src/components/editor/PropertyPanel.tsx` (значение по умолчанию в панели свойств).
 - `npx tsc --noEmit` и `npm test -- --run` проходят чисто.
 
 ## Последние коммиты

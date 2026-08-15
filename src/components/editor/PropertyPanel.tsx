@@ -955,7 +955,7 @@ function PrimitiveProperties({ primitives }: { primitives: DrawingPrimitive[]; p
   }
 
   const commonText = commonValue(textPrimitives, (p) => p.text) ?? ''
-  const commonFontSize = commonValue(textPrimitives, (p) => p.fontSize) ?? 140
+  const commonFontSize = commonValue(textPrimitives, (p) => p.fontSize) ?? 250
   const commonFontFamily = commonValue(textPrimitives, (p) => p.fontFamily) ?? 'ui-sans-serif, system-ui, sans-serif'
   const commonColor = commonValue(textPrimitives, (p) => p.color) ?? ''
   const commonItalic = commonValue(textPrimitives, (p) => p.italic) ?? false
