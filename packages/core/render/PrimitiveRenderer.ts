@@ -154,20 +154,25 @@ export class PrimitiveRenderer {
   ): void {
     const gap = lineHeight * 0.3;
     const shelfY = textPos.y + textHeight + gap;
-    const textCenterX = textPos.x + textWidth / 2;
+    const shelfStartX = textPos.x;
+    const shelfEndX = textPos.x + textWidth;
 
-    // Полка горизонтальная: от текста к хвостику
-    const shelfStartX = tailEnd.x >= textCenterX ? textPos.x : textPos.x + textWidth;
+    // Точка присоединения хвостика к полке — ближайшая по X к кончику
+    const attachX = Math.max(shelfStartX, Math.min(shelfEndX, tailEnd.x));
+    const attach = new Vector2(attachX, shelfY);
+
     ctx.strokeStyle = color;
     ctx.lineWidth = 1 / this.camera.scale;
+
+    // Полка под текстом
     ctx.beginPath();
     ctx.moveTo(shelfStartX, shelfY);
-    ctx.lineTo(tailEnd.x, shelfY);
+    ctx.lineTo(shelfEndX, shelfY);
     ctx.stroke();
 
     // Хвостик от полки к кончику
     ctx.beginPath();
-    ctx.moveTo(tailEnd.x, shelfY);
+    ctx.moveTo(attach.x, attach.y);
     ctx.lineTo(tailEnd.x, tailEnd.y);
     ctx.stroke();
 
