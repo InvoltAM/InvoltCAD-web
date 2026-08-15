@@ -25,7 +25,7 @@ import {
   ResizeSheetTableCommand,
   RemovePrimitiveCommand,
 } from '../editor/CommandManager';
-import { MoveSelectionCommand, type MoveSelectionState } from '../editor/ModifyCommands';
+import { MoveSelectionCommand, type MoveSelectionState, UpdatePrimitiveCommand } from '../editor/ModifyCommands';
 import { TableResizeCorner } from '../render/TableRenderer';
 
 const ROOM_VERTEX_SCREEN_THRESHOLD = 8; // px
@@ -84,6 +84,13 @@ interface DragPrimitive {
   moved: boolean;
 }
 
+interface DragCalloutTail {
+  primitive: import('../model/DrawingPrimitive.js').DrawingPrimitive;
+  startWorld: Vector2;
+  originalTail: Vector2;
+  moved: boolean;
+}
+
 /**
  * Инструмент "Выбор".
  * Выделение, перемещение проема, удаление через CommandManager,
@@ -101,6 +108,7 @@ export class SelectTool implements Tool {
   private dragTable: DragTable | null = null;
   private resizeTable: ResizeTable | null = null;
   private dragPrimitive: DragPrimitive | null = null;
+  private dragCalloutTail: DragCalloutTail | null = null;
   private selectionBox: {
     startWorld: Vector2;
     currentWorld: Vector2;
@@ -250,25 +258,37 @@ export class SelectTool implements Tool {
       if (this.isMultiSelect(e)) {
         this.togglePrimitiveSelection(hitPrimitive.id);
       } else {
-        const selectedPrimitives = this.canvas.getSelectedPrimitives();
-        if (!selectedPrimitives.includes(hitPrimitive.id)) {
+        const isTail = this.hitTestCalloutTail(e.screenPoint, hitPrimitive);
+        if (isTail) {
           this.clearSelection();
           this.canvas.setSelectedPrimitive(hitPrimitive.id);
-        }
-        const ids = this.canvas.getSelectedPrimitives();
-        const originalPoints = new Map<string, Vector2[]>();
-        for (const id of ids) {
-          const primitive = this.plan.findPrimitive(id);
-          if (primitive) {
-            originalPoints.set(id, primitive.points.map(p => p.clone()));
+          this.dragCalloutTail = {
+            primitive: hitPrimitive,
+            startWorld: this.canvas.camera.screenToWorld(e.screenPoint),
+            originalTail: hitPrimitive.points[1].clone(),
+            moved: false,
+          };
+        } else {
+          const selectedPrimitives = this.canvas.getSelectedPrimitives();
+          if (!selectedPrimitives.includes(hitPrimitive.id)) {
+            this.clearSelection();
+            this.canvas.setSelectedPrimitive(hitPrimitive.id);
           }
+          const ids = this.canvas.getSelectedPrimitives();
+          const originalPoints = new Map<string, Vector2[]>();
+          for (const id of ids) {
+            const primitive = this.plan.findPrimitive(id);
+            if (primitive) {
+              originalPoints.set(id, primitive.points.map(p => p.clone()));
+            }
+          }
+          this.dragPrimitive = {
+            ids,
+            startWorld: this.canvas.camera.screenToWorld(e.screenPoint),
+            originalPoints,
+            moved: false,
+          };
         }
-        this.dragPrimitive = {
-          ids,
-          startWorld: this.canvas.camera.screenToWorld(e.screenPoint),
-          originalPoints,
-          moved: false,
-        };
       }
       this.dragOpening = null;
     } else if (hitTableHandle) {
@@ -400,6 +420,16 @@ export class SelectTool implements Tool {
         primitive.points = original.map(p => p.add(delta));
       }
       this.dragPrimitive.moved = true;
+      this.canvas.notifyChanged();
+      return;
+    }
+
+    if (this.dragCalloutTail) {
+      const world = this.canvas.camera.screenToWorld(e.screenPoint);
+      const snap = this.snapEngine.snap(e.screenPoint);
+      this.canvas.setSnap(snap);
+      this.dragCalloutTail.primitive.points[1] = snap.point.clone();
+      this.dragCalloutTail.moved = true;
       this.canvas.notifyChanged();
       return;
     }
@@ -560,6 +590,24 @@ export class SelectTool implements Tool {
         this.canvas.commandManager.execute(new MoveSelectionCommand(this.plan, state, delta));
       }
       this.dragPrimitive = null;
+      this.canvas.notifyChanged();
+      return;
+    }
+
+    if (this.dragCalloutTail) {
+      const { primitive, originalTail, moved } = this.dragCalloutTail;
+      if (moved) {
+        this.canvas.commandManager.execute(
+          new UpdatePrimitiveCommand(this.plan, primitive.id, [
+            primitive.points[0].clone(),
+            primitive.points[1].clone(),
+          ]),
+        );
+      } else {
+        primitive.points[1] = originalTail.clone();
+      }
+      this.dragCalloutTail = null;
+      this.canvas.setSnap(null);
       this.canvas.notifyChanged();
       return;
     }
@@ -829,6 +877,17 @@ export class SelectTool implements Tool {
       }
     }
     return null;
+  }
+
+  private hitTestCalloutTail(
+    screenPoint: Vector2,
+    primitive: import('../model/DrawingPrimitive.js').DrawingPrimitive,
+  ): boolean {
+    if (primitive.type !== 'text' || primitive.points.length < 2) return false;
+    const world = this.canvas.camera.screenToWorld(screenPoint);
+    const tail = primitive.points[1];
+    const thresholdWorld = 8 / this.canvas.camera.scale;
+    return world.distanceTo(tail) <= thresholdWorld + 6 / this.canvas.camera.scale;
   }
 
   private hitTestTableResizeHandle(

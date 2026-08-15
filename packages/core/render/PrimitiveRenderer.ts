@@ -66,44 +66,41 @@ export class PrimitiveRenderer {
 
         case 'text': {
           if (!primitive.text || points.length === 0) continue;
-          const pos = points[0];
           const fontSize = primitive.fontSize ?? 250;
           const fontFamily = primitive.fontFamily ?? 'ui-sans-serif, system-ui, sans-serif';
           const fontStyle = primitive.italic ? 'italic ' : '';
           const fontWeight = isSelected ? 'bold ' : '';
           ctx.font = `${fontWeight}${fontStyle}${fontSize}px ${fontFamily}`;
           ctx.fillStyle = primitive.color && !isSelected ? primitive.color : (isSelected ? selectedColor : color);
-          ctx.textAlign = primitive.textAlign ?? 'left';
           ctx.textBaseline = 'top';
-
-          // Линия выноски для callout (второй точкой задаётся конец выноски)
-          if (points.length >= 2) {
-            const end = points[1];
-            ctx.strokeStyle = primitive.color && !isSelected ? primitive.color : (isSelected ? selectedColor : color);
-            ctx.lineWidth = 1 / this.camera.scale;
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-            ctx.lineTo(end.x, end.y);
-            ctx.stroke();
-          }
 
           const lines = primitive.text.split('\n');
           const lineHeight = fontSize * 1.2;
-          let x = pos.x;
-          if (ctx.textAlign === 'center') x = pos.x;
-          else if (ctx.textAlign === 'right') x = pos.x;
+          const textWidth = Math.max(
+            ...lines.map((line) => ctx.measureText(line).width),
+            0,
+          );
+          const textHeight = lines.length * lineHeight;
 
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i] ?? '';
-            let lineX = x;
-            if (ctx.textAlign === 'center') {
-              const metrics = ctx.measureText(line);
-              lineX = pos.x - metrics.width / 2;
-            } else if (ctx.textAlign === 'right') {
-              const metrics = ctx.measureText(line);
-              lineX = pos.x - metrics.width;
+          if (points.length >= 2) {
+            // Выноска: текст над полкой, полка над хвостиком
+            this.renderCallout(ctx, points[0], points[1], lines, lineHeight, textWidth, textHeight, primitive.color && !isSelected ? primitive.color : (isSelected ? selectedColor : color));
+          } else {
+            // Обычный текст
+            ctx.textAlign = primitive.textAlign ?? 'left';
+            const pos = points[0];
+            for (let i = 0; i < lines.length; i++) {
+              const line = lines[i] ?? '';
+              let lineX = pos.x;
+              if (ctx.textAlign === 'center') {
+                const metrics = ctx.measureText(line);
+                lineX = pos.x - metrics.width / 2;
+              } else if (ctx.textAlign === 'right') {
+                const metrics = ctx.measureText(line);
+                lineX = pos.x - metrics.width;
+              }
+              ctx.fillText(line, lineX, pos.y + i * lineHeight);
             }
-            ctx.fillText(line, lineX, pos.y + i * lineHeight);
           }
           break;
         }
@@ -142,6 +139,50 @@ export class PrimitiveRenderer {
           break;
         }
       }
+    }
+  }
+
+  private renderCallout(
+    ctx: CanvasRenderingContext2D,
+    textPos: Vector2,
+    tailEnd: Vector2,
+    lines: string[],
+    lineHeight: number,
+    textWidth: number,
+    textHeight: number,
+    color: string,
+  ): void {
+    const gap = lineHeight * 0.3;
+    const shelfY = textPos.y + textHeight + gap;
+    const textCenterX = textPos.x + textWidth / 2;
+
+    // Полка горизонтальная: от текста к хвостику
+    const shelfStartX = tailEnd.x >= textCenterX ? textPos.x : textPos.x + textWidth;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1 / this.camera.scale;
+    ctx.beginPath();
+    ctx.moveTo(shelfStartX, shelfY);
+    ctx.lineTo(tailEnd.x, shelfY);
+    ctx.stroke();
+
+    // Хвостик от полки к кончику
+    ctx.beginPath();
+    ctx.moveTo(tailEnd.x, shelfY);
+    ctx.lineTo(tailEnd.x, tailEnd.y);
+    ctx.stroke();
+
+    // Узел на кончике хвостика
+    const nodeRadius = 3 / this.camera.scale;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(tailEnd.x, tailEnd.y, nodeRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Текст над полкой
+    ctx.textAlign = 'left';
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i] ?? '';
+      ctx.fillText(line, textPos.x, textPos.y + i * lineHeight);
     }
   }
 
@@ -232,24 +273,21 @@ export class PrimitiveRenderer {
         const lineHeight = fontSize * 1.2;
         const lines = primitive.text.split('\n');
         const textWidth = Math.max(
-          ...lines.map((line) => {
-            // Приблизительная ширина: 0.55 от высоты символа
-            return line.length * fontSize * 0.55;
-          }),
+          ...lines.map((line) => line.length * fontSize * 0.55),
+          0,
         );
         const textHeight = lines.length * lineHeight;
-        let minX = pos.x;
-        if (primitive.textAlign === 'center') minX = pos.x - textWidth / 2;
-        else if (primitive.textAlign === 'right') minX = pos.x - textWidth;
+        const minX = pos.x;
         const minY = pos.y;
         const maxX = minX + textWidth;
-        const maxY = pos.y + textHeight;
-        if (
-          world.x >= minX - thresholdWorld &&
-          world.x <= maxX + thresholdWorld &&
-          world.y >= minY - thresholdWorld &&
-          world.y <= maxY + thresholdWorld
-        ) {
+        const maxY = minY + textHeight;
+        const hit =
+          (world.x >= minX - thresholdWorld &&
+            world.x <= maxX + thresholdWorld &&
+            world.y >= minY - thresholdWorld &&
+            world.y <= maxY + thresholdWorld) ||
+          (points.length >= 2 && world.distanceTo(points[1]) <= thresholdWorld + 6 / this.camera.scale);
+        if (hit) {
           const cx = (minX + maxX) / 2;
           const cy = (minY + maxY) / 2;
           const distWorld = Math.hypot(world.x - cx, world.y - cy);
