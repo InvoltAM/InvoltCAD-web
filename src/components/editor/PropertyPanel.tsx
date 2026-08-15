@@ -1134,7 +1134,7 @@ function TableProperties({ primitives }: { primitives: DrawingPrimitive[] }) {
   const addRow = () => {
     const newRow = table.rows
     table.rows++
-    table.rowHeights.push(5)
+    table.rowHeights.push(500)
     for (let c = 0; c < table.cols; c++) {
       table.cells.push({ row: newRow, col: c })
     }

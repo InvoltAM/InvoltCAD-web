@@ -40,7 +40,7 @@ export interface DrawingPrimitive {
 }
 
 const DEFAULT_TABLE_COL_WIDTH = 600;
-const DEFAULT_TABLE_ROW_HEIGHT = 5;
+const DEFAULT_TABLE_ROW_HEIGHT = 500;
 const DEFAULT_TABLE_FONT_SIZE = 140;
 
 export function createDrawingPrimitive(
