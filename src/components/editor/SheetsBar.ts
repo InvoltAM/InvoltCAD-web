@@ -368,10 +368,7 @@ export class SheetsBar {
     drawingTitleInput.type = 'text';
     drawingTitleInput.value = sheet.titleBlock.drawingTitle;
     drawingTitleInput.addEventListener('change', () => {
-      const value = drawingTitleInput.value;
-      for (const s of this.plan.sheets) {
-        s.titleBlock.drawingTitle = value;
-      }
+      sheet.titleBlock.drawingTitle = drawingTitleInput.value;
       this.engine.notifyChanged();
     });
     drawingTitleInput.addEventListener('keydown', e => e.stopPropagation());
