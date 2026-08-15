@@ -363,6 +363,20 @@ export class SheetsBar {
     });
     menu.appendChild(createRow('Масштаб', scaleSelect));
 
+    const drawingTitleInput = document.createElement('input');
+    drawingTitleInput.className = 'sheet-tab-menu-input';
+    drawingTitleInput.type = 'text';
+    drawingTitleInput.value = sheet.titleBlock.drawingTitle;
+    drawingTitleInput.addEventListener('change', () => {
+      const value = drawingTitleInput.value;
+      for (const s of this.plan.sheets) {
+        s.titleBlock.drawingTitle = value;
+      }
+      this.engine.notifyChanged();
+    });
+    drawingTitleInput.addEventListener('keydown', e => e.stopPropagation());
+    menu.appendChild(createRow('Наименование', drawingTitleInput));
+
     const sheetNoInput = document.createElement('input');
     sheetNoInput.className = 'sheet-tab-menu-input';
     sheetNoInput.type = 'text';
@@ -580,7 +594,6 @@ export class SheetsBar {
     createField('№ проекта / Шифр', tb.projectCode, 'projectCode', 'projectCode');
     createField('Адрес', tb.address, 'address', 'address');
     createField('Раздел', tb.section, 'section', 'section');
-    createField('Наименование', tb.drawingTitle, 'drawingTitle', 'drawingTitle');
     createField('Компания', tb.company, 'company', 'company');
     createCompanyLogoField();
     createField('Стадия', tb.stage, 'stage', 'stage');
