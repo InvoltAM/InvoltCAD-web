@@ -367,6 +367,7 @@ export default function Toolbar() {
         'drawing',
         ...navigationTools.map((t) => t.name),
         'text',
+        'table',
         'modify',
         ...modifyTools.map((t) => t.name),
         'undo',
@@ -781,6 +782,20 @@ export default function Toolbar() {
             </div>
           )}
         </div>
+        <button
+          key="table"
+          onClick={() => {
+            setTool('table')
+            engineRef.current?.setTool('table')
+          }}
+          onMouseEnter={() => setHoveredDockId('table')}
+          className={`editor-dock-item ${currentTool === 'table' ? 'active' : ''}`}
+          title="Таблица"
+          style={{ transform: `scale(${getDockScale('table')})` }}
+        >
+          <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('table') }} />
+          <span className="editor-dock-tooltip">Таблица</span>
+        </button>
         <div className="editor-dock-divider" />
         {dockActions.flatMap((action) => {
           const elements: React.ReactNode[] = [

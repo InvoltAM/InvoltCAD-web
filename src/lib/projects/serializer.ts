@@ -65,6 +65,23 @@ export interface SerializedDimension {
   text?: string
 }
 
+export interface SerializedTableCell {
+  row: number
+  col: number
+  text?: string
+  rowSpan?: number
+  colSpan?: number
+}
+
+export interface SerializedTable {
+  rows: number
+  cols: number
+  cells: SerializedTableCell[]
+  columnWidths: number[]
+  rowHeights: number[]
+  fontSize?: number
+}
+
 export interface SerializedPrimitive {
   id: string
   type: DrawingPrimitiveType
@@ -75,6 +92,7 @@ export interface SerializedPrimitive {
   color?: string
   italic?: boolean
   textAlign?: 'left' | 'center' | 'right'
+  table?: SerializedTable
 }
 
 export interface SerializedPlan {
@@ -177,6 +195,22 @@ export function serializePlan(plan: Plan): SerializedPlan {
     color: primitive.color,
     italic: primitive.italic,
     textAlign: primitive.textAlign,
+    table: primitive.table
+      ? {
+          rows: primitive.table.rows,
+          cols: primitive.table.cols,
+          cells: primitive.table.cells.map((c) => ({
+            row: c.row,
+            col: c.col,
+            text: c.text,
+            rowSpan: c.rowSpan,
+            colSpan: c.colSpan,
+          })),
+          columnWidths: [...primitive.table.columnWidths],
+          rowHeights: [...primitive.table.rowHeights],
+          fontSize: primitive.table.fontSize,
+        }
+      : undefined,
   }))
 
   return { walls, openings, devices, cables, dimensions, primitives, electrical: plan.electrical ?? createEmptyElectrical() }
@@ -286,6 +320,22 @@ export function deserializePlan(data: SerializedPlan): Plan {
       p.textAlign,
     )
     primitive.id = p.id
+    if (p.table && primitive.type === 'table') {
+      primitive.table = {
+        rows: p.table.rows,
+        cols: p.table.cols,
+        cells: p.table.cells.map((c) => ({
+          row: c.row,
+          col: c.col,
+          text: c.text,
+          rowSpan: c.rowSpan,
+          colSpan: c.colSpan,
+        })),
+        columnWidths: [...p.table.columnWidths],
+        rowHeights: [...p.table.rowHeights],
+        fontSize: p.table.fontSize,
+      }
+    }
   }
 
   plan.electrical = data.electrical ?? createEmptyElectrical()

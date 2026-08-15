@@ -943,10 +943,14 @@ function DeviceToolSettings() {
 
 function PrimitiveProperties({ primitives }: { primitives: DrawingPrimitive[]; plan: Plan }) {
   const { engineRef } = useEditor()
+  const tablePrimitives = primitives.filter((p) => p.type === 'table')
   const textPrimitives = primitives.filter((p) => p.type === 'text')
-  const count = textPrimitives.length
 
-  if (count === 0) {
+  if (tablePrimitives.length > 0) {
+    return <TableProperties primitives={tablePrimitives} />
+  }
+
+  if (textPrimitives.length === 0) {
     return (
       <div className="text-sm text-gray-500 dark:text-gray-400">
         Выбрано примитивов: {primitives.length}
@@ -954,6 +958,7 @@ function PrimitiveProperties({ primitives }: { primitives: DrawingPrimitive[]; p
     )
   }
 
+  const count = textPrimitives.length
   const commonText = commonValue(textPrimitives, (p) => p.text) ?? ''
   const commonFontSize = commonValue(textPrimitives, (p) => p.fontSize) ?? 250
   const commonFontFamily = commonValue(textPrimitives, (p) => p.fontFamily) ?? 'ui-sans-serif, system-ui, sans-serif'
@@ -1080,6 +1085,144 @@ function PrimitiveProperties({ primitives }: { primitives: DrawingPrimitive[]; p
             </button>
           ))}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function TableProperties({ primitives }: { primitives: DrawingPrimitive[] }) {
+  const { engineRef } = useEditor()
+  const first = primitives[0]
+  const table = first?.table
+  const [tick, setTick] = useState(0)
+
+  if (!table || primitives.length > 1) {
+    return (
+      <div className="text-sm text-gray-500 dark:text-gray-400">
+        {primitives.length > 1
+          ? 'Редактирование таблицы доступно только по одной таблице за раз.'
+          : 'Таблица не найдена.'}
+      </div>
+    )
+  }
+
+  const forceUpdate = () => {
+    setTick((t) => t + 1)
+    engineRef.current?.notifyChanged()
+    engineRef.current?.requestRender()
+  }
+
+  const updateCell = (row: number, col: number, patch: Partial<import('@core/model/DrawingPrimitive').DrawingTableCell>) => {
+    const cell = table.cells.find((c) => c.row === row && c.col === col)
+    if (!cell) return
+    Object.assign(cell, patch)
+    forceUpdate()
+  }
+
+  const updateColumnWidth = (col: number, width: number) => {
+    if (width <= 0) return
+    table.columnWidths[col] = width
+    forceUpdate()
+  }
+
+  const updateRowHeight = (row: number, height: number) => {
+    if (height <= 0) return
+    table.rowHeights[row] = height
+    forceUpdate()
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="text-xs text-gray-500 dark:text-gray-400">Редактирование таблицы</div>
+
+      <div>
+        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Размер шрифта таблицы, мм</label>
+        <input
+          type="number"
+          min={10}
+          step={10}
+          value={table.fontSize ?? 140}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value)
+            if (Number.isFinite(v) && v > 0) {
+              table.fontSize = v
+              forceUpdate()
+            }
+          }}
+          className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        />
+      </div>
+
+      <div className="max-h-64 overflow-auto">
+        <table className="w-full border-collapse text-xs">
+          <thead>
+            <tr>
+              <th className="border border-gray-300 px-1 py-1 dark:border-gray-600"></th>
+              {Array.from({ length: table.cols }).map((_, c) => (
+                <th key={c} className="border border-gray-300 px-1 py-1 dark:border-gray-600">
+                  <input
+                    type="number"
+                    min={10}
+                    step={10}
+                    value={table.columnWidths[c]}
+                    onChange={(e) => updateColumnWidth(c, parseFloat(e.target.value))}
+                    className="w-16 rounded border border-gray-300 px-1 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    title="Ширина столбца"
+                  />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: table.rows }).map((_, r) => (
+              <tr key={r}>
+                <td className="border border-gray-300 px-1 py-1 dark:border-gray-600">
+                  <input
+                    type="number"
+                    min={10}
+                    step={10}
+                    value={table.rowHeights[r]}
+                    onChange={(e) => updateRowHeight(r, parseFloat(e.target.value))}
+                    className="w-16 rounded border border-gray-300 px-1 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    title="Высота строки"
+                  />
+                </td>
+                {Array.from({ length: table.cols }).map((_, c) => {
+                  const cell = table.cells.find((x) => x.row === r && x.col === c)
+                  if (!cell) return <td key={c} className="border border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-800" />
+                  return (
+                    <td key={c} className="border border-gray-300 px-1 py-1 dark:border-gray-600">
+                      <input
+                        type="text"
+                        value={cell.text ?? ''}
+                        onChange={(e) => updateCell(r, c, { text: e.target.value })}
+                        className="w-full rounded border border-gray-300 px-1 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      />
+                      <div className="mt-1 flex gap-1">
+                        <input
+                          type="number"
+                          min={1}
+                          value={cell.rowSpan ?? 1}
+                          onChange={(e) => updateCell(r, c, { rowSpan: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                          className="w-10 rounded border border-gray-300 px-1 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                          title="Row span"
+                        />
+                        <input
+                          type="number"
+                          min={1}
+                          value={cell.colSpan ?? 1}
+                          onChange={(e) => updateCell(r, c, { colSpan: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                          className="w-10 rounded border border-gray-300 px-1 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                          title="Col span"
+                        />
+                      </div>
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )

@@ -1492,6 +1492,19 @@ export class SelectTool implements Tool {
       return this.rectIntersectsBox(bounds, box);
     }
 
+    if (primitive.type === 'table') {
+      if (!primitive.table || pts.length === 0) return false;
+      const origin = pts[0];
+      const totalW = primitive.table.columnWidths.reduce((a, b) => a + b, 0);
+      const totalH = primitive.table.rowHeights.reduce((a, b) => a + b, 0);
+      const bounds = {
+        min: new Vector2(origin.x, origin.y),
+        max: new Vector2(origin.x + totalW, origin.y + totalH),
+      };
+      if (isWindow) return this.rectInBox(bounds, box);
+      return this.rectIntersectsBox(bounds, box);
+    }
+
     return false;
   }
 

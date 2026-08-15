@@ -17,6 +17,7 @@ import { RotateTool } from '@core/tools/RotateTool'
 import { TrimTool } from '@core/tools/TrimTool'
 import { ExtendTool } from '@core/tools/ExtendTool'
 import { TextTool } from '@core/tools/TextTool'
+import { TableTool } from '@core/tools/TableTool'
 import { ThemeManager } from '@core/editor/ThemeManager'
 import { useCadStore } from '@/stores/cadStore'
 import { EditorProvider } from './EditorContext'
@@ -164,12 +165,14 @@ export default function PlanEditor() {
     const trimTool = new TrimTool(engine, plan, engine.snapEngine)
     const extendTool = new ExtendTool(engine, plan, engine.snapEngine)
     const textTool = new TextTool(engine, plan, engine.snapEngine)
+    const tableTool = new TableTool(engine, plan, engine.snapEngine)
 
     engine.registerTool('move', moveTool)
     engine.registerTool('rotate', rotateTool)
     engine.registerTool('trim', trimTool)
     engine.registerTool('extend', extendTool)
     engine.registerTool('text', textTool)
+    engine.registerTool('table', tableTool)
 
     // Подписка на изменения плана для валидации и автосохранения
     engine.onChange = () => {

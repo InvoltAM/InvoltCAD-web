@@ -4,7 +4,7 @@ export type ToolName =
   | 'wall' | 'door' | 'window' | 'select' | 'hand' | 'device' | 'cable' | 'dimension'
   | 'polyline' | 'segment' | 'rectangle' | 'circle'
   | 'move' | 'rotate' | 'trim' | 'extend'
-  | 'text';
+  | 'text' | 'table';
 
 export interface Tool {
   readonly name: ToolName;

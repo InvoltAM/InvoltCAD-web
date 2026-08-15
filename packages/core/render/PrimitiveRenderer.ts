@@ -107,8 +107,72 @@ export class PrimitiveRenderer {
           }
           break;
         }
+
+        case 'table': {
+          if (!primitive.table || points.length === 0) continue;
+          const table = primitive.table;
+          const origin = points[0];
+          const cellMap = new Map<string, import('../model/DrawingPrimitive').DrawingTableCell>();
+          for (const cell of table.cells) {
+            cellMap.set(`${cell.row},${cell.col}`, cell);
+          }
+          ctx.strokeStyle = isSelected ? selectedColor : color;
+          ctx.lineWidth = isSelected ? 2 / this.camera.scale : 1 / this.camera.scale;
+
+          // Границы ячеек
+          for (let r = 0; r < table.rows; r++) {
+            for (let c = 0; c < table.cols; c++) {
+              const key = `${r},${c}`;
+              if (!cellMap.has(key)) continue;
+              const cell = cellMap.get(key)!;
+              const { x, y, w, h } = this.getTableCellBounds(table, origin, cell.row, cell.col);
+              ctx.strokeRect(x, y, w, h);
+
+              // Текст ячейки
+              if (cell.text) {
+                const fontSize = table.fontSize ?? 140;
+                ctx.font = `${fontSize}px ui-sans-serif, system-ui, sans-serif`;
+                ctx.fillStyle = isSelected ? selectedColor : color;
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                ctx.fillText(cell.text, x + fontSize * 0.2, y + fontSize * 0.2);
+              }
+            }
+          }
+          break;
+        }
       }
     }
+  }
+
+  private getTableCellBounds(
+    table: import('../model/DrawingPrimitive').DrawingTable,
+    origin: Vector2,
+    row: number,
+    col: number,
+  ): { x: number; y: number; w: number; h: number } {
+    let x = origin.x;
+    for (let c = 0; c < col; c++) {
+      x += table.columnWidths[c] ?? 0;
+    }
+    let y = origin.y;
+    for (let r = 0; r < row; r++) {
+      y += table.rowHeights[r] ?? 0;
+    }
+    let w = table.columnWidths[col] ?? 0;
+    let h = table.rowHeights[row] ?? 0;
+    const cell = table.cells.find((c) => c.row === row && c.col === col);
+    if (cell?.colSpan && cell.colSpan > 1) {
+      for (let i = 1; i < cell.colSpan && col + i < table.cols; i++) {
+        w += table.columnWidths[col + i] ?? 0;
+      }
+    }
+    if (cell?.rowSpan && cell.rowSpan > 1) {
+      for (let i = 1; i < cell.rowSpan && row + i < table.rows; i++) {
+        h += table.rowHeights[row + i] ?? 0;
+      }
+    }
+    return { x, y, w, h };
   }
 
   /** Hit-test примитива: ближайший сегмент/грань/окружность в пределах thresholdPx. */
@@ -188,6 +252,24 @@ export class PrimitiveRenderer {
         ) {
           const cx = (minX + maxX) / 2;
           const cy = (minY + maxY) / 2;
+          const distWorld = Math.hypot(world.x - cx, world.y - cy);
+          if (!best || distWorld < best.distWorld) {
+            best = { primitive, distWorld };
+          }
+        }
+      } else if (primitive.type === 'table') {
+        if (!primitive.table || points.length === 0) continue;
+        const origin = points[0];
+        const totalW = primitive.table.columnWidths.reduce((a, b) => a + b, 0);
+        const totalH = primitive.table.rowHeights.reduce((a, b) => a + b, 0);
+        if (
+          world.x >= origin.x - thresholdWorld &&
+          world.x <= origin.x + totalW + thresholdWorld &&
+          world.y >= origin.y - thresholdWorld &&
+          world.y <= origin.y + totalH + thresholdWorld
+        ) {
+          const cx = origin.x + totalW / 2;
+          const cy = origin.y + totalH / 2;
           const distWorld = Math.hypot(world.x - cx, world.y - cy);
           if (!best || distWorld < best.distWorld) {
             best = { primitive, distWorld };

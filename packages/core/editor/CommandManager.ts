@@ -1,5 +1,5 @@
 import { Plan } from '../model/Plan';
-import { DrawingPrimitive, DrawingPrimitiveType } from '../model/DrawingPrimitive';
+import { DrawingPrimitive, DrawingPrimitiveType, DrawingTable, DrawingTableCell } from '../model/DrawingPrimitive';
 import { Wall, WallArc, DEFAULT_WALL_THICKNESS, updateWallArcEndpoints } from '../model/Wall';
 import { Opening, OpeningType } from '../model/Opening';
 import { Device, DeviceType } from '../model/Device';
@@ -747,6 +747,7 @@ export class AddPrimitiveCommand implements Command {
     private color?: string,
     private italic?: boolean,
     private textAlign?: 'left' | 'center' | 'right',
+    private tableData?: Partial<DrawingTable>,
   ) {}
 
   execute(): void {
@@ -760,6 +761,34 @@ export class AddPrimitiveCommand implements Command {
       this.italic,
       this.textAlign,
     );
+    if (this.tableData && primitive.type === 'table') {
+      const rows = this.tableData.rows ?? 3;
+      const cols = this.tableData.cols ?? 3;
+      const columnWidths = this.tableData.columnWidths?.length === cols
+        ? this.tableData.columnWidths
+        : Array(cols).fill(600);
+      const rowHeights = this.tableData.rowHeights?.length === rows
+        ? this.tableData.rowHeights
+        : Array(rows).fill(300);
+      const existingCells = new Map<string, DrawingTableCell>(
+        (this.tableData.cells ?? []).map((c: DrawingTableCell) => [`${c.row},${c.col}`, c]),
+      );
+      const cells: DrawingTableCell[] = [];
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const existing = existingCells.get(`${r},${c}`);
+          cells.push(existing ?? { row: r, col: c });
+        }
+      }
+      primitive.table = {
+        rows,
+        cols,
+        cells,
+        columnWidths,
+        rowHeights,
+        fontSize: this.tableData.fontSize ?? this.fontSize ?? 140,
+      };
+    }
     this.primitiveId = primitive.id;
   }
 
