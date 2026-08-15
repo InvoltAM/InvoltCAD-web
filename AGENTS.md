@@ -63,6 +63,20 @@ See `.env.example` for all required variables.
 - Jobs: test (with PostgreSQL service), build, docker (on main push)
 - Docker image: `involtam/involtcad-web:latest`
 
+## AI Assistant / Analysis
+
+AI-функционал реализован через OpenAI-compatible HTTP API. Для работы на финальной стадии разработки необходимо настроить провайдера в `.env`:
+
+```bash
+AI_API_URL=https://api.groq.com/openai/v1/chat/completions
+AI_API_KEY=...
+AI_MODEL=llama3-8b-8192
+AI_COST_CREDITS=1
+AI_ANALYZE_COST=2
+```
+
+Бесплатные варианты: **Groq**, **OpenRouter** (модели `:free`), **Together AI** (стартовые кредиты), **Ollama** (локально, бесплатно, требует ресурсов). Пока провайдер не настроен, `/api/ai/chat` и `/api/ai/analyze` возвращают «AI-провайдер не настроен».
+
 ## MCP Servers
 
 Настроены в `~/.kimi-code/mcp.json`:
