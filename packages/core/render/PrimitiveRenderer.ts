@@ -152,7 +152,7 @@ export class PrimitiveRenderer {
     textHeight: number,
     color: string,
   ): void {
-    const gap = lineHeight * 0.3;
+    const gap = lineHeight * 0.08;
     const shelfY = textPos.y + textHeight + gap;
     const shelfStartX = textPos.x;
     const shelfEndX = textPos.x + textWidth;
