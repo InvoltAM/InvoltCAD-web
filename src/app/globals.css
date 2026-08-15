@@ -1005,6 +1005,7 @@ body {
 }
 
 .device-palette-btn {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1059,6 +1060,36 @@ body {
   word-break: break-word;
   max-height: 2.4em;
   overflow: hidden;
+}
+
+.device-palette-delete-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.device-palette-btn:hover .device-palette-delete-btn {
+  opacity: 1;
+}
+
+.device-palette-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #dc2626;
 }
 
 .device-palette-submenu {

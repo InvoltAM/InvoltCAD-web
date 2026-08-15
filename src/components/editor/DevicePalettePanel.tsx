@@ -34,6 +34,8 @@ interface DeviceItem {
   label: string
   fullName: string
   symbol: React.ReactNode
+  isCustom?: boolean
+  customDeviceId?: string
 }
 
 const builtInDevicesByCategory: Record<string, DeviceItem[]> = {
@@ -70,6 +72,7 @@ export default function DevicePalettePanel() {
   const setTool = useCadStore((s) => s.setTool)
   const selectedDeviceType = useCadStore((s) => s.selectedDeviceType)
   const customDevices = useCadStore((s) => s.customDevices)
+  const removeCustomDevice = useCadStore((s) => s.removeCustomDevice)
   const { engineRef } = useEditor()
 
   const handleSelectDevice = (type: DeviceType) => {
@@ -89,10 +92,19 @@ export default function DevicePalettePanel() {
         label: device.name,
         fullName: device.name,
         symbol: <CustomDeviceSymbol primitives={device.primitives} />,
+        isCustom: true,
+        customDeviceId: device.id,
       })
     }
     return map
   }, [customDevices])
+
+  const handleDeleteCustomDevice = (e: React.MouseEvent, deviceId: string, deviceName: string) => {
+    e.stopPropagation()
+    if (confirm(`Удалить блок «${deviceName}»?`)) {
+      removeCustomDevice(deviceId)
+    }
+  }
 
   return (
     <>
@@ -134,6 +146,15 @@ export default function DevicePalettePanel() {
                   onClick={() => handleSelectDevice(item.type)}
                   title={item.fullName}
                 >
+                  {item.isCustom && item.customDeviceId && (
+                    <span
+                      className="device-palette-delete-btn"
+                      title="Удалить блок"
+                      onClick={(e) => handleDeleteCustomDevice(e, item.customDeviceId!, item.label)}
+                    >
+                      ×
+                    </span>
+                  )}
                   {item.symbol}
                   <span className="device-palette-label">{item.label}</span>
                 </button>
