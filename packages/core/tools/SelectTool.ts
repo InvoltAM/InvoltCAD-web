@@ -678,7 +678,7 @@ export class SelectTool implements Tool {
   }
 
   onKeyDown(e: KeyboardEvent): boolean {
-    if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (e.key === 'Delete') {
       const walls = this.canvas.getSelectedWalls();
       const openings = this.canvas.getSelectedOpenings();
       const devices = this.canvas.getSelectedDevices();

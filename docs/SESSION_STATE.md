@@ -13,6 +13,7 @@ Dev-сервер Next.js работает на `http://localhost:3002/editor`.
   - При `onPointerMove` ко всем точкам применяется `delta = currentWorld - startWorld`.
   - При `onPointerUp` формируется `MoveSelectionState` и выполняется `MoveSelectionCommand` с финальным вектором смещения.
 - Исправлены импорты: `MoveSelectionCommand`/`MoveSelectionState` берутся из `packages/core/editor/ModifyCommands.ts`.
+- Убрано удаление выделенных объектов по `Backspace` — теперь удаление только по `Delete` (`packages/core/tools/SelectTool.ts`).
 - `npx tsc --noEmit` и `npm test -- --run` проходят чисто.
 
 ## Последние коммиты
