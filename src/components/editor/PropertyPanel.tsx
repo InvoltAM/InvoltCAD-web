@@ -945,29 +945,152 @@ function PrimitiveProperties({ primitives }: { primitives: DrawingPrimitive[]; p
   const { engineRef } = useEditor()
   const tablePrimitives = primitives.filter((p) => p.type === 'table')
   const textPrimitives = primitives.filter((p) => p.type === 'text')
+  const shapePrimitives = primitives.filter((p) => ['polyline', 'segment', 'rectangle', 'circle'].includes(p.type))
 
-  if (tablePrimitives.length > 0) {
-    return <TableProperties primitives={tablePrimitives} />
-  }
+  return (
+    <div className="space-y-4">
+      {shapePrimitives.length > 0 && (
+        <ShapeProperties primitives={shapePrimitives} />
+      )}
 
-  if (textPrimitives.length === 0) {
-    return (
-      <div className="text-sm text-gray-500 dark:text-gray-400">
-        Выбрано примитивов: {primitives.length}
-      </div>
-    )
-  }
+      {textPrimitives.length > 0 && (
+        <TextProperties primitives={textPrimitives} />
+      )}
 
-  const count = textPrimitives.length
-  const commonText = commonValue(textPrimitives, (p) => p.text) ?? ''
-  const commonFontSize = commonValue(textPrimitives, (p) => p.fontSize) ?? 250
-  const commonFontFamily = commonValue(textPrimitives, (p) => p.fontFamily) ?? 'ui-sans-serif, system-ui, sans-serif'
-  const commonColor = commonValue(textPrimitives, (p) => p.color) ?? ''
-  const commonItalic = commonValue(textPrimitives, (p) => p.italic) ?? false
-  const commonTextAlign = commonValue(textPrimitives, (p) => p.textAlign) ?? 'left'
+      {tablePrimitives.length > 0 && (
+        <TableProperties primitives={tablePrimitives} />
+      )}
+    </div>
+  )
+}
+
+function ShapeProperties({ primitives }: { primitives: DrawingPrimitive[] }) {
+  const { engineRef } = useEditor()
+  const hasFillable = primitives.some((p) => p.type === 'rectangle' || p.type === 'circle')
+
+  const commonLineWidth = commonValue(primitives, (p) => p.lineWidth) ?? 1
+  const commonLineColor = commonValue(primitives, (p) => p.lineColor) ?? ''
+  const commonLineStyle = commonValue(primitives, (p) => p.lineStyle) ?? 'solid'
+  const commonFillColor = commonValue(primitives, (p) => p.fillColor) ?? ''
 
   const apply = (patch: Partial<DrawingPrimitive>) => {
-    for (const p of textPrimitives) {
+    for (const p of primitives) {
+      if (patch.lineWidth !== undefined) p.lineWidth = patch.lineWidth
+      if (patch.lineColor !== undefined) p.lineColor = patch.lineColor || undefined
+      if (patch.lineStyle !== undefined) p.lineStyle = patch.lineStyle
+      if (patch.fillColor !== undefined) p.fillColor = patch.fillColor || undefined
+    }
+    engineRef.current?.notifyChanged()
+    engineRef.current?.requestRender()
+  }
+
+  return (
+    <div className="space-y-3">
+      {primitives.length > 1 && (
+        <div className="text-xs text-gray-500 dark:text-gray-400">Выбрано примитивов: {primitives.length}</div>
+      )}
+
+      <div>
+        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Толщина линии, мм</label>
+        <input
+          type="number"
+          min={0.1}
+          step={0.1}
+          value={commonLineWidth}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value)
+            if (Number.isFinite(v) && v > 0) apply({ lineWidth: v })
+          }}
+          className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Стиль линии</label>
+        <select
+          value={commonLineStyle}
+          onChange={(e) => apply({ lineStyle: e.target.value as DrawingPrimitive['lineStyle'] })}
+          className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        >
+          <option value="solid">Сплошная</option>
+          <option value="dashed">Штриховая</option>
+          <option value="dotted">Пунктирная</option>
+          <option value="dashdot">Штрих-пунктирная</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Цвет линии</label>
+        <div className="flex items-center gap-2">
+          <input
+            type="color"
+            value={commonLineColor || '#000000'}
+            onChange={(e) => apply({ lineColor: e.target.value })}
+            className="h-8 w-8 cursor-pointer rounded border border-gray-300 dark:border-gray-600"
+          />
+          <input
+            type="text"
+            value={commonLineColor || ''}
+            onChange={(e) => apply({ lineColor: e.target.value })}
+            placeholder="#000000"
+            className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          />
+          {commonLineColor && (
+            <button
+              onClick={() => apply({ lineColor: undefined })}
+              className="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+            >
+              Авто
+            </button>
+          )}
+        </div>
+      </div>
+
+      {hasFillable && (
+        <div>
+          <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Заливка</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={commonFillColor || '#000000'}
+              onChange={(e) => apply({ fillColor: e.target.value })}
+              className="h-8 w-8 cursor-pointer rounded border border-gray-300 dark:border-gray-600"
+            />
+            <input
+              type="text"
+              value={commonFillColor || ''}
+              onChange={(e) => apply({ fillColor: e.target.value })}
+              placeholder="transparent"
+              className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            />
+            {commonFillColor && (
+              <button
+                onClick={() => apply({ fillColor: undefined })}
+                className="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+              >
+                Нет
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TextProperties({ primitives }: { primitives: DrawingPrimitive[] }) {
+  const { engineRef } = useEditor()
+
+  const count = primitives.length
+  const commonText = commonValue(primitives, (p) => p.text) ?? ''
+  const commonFontSize = commonValue(primitives, (p) => p.fontSize) ?? 250
+  const commonFontFamily = commonValue(primitives, (p) => p.fontFamily) ?? 'ui-sans-serif, system-ui, sans-serif'
+  const commonColor = commonValue(primitives, (p) => p.color) ?? ''
+  const commonItalic = commonValue(primitives, (p) => p.italic) ?? false
+  const commonTextAlign = commonValue(primitives, (p) => p.textAlign) ?? 'left'
+
+  const apply = (patch: Partial<DrawingPrimitive>) => {
+    for (const p of primitives) {
       if (patch.text !== undefined) p.text = patch.text
       if (patch.fontSize !== undefined) p.fontSize = patch.fontSize
       if (patch.fontFamily !== undefined) p.fontFamily = patch.fontFamily

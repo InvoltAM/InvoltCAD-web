@@ -2,6 +2,7 @@ import { Camera } from '../engine/Camera';
 import { Plan } from '../model/Plan';
 import { ThemeManager } from '../editor/ThemeManager';
 import { Vector2 } from '../geometry/Vector2';
+import { DrawingPrimitive } from '../model/DrawingPrimitive';
 
 /**
  * Отрисовка примитивов рисования (полилиния, отрезок, прямоугольник, круг).
@@ -20,16 +21,20 @@ export class PrimitiveRenderer {
   }
 
   render(ctx: CanvasRenderingContext2D): void {
-    const color = this.themeManager.getColor('dimension');
+    const defaultColor = this.themeManager.getColor('dimension');
     const selectedColor = this.themeManager.getColor('selected');
-    ctx.fillStyle = color;
 
     for (const primitive of this.plan.primitives) {
       const points = primitive.points;
       if (points.length === 0) continue;
       const isSelected = this.selectedIds.has(primitive.id);
-      ctx.strokeStyle = isSelected ? selectedColor : color;
-      ctx.lineWidth = isSelected ? 2.5 / this.camera.scale : 1 / this.camera.scale;
+      const lineColor = isSelected ? selectedColor : (primitive.lineColor || defaultColor);
+      const lineWidthMm = primitive.lineWidth ?? (isSelected ? 2.5 : 1);
+
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = lineWidthMm / this.camera.scale;
+      ctx.fillStyle = primitive.fillColor || 'transparent';
+      ctx.setLineDash(this.getLineDash(primitive.lineStyle, lineWidthMm / this.camera.scale));
 
       switch (primitive.type) {
         case 'polyline':
@@ -50,6 +55,9 @@ export class PrimitiveRenderer {
             const y = Math.min(points[0].y, points[1].y);
             const w = Math.abs(points[1].x - points[0].x);
             const h = Math.abs(points[1].y - points[0].y);
+            if (primitive.fillColor && primitive.fillColor !== 'transparent') {
+              ctx.fillRect(x, y, w, h);
+            }
             ctx.strokeRect(x, y, w, h);
           }
           break;
@@ -60,6 +68,9 @@ export class PrimitiveRenderer {
             const radius = points[0].distanceTo(points[1]);
             ctx.beginPath();
             ctx.arc(points[0].x, points[0].y, radius, 0, Math.PI * 2);
+            if (primitive.fillColor && primitive.fillColor !== 'transparent') {
+              ctx.fill();
+            }
             ctx.stroke();
           }
           break;
@@ -71,7 +82,8 @@ export class PrimitiveRenderer {
           const fontStyle = primitive.italic ? 'italic ' : '';
           const fontWeight = isSelected ? 'bold ' : '';
           ctx.font = `${fontWeight}${fontStyle}${fontSize}px ${fontFamily}`;
-          ctx.fillStyle = primitive.color && !isSelected ? primitive.color : (isSelected ? selectedColor : color);
+          const textColor = primitive.color ?? defaultColor;
+          ctx.fillStyle = primitive.color && !isSelected ? primitive.color : (isSelected ? selectedColor : textColor);
           ctx.textBaseline = 'top';
 
           const lines = primitive.text.split('\n');
@@ -84,7 +96,8 @@ export class PrimitiveRenderer {
 
           if (points.length >= 2) {
             // Выноска: текст над полкой, полка над хвостиком
-            this.renderCallout(ctx, points[0], points[1], lines, lineHeight, textWidth, textHeight, primitive.color && !isSelected ? primitive.color : (isSelected ? selectedColor : color));
+            const calloutColor = primitive.color ?? defaultColor;
+            this.renderCallout(ctx, points[0], points[1], lines, lineHeight, textWidth, textHeight, primitive.color && !isSelected ? primitive.color : (isSelected ? selectedColor : calloutColor));
           } else {
             // Обычный текст
             ctx.textAlign = primitive.textAlign ?? 'left';
@@ -113,8 +126,10 @@ export class PrimitiveRenderer {
           for (const cell of table.cells) {
             cellMap.set(`${cell.row},${cell.col}`, cell);
           }
-          ctx.strokeStyle = isSelected ? selectedColor : color;
-          ctx.lineWidth = isSelected ? 2 / this.camera.scale : 1 / this.camera.scale;
+          const tableLineColor = primitive.lineColor ?? defaultColor;
+          const tableTextColor = primitive.lineColor ?? defaultColor;
+          ctx.strokeStyle = isSelected ? selectedColor : tableLineColor;
+          ctx.lineWidth = isSelected ? 2 / this.camera.scale : (primitive.lineWidth ?? 1) / this.camera.scale;
 
           // Границы ячеек
           for (let r = 0; r < table.rows; r++) {
@@ -129,7 +144,7 @@ export class PrimitiveRenderer {
               if (cell.text) {
                 const fontSize = table.fontSize ?? 140;
                 ctx.font = `${fontSize}px ui-sans-serif, system-ui, sans-serif`;
-                ctx.fillStyle = isSelected ? selectedColor : color;
+                ctx.fillStyle = isSelected ? selectedColor : tableTextColor;
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'top';
                 ctx.fillText(cell.text, x + fontSize * 0.2, y + fontSize * 0.2);
@@ -139,6 +154,23 @@ export class PrimitiveRenderer {
           break;
         }
       }
+    }
+  }
+
+  private getLineDash(style: DrawingPrimitive['lineStyle'], lineWidthPx: number): number[] {
+    if (!style || style === 'solid') return [];
+    // Длина штриха зависит от толщины линии, чтобы выглядело пропорционально
+    const base = Math.max(4, lineWidthPx * 4);
+    const gap = base * 0.6;
+    switch (style) {
+      case 'dashed':
+        return [base, gap];
+      case 'dotted':
+        return [lineWidthPx, gap];
+      case 'dashdot':
+        return [base, gap, lineWidthPx, gap];
+      default:
+        return [];
     }
   }
 

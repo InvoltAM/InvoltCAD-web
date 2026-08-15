@@ -37,7 +37,17 @@ export interface DrawingPrimitive {
   textAlign?: 'left' | 'center' | 'right';
   /** Данные таблицы (для типа 'table'). */
   table?: DrawingTable;
+  /** Толщина линии в миллиметрах. */
+  lineWidth?: number;
+  /** Цвет линии в формате hex/rgb. */
+  lineColor?: string;
+  /** Стиль линии. */
+  lineStyle?: 'solid' | 'dashed' | 'dotted' | 'dashdot';
+  /** Цвет заливки в формате hex/rgb (для rectangle / circle). */
+  fillColor?: string;
 }
+
+export type LineStyle = 'solid' | 'dashed' | 'dotted' | 'dashdot';
 
 const DEFAULT_TABLE_COL_WIDTH = 600;
 const DEFAULT_TABLE_ROW_HEIGHT = 500;
@@ -52,6 +62,10 @@ export function createDrawingPrimitive(
   color?: string,
   italic?: boolean,
   textAlign?: 'left' | 'center' | 'right',
+  lineWidth?: number,
+  lineColor?: string,
+  lineStyle?: LineStyle,
+  fillColor?: string,
 ): DrawingPrimitive {
   const primitive: DrawingPrimitive = {
     id: crypto.randomUUID(),
@@ -63,6 +77,10 @@ export function createDrawingPrimitive(
     color,
     italic,
     textAlign,
+    lineWidth,
+    lineColor,
+    lineStyle,
+    fillColor,
   };
 
   if (type === 'table' && points.length > 0) {

@@ -749,6 +749,10 @@ export class AddPrimitiveCommand implements Command {
     private italic?: boolean,
     private textAlign?: 'left' | 'center' | 'right',
     private tableData?: Partial<DrawingTable>,
+    private lineWidth?: number,
+    private lineColor?: string,
+    private lineStyle?: import('../model/DrawingPrimitive').LineStyle,
+    private fillColor?: string,
   ) {}
 
   execute(): void {
@@ -761,6 +765,10 @@ export class AddPrimitiveCommand implements Command {
       this.color,
       this.italic,
       this.textAlign,
+      this.lineWidth,
+      this.lineColor,
+      this.lineStyle,
+      this.fillColor,
     );
     if (this.tableData && primitive.type === 'table') {
       const rows = this.tableData.rows ?? 3;

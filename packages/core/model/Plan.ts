@@ -114,8 +114,12 @@ export class Plan {
     color?: string,
     italic?: boolean,
     textAlign?: 'left' | 'center' | 'right',
+    lineWidth?: number,
+    lineColor?: string,
+    lineStyle?: import('./DrawingPrimitive').LineStyle,
+    fillColor?: string,
   ): DrawingPrimitive {
-    const primitive = createDrawingPrimitive(type, points, text, fontSize, fontFamily, color, italic, textAlign);
+    const primitive = createDrawingPrimitive(type, points, text, fontSize, fontFamily, color, italic, textAlign, lineWidth, lineColor, lineStyle, fillColor);
     this.primitives.push(primitive);
     return primitive;
   }

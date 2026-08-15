@@ -93,6 +93,10 @@ export interface SerializedPrimitive {
   italic?: boolean
   textAlign?: 'left' | 'center' | 'right'
   table?: SerializedTable
+  lineWidth?: number
+  lineColor?: string
+  lineStyle?: 'solid' | 'dashed' | 'dotted' | 'dashdot'
+  fillColor?: string
 }
 
 export interface SerializedPlan {
@@ -195,6 +199,10 @@ export function serializePlan(plan: Plan): SerializedPlan {
     color: primitive.color,
     italic: primitive.italic,
     textAlign: primitive.textAlign,
+    lineWidth: primitive.lineWidth,
+    lineColor: primitive.lineColor,
+    lineStyle: primitive.lineStyle,
+    fillColor: primitive.fillColor,
     table: primitive.table
       ? {
           rows: primitive.table.rows,
@@ -318,6 +326,10 @@ export function deserializePlan(data: SerializedPlan): Plan {
       p.color,
       p.italic,
       p.textAlign,
+      p.lineWidth,
+      p.lineColor,
+      p.lineStyle,
+      p.fillColor,
     )
     primitive.id = p.id
     if (p.table && primitive.type === 'table') {
