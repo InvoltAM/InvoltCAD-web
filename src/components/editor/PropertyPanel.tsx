@@ -1131,9 +1131,89 @@ function TableProperties({ primitives }: { primitives: DrawingPrimitive[] }) {
     forceUpdate()
   }
 
+  const addRow = () => {
+    const newRow = table.rows
+    table.rows++
+    table.rowHeights.push(300)
+    for (let c = 0; c < table.cols; c++) {
+      table.cells.push({ row: newRow, col: c })
+    }
+    forceUpdate()
+  }
+
+  const removeRow = () => {
+    if (table.rows <= 1) return
+    const lastRow = table.rows - 1
+    table.rows--
+    table.rowHeights.pop()
+    table.cells = table.cells.filter((c) => c.row !== lastRow)
+    for (const cell of table.cells) {
+      if (cell.rowSpan && cell.row + (cell.rowSpan - 1) > table.rows - 1) {
+        cell.rowSpan = Math.max(1, table.rows - cell.row)
+      }
+    }
+    forceUpdate()
+  }
+
+  const addCol = () => {
+    const newCol = table.cols
+    table.cols++
+    table.columnWidths.push(600)
+    for (let r = 0; r < table.rows; r++) {
+      table.cells.push({ row: r, col: newCol })
+    }
+    forceUpdate()
+  }
+
+  const removeCol = () => {
+    if (table.cols <= 1) return
+    const lastCol = table.cols - 1
+    table.cols--
+    table.columnWidths.pop()
+    table.cells = table.cells.filter((c) => c.col !== lastCol)
+    for (const cell of table.cells) {
+      if (cell.colSpan && cell.col + (cell.colSpan - 1) > table.cols - 1) {
+        cell.colSpan = Math.max(1, table.cols - cell.col)
+      }
+    }
+    forceUpdate()
+  }
+
   return (
     <div className="space-y-3">
-      <div className="text-xs text-gray-500 dark:text-gray-400">Редактирование таблицы</div>
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-gray-500 dark:text-gray-400">Редактирование таблицы</span>
+        <div className="flex gap-1">
+          <button
+            onClick={addRow}
+            className="rounded border border-gray-300 px-1.5 py-0.5 text-xs hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+            title="Добавить строку"
+          >
+            + строка
+          </button>
+          <button
+            onClick={removeRow}
+            className="rounded border border-gray-300 px-1.5 py-0.5 text-xs hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+            title="Удалить строку"
+          >
+            − строка
+          </button>
+          <button
+            onClick={addCol}
+            className="rounded border border-gray-300 px-1.5 py-0.5 text-xs hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+            title="Добавить столбец"
+          >
+            + столбец
+          </button>
+          <button
+            onClick={removeCol}
+            className="rounded border border-gray-300 px-1.5 py-0.5 text-xs hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+            title="Удалить столбец"
+          >
+            − столбец
+          </button>
+        </div>
+      </div>
 
       <div>
         <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Размер шрифта таблицы, мм</label>
