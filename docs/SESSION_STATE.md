@@ -20,6 +20,8 @@ Dev-сервер Next.js работает на `http://localhost:3003/editor`.
   - `npm test` — 63/63 тестов пройдены.
 - Сделан коммит: `feat: add primitive properties editing (line width, color, style, fill)`.
 - Dev-сервер перезапущен на `http://localhost:3003`.
+- Подготовлен `.env.example` со всеми необходимыми переменными окружения.
+- Обновлена инструкция переноса разработки на другой ПК.
 
 ## Следующие шаги
 
@@ -1577,16 +1579,24 @@ npm install
 
 # 3. Настроить окружение
 cp .env.example .env
-# Заполнить: DATABASE_URL, NEXTAUTH_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
-# SMTP_* (для входа по email), YOOKASSA_* (для платежей)
+# Обязательно заполнить: DATABASE_URL, NEXTAUTH_SECRET
+# Для входа через Google: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+# Для входа по email: EMAIL_SERVER_*, EMAIL_FROM
+# Для платежей: YOOKASSA_*
+# Для AI-функций на финальной стадии: AI_API_URL, AI_API_KEY, AI_MODEL
 
-# 4. Prisma
+# 4. База данных (Docker Compose)
+docker compose up -d db
+
+# 5. Prisma
 npx prisma generate
 npx prisma migrate dev
+# Опционально: заполнить демо-данными
+npx prisma db seed
 
-# 5. Запуск
+# 6. Запуск
 npm run dev
-# http://localhost:3002/editor
+# http://localhost:3003/editor
 ```
 
 ### Проверки перед правками
