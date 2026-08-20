@@ -703,6 +703,51 @@ export default function Toolbar() {
           setTextMenuOpen(false)
         }}
       >
+        <div key="underlay" className="editor-dock-group">
+          {(() => {
+            const underlay = engineRef.current?.plan.activeSheet.underlay
+            const hasUnderlay = !!underlay
+            return (
+              <button
+                ref={underlayMenuBtnRef}
+                onClick={handleToggleUnderlayMenu}
+                onMouseEnter={() => setHoveredDockId('underlay')}
+                className={`editor-dock-item editor-dock-item-menu ${currentTool === 'underlay' ? 'active' : ''} ${hasUnderlay ? 'has-underlay' : ''}`}
+                title={`Подложка ${hasUnderlay ? '●' : ''} ▼`}
+                style={{ transform: `scale(${getDockScale('underlay')})` }}
+              >
+                <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('underlay') }} />
+                <span className="editor-dock-arrow">▼</span>
+                <span className="editor-dock-tooltip">Подложка</span>
+              </button>
+            )
+          })()}
+          {underlayMenuOpen && (
+            <div className="editor-dock-submenu">
+              <button className="editor-dock-submenu-item" onClick={handleUploadUnderlay}>
+                <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('import') }} />
+                <span>Загрузить PNG/JPEG/PDF</span>
+              </button>
+              {engineRef.current?.plan.activeSheet.underlay && (
+                <>
+                  <button className="editor-dock-submenu-item" onClick={handleCalibrateUnderlay}>
+                    <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('calibrate') }} />
+                    <span>Калибровать масштаб</span>
+                  </button>
+                  <button className="editor-dock-submenu-item" onClick={handleToggleUnderlayVisible}>
+                    <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon(engineRef.current?.plan.activeSheet.underlay?.visible ? 'eyeSlash' : 'eye') }} />
+                    <span>{engineRef.current?.plan.activeSheet.underlay?.visible ? 'Скрыть' : 'Показать'}</span>
+                  </button>
+                  <button className="editor-dock-submenu-item" onClick={handleDeleteUnderlay}>
+                    <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('clear') }} />
+                    <span>Удалить</span>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="editor-dock-divider" />
         {drawingTools.flatMap((tool) => {
           const elements: React.ReactNode[] = []
           if (tool.name === 'wall') {
@@ -917,50 +962,6 @@ export default function Toolbar() {
           <span className="editor-dock-tooltip">Таблица</span>
         </button>
         <div className="editor-dock-divider" />
-        <div key="underlay" className="editor-dock-group">
-          {(() => {
-            const underlay = engineRef.current?.plan.activeSheet.underlay
-            const hasUnderlay = !!underlay
-            return (
-              <button
-                ref={underlayMenuBtnRef}
-                onClick={handleToggleUnderlayMenu}
-                onMouseEnter={() => setHoveredDockId('underlay')}
-                className={`editor-dock-item editor-dock-item-menu ${currentTool === 'underlay' ? 'active' : ''} ${hasUnderlay ? 'has-underlay' : ''}`}
-                title={`Подложка ${hasUnderlay ? '●' : ''} ▼`}
-                style={{ transform: `scale(${getDockScale('underlay')})` }}
-              >
-                <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('underlay') }} />
-                <span className="editor-dock-arrow">▼</span>
-                <span className="editor-dock-tooltip">Подложка</span>
-              </button>
-            )
-          })()}
-          {underlayMenuOpen && (
-            <div className="editor-dock-submenu">
-              <button className="editor-dock-submenu-item" onClick={handleUploadUnderlay}>
-                <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('import') }} />
-                <span>Загрузить PNG/JPEG/PDF</span>
-              </button>
-              {engineRef.current?.plan.activeSheet.underlay && (
-                <>
-                  <button className="editor-dock-submenu-item" onClick={handleCalibrateUnderlay}>
-                    <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('calibrate') }} />
-                    <span>Калибровать масштаб</span>
-                  </button>
-                  <button className="editor-dock-submenu-item" onClick={handleToggleUnderlayVisible}>
-                    <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon(engineRef.current?.plan.activeSheet.underlay?.visible ? 'eyeSlash' : 'eye') }} />
-                    <span>{engineRef.current?.plan.activeSheet.underlay?.visible ? 'Скрыть' : 'Показать'}</span>
-                  </button>
-                  <button className="editor-dock-submenu-item" onClick={handleDeleteUnderlay}>
-                    <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('clear') }} />
-                    <span>Удалить</span>
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-        </div>
         <input
           ref={underlayInputRef}
           type="file"
