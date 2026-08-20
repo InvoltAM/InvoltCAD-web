@@ -55,6 +55,10 @@ export interface SheetTitleBlock {
   company: string;
   /** Data URL логотипа компании */
   companyLogo: string;
+  /** Ширина логотипа в мм (если задана — ручное масштабирование) */
+  logoWidth?: number;
+  /** Высота логотипа в мм (если задана — ручное масштабирование) */
+  logoHeight?: number;
   /** Разработал */
   designer: string;
   /** Подпись Разработал */

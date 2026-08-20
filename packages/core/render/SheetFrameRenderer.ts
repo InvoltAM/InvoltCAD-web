@@ -303,7 +303,7 @@ export class SheetFrameRenderer {
       const companyW = this.mm(50, ps);
       const companyH = this.mm(15, ps);
       if (tb.companyLogo) {
-        this.renderCompanyLogo(ctx, tb.companyLogo, companyX, companyY, companyW, companyH);
+        this.renderCompanyLogo(ctx, tb, companyX, companyY, companyW, companyH);
       } else if (tb.company) {
         ctx.font = `${this.mmToPx(3.5, ps)}px sans-serif`;
         ctx.textAlign = 'center';
@@ -314,16 +314,20 @@ export class SheetFrameRenderer {
   }
 
   /**
-   * Рисует логотип компании в заданном прямоугольнике с сохранением пропорций.
+   * Рисует логотип компании в заданном прямоугольнике.
+   * Если заданы tb.logoWidth/logoHeight — использует их, иначе масштабирует по ячейке с сохранением пропорций.
    */
   private renderCompanyLogo(
     ctx: CanvasRenderingContext2D,
-    url: string,
+    tb: import('../model/Sheet').SheetTitleBlock,
     x: number,
     y: number,
     w: number,
     h: number,
   ): void {
+    const url = tb.companyLogo;
+    if (!url) return;
+
     let img = SheetFrameRenderer.logoCache.get(url);
     if (!img) {
       img = new Image();
@@ -341,18 +345,88 @@ export class SheetFrameRenderer {
     if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
       return;
     }
-    const imgRatio = img.naturalWidth / img.naturalHeight;
-    const boxRatio = w / h;
-    let drawW = w;
-    let drawH = h;
-    if (imgRatio > boxRatio) {
-      drawH = w / imgRatio;
+
+    let drawW: number;
+    let drawH: number;
+    if (tb.logoWidth && tb.logoHeight) {
+      drawW = tb.logoWidth;
+      drawH = tb.logoHeight;
     } else {
-      drawW = h * imgRatio;
+      const imgRatio = img.naturalWidth / img.naturalHeight;
+      const boxRatio = w / h;
+      drawW = w;
+      drawH = h;
+      if (imgRatio > boxRatio) {
+        drawH = w / imgRatio;
+      } else {
+        drawW = h * imgRatio;
+      }
     }
     const drawX = x + (w - drawW) / 2;
     const drawY = y + (h - drawH) / 2;
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
+  }
+
+  /**
+   * Возвращает мировые координаты прямоугольника логотипа и его фактические размеры.
+   * Используется для hit-test и ручек в SelectTool.
+   */
+  getCompanyLogoRect(): { x: number; y: number; w: number; h: number; drawX: number; drawY: number; drawW: number; drawH: number } | null {
+    const sheet = this.plan.activeSheet;
+    if (!sheet || !sheet.titleBlock.companyLogo) return null;
+    const dims = getSheetDimensions(sheet.pageSize, sheet.orientation);
+    const ps = sheet.printScale || 100;
+    const paperW = dims.width * ps;
+    const paperH = dims.height * ps;
+    const x0 = -paperW / 2;
+    const y0 = -paperH / 2;
+    const leftMargin = this.mm(20, ps);
+    const otherMargin = this.mm(5, ps);
+    const innerX = x0 + leftMargin;
+    const innerY = y0 + otherMargin;
+    const innerW = paperW - leftMargin - otherMargin;
+    const innerH = paperH - 2 * otherMargin;
+    const stampW = this.mm(185, ps);
+    const stampH = this.mm(55, ps);
+    const stampX = innerX + innerW - stampW;
+    const stampY = innerY + innerH - stampH;
+    const mainLeftW = this.mm(70, ps);
+    const mainRightX = stampX + mainLeftW;
+    const companyX = mainRightX;
+    const companyY = stampY + this.mm(40, ps);
+    const companyW = this.mm(50, ps);
+    const companyH = this.mm(15, ps);
+
+    let drawW = companyW;
+    let drawH = companyH;
+    const tb = sheet.titleBlock;
+    if (tb.logoWidth && tb.logoHeight) {
+      drawW = tb.logoWidth;
+      drawH = tb.logoHeight;
+    } else {
+      const img = SheetFrameRenderer.logoCache.get(tb.companyLogo);
+      if (img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+        const imgRatio = img.naturalWidth / img.naturalHeight;
+        const boxRatio = companyW / companyH;
+        if (imgRatio > boxRatio) {
+          drawH = companyW / imgRatio;
+        } else {
+          drawW = companyH * imgRatio;
+        }
+      }
+    }
+    const drawX = companyX + (companyW - drawW) / 2;
+    const drawY = companyY + (companyH - drawH) / 2;
+    return {
+      x: companyX,
+      y: companyY,
+      w: companyW,
+      h: companyH,
+      drawX,
+      drawY,
+      drawW,
+      drawH,
+    };
   }
 
   /** Форматирует дату в мм.гг (например 08.26). */

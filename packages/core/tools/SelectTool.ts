@@ -27,6 +27,7 @@ import {
 } from '../editor/CommandManager';
 import { MoveSelectionCommand, type MoveSelectionState, UpdatePrimitiveCommand } from '../editor/ModifyCommands';
 import { TableResizeCorner } from '../render/TableRenderer';
+import { SheetFrameRenderer } from '../render/SheetFrameRenderer';
 
 const ROOM_VERTEX_SCREEN_THRESHOLD = 8; // px
 const ROOM_VERTEX_WORLD_THRESHOLD = 5; // мм
@@ -97,6 +98,15 @@ interface DragUnderlay {
   moved: boolean;
 }
 
+interface ResizeLogo {
+  corner: 'nw' | 'ne' | 'sw' | 'se';
+  startWorld: Vector2;
+  originalWidth: number;
+  originalHeight: number;
+  startRect: { x: number; y: number; w: number; h: number; drawW: number; drawH: number };
+  moved: boolean;
+}
+
 /**
  * Инструмент "Выбор".
  * Выделение, перемещение проема, удаление через CommandManager,
@@ -116,6 +126,7 @@ export class SelectTool implements Tool {
   private dragPrimitive: DragPrimitive | null = null;
   private dragCalloutTail: DragCalloutTail | null = null;
   private dragUnderlay: DragUnderlay | null = null;
+  private resizeLogo: ResizeLogo | null = null;
   private selectionBox: {
     startWorld: Vector2;
     currentWorld: Vector2;
@@ -201,6 +212,20 @@ export class SelectTool implements Tool {
   onPointerDown(e: InputEvent): void {
     this.selectionBox = null;
     this.pointerDownOnEmpty = false;
+
+    const hitLogoCorner = this.hitTestLogoCorner(e.worldPoint);
+    if (hitLogoCorner) {
+      this.clearSelection();
+      this.resizeLogo = {
+        corner: hitLogoCorner.corner,
+        startWorld: e.worldPoint.clone(),
+        originalWidth: hitLogoCorner.rect.drawW,
+        originalHeight: hitLogoCorner.rect.drawH,
+        startRect: { ...hitLogoCorner.rect },
+        moved: false,
+      };
+      return;
+    }
 
     const hitDeviceName = this.hitTestDeviceName(e.screenPoint);
     const hitDevice = this.hitTestDevice(e.screenPoint);
@@ -467,6 +492,35 @@ export class SelectTool implements Tool {
       return;
     }
 
+    if (this.resizeLogo) {
+      const world = this.canvas.camera.screenToWorld(e.screenPoint);
+      const delta = world.sub(this.resizeLogo.startWorld);
+      const ratio = this.resizeLogo.originalWidth / this.resizeLogo.originalHeight;
+      const signX = this.resizeLogo.corner.includes('e') ? 1 : -1;
+      const signY = this.resizeLogo.corner.includes('s') ? 1 : -1;
+      const deltaSize = (delta.x * signX + delta.y * signY) / 2;
+      let newW = Math.max(1, this.resizeLogo.originalWidth + deltaSize);
+      let newH = newW / ratio;
+      // Ограничиваем размерами ячейки 50×15 мм
+      const maxW = this.resizeLogo.startRect.w;
+      const maxH = this.resizeLogo.startRect.h;
+      if (newW > maxW) {
+        newW = maxW;
+        newH = newW / ratio;
+      }
+      if (newH > maxH) {
+        newH = maxH;
+        newW = newH * ratio;
+      }
+      for (const s of this.plan.sheets) {
+        s.titleBlock.logoWidth = newW;
+        s.titleBlock.logoHeight = newH;
+      }
+      this.resizeLogo.moved = true;
+      this.canvas.notifyChanged();
+      return;
+    }
+
     if (this.dragTable) {
       const world = this.canvas.camera.screenToWorld(e.screenPoint);
       const delta = world.sub(this.dragTable.startWorld);
@@ -585,6 +639,13 @@ export class SelectTool implements Tool {
       this.plan.recalcCableRoutes();
       this.plan.invalidateRooms();
       this.canvas.notifyChanged();
+    } else {
+      // Hover: показываем ручки логотипа при наведении
+      const hitLogoCorner = this.hitTestLogoCorner(e.worldPoint);
+      if (hitLogoCorner || this.hitTestLogo(e.worldPoint)) {
+        this.canvas.setGhost((ctx) => this.drawLogoHandles(ctx));
+        this.canvas.requestRender();
+      }
     }
   }
 
@@ -654,6 +715,20 @@ export class SelectTool implements Tool {
         }
       }
       this.dragUnderlay = null;
+      this.canvas.notifyChanged();
+      return;
+    }
+
+    if (this.resizeLogo) {
+      const { moved } = this.resizeLogo;
+      if (!moved) {
+        const { originalWidth, originalHeight } = this.resizeLogo;
+        for (const s of this.plan.sheets) {
+          s.titleBlock.logoWidth = originalWidth;
+          s.titleBlock.logoHeight = originalHeight;
+        }
+      }
+      this.resizeLogo = null;
       this.canvas.notifyChanged();
       return;
     }
@@ -1658,5 +1733,62 @@ export class SelectTool implements Tool {
       worldPoint.y >= underlay.position.y &&
       worldPoint.y <= underlay.position.y + h
     );
+  }
+
+  /** Проверка попадания курсора в угловую ручку логотипа. */
+  private hitTestLogoCorner(
+    worldPoint: Vector2,
+  ):
+    | { corner: 'nw' | 'ne' | 'sw' | 'se'; rect: NonNullable<ReturnType<SheetFrameRenderer['getCompanyLogoRect']>> }
+    | null {
+    const rect = this.canvas.sheetFrameRenderer.getCompanyLogoRect();
+    if (!rect) return null;
+    const threshold = 6 / this.canvas.camera.scale;
+    const corners: Array<{ corner: 'nw' | 'ne' | 'sw' | 'se'; p: Vector2 }> = [
+      { corner: 'nw', p: new Vector2(rect.drawX, rect.drawY) },
+      { corner: 'ne', p: new Vector2(rect.drawX + rect.drawW, rect.drawY) },
+      { corner: 'sw', p: new Vector2(rect.drawX, rect.drawY + rect.drawH) },
+      { corner: 'se', p: new Vector2(rect.drawX + rect.drawW, rect.drawY + rect.drawH) },
+    ];
+    for (const c of corners) {
+      if (c.p.distanceTo(worldPoint) <= threshold) {
+        return { corner: c.corner, rect };
+      }
+    }
+    return null;
+  }
+
+  /** Проверка попадания курсора в область логотипа. */
+  private hitTestLogo(worldPoint: Vector2): boolean {
+    const rect = this.canvas.sheetFrameRenderer.getCompanyLogoRect();
+    if (!rect) return false;
+    return (
+      worldPoint.x >= rect.drawX &&
+      worldPoint.x <= rect.drawX + rect.drawW &&
+      worldPoint.y >= rect.drawY &&
+      worldPoint.y <= rect.drawY + rect.drawH
+    );
+  }
+
+  /** Отрисовка ручек изменения размера логотипа. */
+  private drawLogoHandles(ctx: CanvasRenderingContext2D): void {
+    const rect = this.canvas.sheetFrameRenderer.getCompanyLogoRect();
+    if (!rect) return;
+    const size = 5 / this.canvas.camera.scale;
+    const half = size / 2;
+    const corners = [
+      new Vector2(rect.drawX, rect.drawY),
+      new Vector2(rect.drawX + rect.drawW, rect.drawY),
+      new Vector2(rect.drawX, rect.drawY + rect.drawH),
+      new Vector2(rect.drawX + rect.drawW, rect.drawY + rect.drawH),
+    ];
+    const color = this.canvas.themeManager.getColor('accent') ?? '#ff8800';
+    ctx.fillStyle = color;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1 / this.canvas.camera.scale;
+    for (const p of corners) {
+      ctx.fillRect(p.x - half, p.y - half, size, size);
+      ctx.strokeRect(p.x - half, p.y - half, size, size);
+    }
   }
 }

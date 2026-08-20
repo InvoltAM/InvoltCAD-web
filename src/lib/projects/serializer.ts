@@ -6,6 +6,7 @@ import { Cable, CableType } from '@core/model/Cable'
 import { Dimension } from '@core/model/Dimension'
 import { DrawingPrimitiveType } from '@core/model/DrawingPrimitive'
 import { Vector2 } from '@core/geometry/Vector2'
+import { TitleBlockVisibility } from '@core/model/Sheet'
 
 export interface SerializedWall {
   id: string
@@ -109,6 +110,41 @@ export interface SerializedUnderlay {
   locked: boolean
 }
 
+export interface SerializedTitleBlock {
+  organization: string
+  objectName: string
+  drawingName: string
+  projectCode: string
+  address: string
+  section: string
+  drawingTitle: string
+  stage: string
+  sheetNo: string
+  sheetTotal: string
+  autoNumbering: boolean
+  docCode: string
+  date: string
+  designer: string
+  signatureDesigner: string
+  checker: string
+  signatureChecker: string
+  normController: string
+  signatureNormController: string
+  gip: string
+  signatureGip: string
+  approver: string
+  signatureApprover: string
+  reviewer: string
+  signatureReviewer: string
+  weight: string
+  scaleLabel: string
+  company: string
+  companyLogo: string
+  logoWidth?: number
+  logoHeight?: number
+  show: Record<string, boolean>
+}
+
 export interface SerializedPlan {
   walls: SerializedWall[]
   openings: SerializedOpening[]
@@ -130,6 +166,7 @@ export interface SerializedPlan {
     rooms?: any[]
   }
   underlay?: SerializedUnderlay
+  titleBlock?: SerializedTitleBlock
 }
 
 /**
@@ -232,6 +269,42 @@ export function serializePlan(plan: Plan): SerializedPlan {
       : undefined,
   }))
 
+  const tb = plan.activeSheet.titleBlock
+  const titleBlock: SerializedTitleBlock = {
+    organization: tb.organization,
+    objectName: tb.objectName,
+    drawingName: tb.drawingName,
+    projectCode: tb.projectCode,
+    address: tb.address,
+    section: tb.section,
+    drawingTitle: tb.drawingTitle,
+    stage: tb.stage,
+    sheetNo: tb.sheetNo,
+    sheetTotal: tb.sheetTotal,
+    autoNumbering: tb.autoNumbering,
+    docCode: tb.docCode,
+    date: tb.date,
+    designer: tb.designer,
+    signatureDesigner: tb.signatureDesigner,
+    checker: tb.checker,
+    signatureChecker: tb.signatureChecker,
+    normController: tb.normController,
+    signatureNormController: tb.signatureNormController,
+    gip: tb.gip,
+    signatureGip: tb.signatureGip,
+    approver: tb.approver,
+    signatureApprover: tb.signatureApprover,
+    reviewer: tb.reviewer,
+    signatureReviewer: tb.signatureReviewer,
+    weight: tb.weight ?? '',
+    scaleLabel: tb.scaleLabel ?? '',
+    company: tb.company,
+    companyLogo: tb.companyLogo,
+    logoWidth: tb.logoWidth,
+    logoHeight: tb.logoHeight,
+    show: { ...tb.show },
+  }
+
   return {
     walls,
     openings,
@@ -241,6 +314,7 @@ export function serializePlan(plan: Plan): SerializedPlan {
     primitives,
     electrical: plan.electrical ?? createEmptyElectrical(),
     underlay: plan.activeSheet.underlay,
+    titleBlock,
   }
 }
 
@@ -373,6 +447,13 @@ export function deserializePlan(data: SerializedPlan): Plan {
   plan.electrical = data.electrical ?? createEmptyElectrical()
   if (data.underlay) {
     plan.activeSheet.underlay = { ...data.underlay }
+  }
+  if (data.titleBlock) {
+    plan.activeSheet.titleBlock = {
+      ...plan.activeSheet.titleBlock,
+      ...data.titleBlock,
+      show: { ...plan.activeSheet.titleBlock.show, ...(data.titleBlock.show ?? {}) } as TitleBlockVisibility,
+    }
   }
   plan.invalidateRooms()
   return plan

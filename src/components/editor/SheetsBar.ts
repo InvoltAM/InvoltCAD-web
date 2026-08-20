@@ -581,6 +581,62 @@ export class SheetsBar {
       controlWrap.appendChild(preview);
       controlWrap.appendChild(checkbox);
 
+      const sizeWrap = document.createElement('div');
+      sizeWrap.className = 'logo-size-row';
+      sizeWrap.style.display = 'flex';
+      sizeWrap.style.gap = '4px';
+      sizeWrap.style.marginTop = '4px';
+
+      const applyLogoSize = () => {
+        const w = parseFloat(widthInput.value);
+        const h = parseFloat(heightInput.value);
+        syncTitleBlock(block => {
+          block.logoWidth = Number.isFinite(w) && w > 0 ? w : undefined;
+          block.logoHeight = Number.isFinite(h) && h > 0 ? h : undefined;
+        });
+        this.engine.notifyChanged();
+      };
+
+      const widthInput = document.createElement('input');
+      widthInput.type = 'number';
+      widthInput.className = 'sheet-tab-menu-input';
+      widthInput.style.width = '60px';
+      widthInput.placeholder = 'Ширина';
+      widthInput.value = tb.logoWidth ? String(Math.round(tb.logoWidth)) : '';
+      widthInput.title = 'Ширина логотипа, мм';
+      widthInput.addEventListener('change', applyLogoSize);
+      widthInput.addEventListener('keydown', e => e.stopPropagation());
+
+      const heightInput = document.createElement('input');
+      heightInput.type = 'number';
+      heightInput.className = 'sheet-tab-menu-input';
+      heightInput.style.width = '60px';
+      heightInput.placeholder = 'Высота';
+      heightInput.value = tb.logoHeight ? String(Math.round(tb.logoHeight)) : '';
+      heightInput.title = 'Высота логотипа, мм';
+      heightInput.addEventListener('change', applyLogoSize);
+      heightInput.addEventListener('keydown', e => e.stopPropagation());
+
+      const resetSizeBtn = document.createElement('button');
+      resetSizeBtn.type = 'button';
+      resetSizeBtn.textContent = 'Авто';
+      resetSizeBtn.className = 'sheet-tab-menu-btn';
+      resetSizeBtn.title = 'Сбросить размеры в автоматические';
+      resetSizeBtn.addEventListener('click', () => {
+        syncTitleBlock(block => {
+          block.logoWidth = undefined;
+          block.logoHeight = undefined;
+        });
+        widthInput.value = '';
+        heightInput.value = '';
+        this.engine.notifyChanged();
+      });
+
+      sizeWrap.appendChild(widthInput);
+      sizeWrap.appendChild(heightInput);
+      sizeWrap.appendChild(resetSizeBtn);
+      controlWrap.appendChild(sizeWrap);
+
       const row = document.createElement('div');
       row.className = 'sheet-tab-menu-row';
       row.appendChild(label);
