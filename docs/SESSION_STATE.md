@@ -33,6 +33,7 @@ Dev-сервер Next.js работает на `http://localhost:3003/editor`.
   - `src/components/editor/PlanEditor.tsx` — синхронизация `gridVisible` ↔ `EditorState.showGrid`.
   - `src/components/editor/Toolbar.tsx` — кнопка в правой части dock переключает видимость сетки.
   - `src/components/editor/icons.ts` — добавлена иконка `grid`.
+  - Исправление: при клике по кнопке вызывается `engine.requestRender()`, чтобы canvas перерисовался сразу.
 - Проверки:
   - `npx tsc --noEmit` — чисто.
   - `npm test` — 63/63 тестов пройдены.
