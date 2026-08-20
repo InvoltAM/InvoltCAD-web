@@ -324,6 +324,7 @@ export default function Toolbar() {
     const next = !gridVisible
     setGridVisible(next)
     engineRef.current?.editorState.set('showGrid', next)
+    engineRef.current?.requestRender()
   }
 
   const handleToggleUnderlayMenu = () => {
