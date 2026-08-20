@@ -26,6 +26,13 @@ Dev-сервер Next.js работает на `http://localhost:3003/editor`.
   - `src/components/editor/icons.ts` — добавлены иконки `themeLight`, `themeDark`, `themeBlueprint`, `themePaper`.
   - `src/app/globals.css` — CSS-переменные и стили для тем `blueprint` и `paper`.
 - UI: кнопка «Подложка» перенесена в самый левый край нижней панели, левее кнопки «Стена».
+- Добавлена кнопка «Сетка» в правую часть нижней панели (dock):
+  - `packages/core/editor/EditorState.ts` — добавлен флаг `showGrid`.
+  - `packages/core/engine/CanvasEngine.ts` — сетка рисуется только при `showGrid === true`.
+  - `src/stores/cadStore.ts` — добавлено состояние `gridVisible` и сеттер.
+  - `src/components/editor/PlanEditor.tsx` — синхронизация `gridVisible` ↔ `EditorState.showGrid`.
+  - `src/components/editor/Toolbar.tsx` — кнопка в правой части dock переключает видимость сетки.
+  - `src/components/editor/icons.ts` — добавлена иконка `grid`.
 - Проверки:
   - `npx tsc --noEmit` — чисто.
   - `npm test` — 63/63 тестов пройдены.

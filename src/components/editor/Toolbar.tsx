@@ -70,6 +70,8 @@ export default function Toolbar() {
   const setCompactPanels = useCadStore((s) => s.setCompactPanels)
   const orthoMode = useCadStore((s) => s.orthoMode)
   const setOrthoMode = useCadStore((s) => s.setOrthoMode)
+  const gridVisible = useCadStore((s) => s.gridVisible)
+  const setGridVisible = useCadStore((s) => s.setGridVisible)
   const olsOpen = useCadStore((s) => s.olsOpen)
   const setOlsOpen = useCadStore((s) => s.setOlsOpen)
   const panelEditorOpen = useCadStore((s) => s.panelEditorOpen)
@@ -318,6 +320,12 @@ export default function Toolbar() {
     engineRef.current?.editorState.set('orthoMode', next)
   }
 
+  const handleToggleGrid = () => {
+    const next = !gridVisible
+    setGridVisible(next)
+    engineRef.current?.editorState.set('showGrid', next)
+  }
+
   const handleToggleUnderlayMenu = () => {
     setUnderlayMenuOpen((prev) => !prev)
   }
@@ -490,6 +498,7 @@ export default function Toolbar() {
         'panels',
         'validation',
         'theme',
+        'grid',
       ] as string[]
       const idx = allIds.indexOf(id)
       const hoverIdx = allIds.indexOf(hoveredDockId)
@@ -567,6 +576,13 @@ export default function Toolbar() {
         theme === 'blueprint' ? 'themeBlueprint' : 'themePaper'
       ),
       onClick: handleToggleTheme,
+    },
+    {
+      id: 'grid',
+      label: gridVisible ? 'Скрыть сетку' : 'Показать сетку',
+      icon: icon('grid'),
+      active: gridVisible,
+      onClick: handleToggleGrid,
     },
   ]
 

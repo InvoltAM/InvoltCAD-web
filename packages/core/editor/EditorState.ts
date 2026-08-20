@@ -57,6 +57,7 @@ export interface EditorStateData {
   uiScale: number;
   compactPanels: boolean;
   orthoMode: boolean;
+  showGrid: boolean;
   customDevices: CustomDevice[];
   selectedTextMode: 'single' | 'multi' | 'callout';
 }
@@ -103,6 +104,7 @@ export class EditorState {
     uiScale: 1,
     compactPanels: false,
     orthoMode: false,
+    showGrid: true,
     customDevices: [],
     selectedTextMode: 'single',
   };

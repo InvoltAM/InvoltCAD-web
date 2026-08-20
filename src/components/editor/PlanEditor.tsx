@@ -92,6 +92,7 @@ export default function PlanEditor() {
     // Синхронизируем начальное состояние cadStore -> EditorState
     const initial = useCadStore.getState()
     engine.editorState.set('orthoMode', initial.orthoMode)
+    engine.editorState.set('showGrid', initial.gridVisible)
     engine.editorState.set('deviceIconScale', initial.deviceIconScale)
     engine.editorState.set('selectedDeviceType', initial.selectedDeviceType)
     engine.editorState.set('wallThickness', initial.wallThickness)
@@ -106,6 +107,7 @@ export default function PlanEditor() {
     // Подписка на изменения cadStore, чтобы инструменты всегда видели актуальные значения
     const syncKeys: Array<keyof typeof initial & string> = [
       'orthoMode',
+      'gridVisible',
       'deviceIconScale',
       'selectedDeviceType',
       'wallThickness',

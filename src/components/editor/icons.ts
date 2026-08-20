@@ -6,8 +6,8 @@ export type IconName =
   | 'properties' | 'layers' | 'spec' | 'menu' | 'collapseDown' | 'collapseUp' | 'ai'
   | 'themeLight' | 'themeDark' | 'themeBlueprint' | 'themePaper'
   | 'undo' | 'redo' | 'zoomIn' | 'zoomOut' | 'save' | 'exportPng' | 'exportXlsx' | 'exportSvg' | 'print' | 'import' | 'clear'
-  | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects'
-  | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects'
+  | 'sun' | 'moon' | 'ortho' | 'grid' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects'
+  | 'sun' | 'moon' | 'ortho' | 'grid' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects'
   | 'rooms' | 'roomNumbers' | 'estimates' | 'invoices' | 'documents' | 'catalog' | 'marking' | 'automation' | 'templates'
   | 'dotsThreeVertical' | 'stamp' | 'exportDxf' | 'exportPdf' | 'plus'
   | 'socket' | 'switch' | 'light' | 'sensor' | 'output' | 'camera' | 'sks' | 'drive' | 'smartHome';
@@ -63,6 +63,7 @@ const MAP: Record<IconName, string> = {
   themeBlueprint: 'grid-four',
   themePaper: 'scroll',
   ortho: 'ruler',
+  grid: 'grid-four',
   uiScale: 'arrows-out',
   compact: 'squares-four',
   ols: 'lightning',

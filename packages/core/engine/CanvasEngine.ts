@@ -251,7 +251,9 @@ export class CanvasEngine {
     this.underlayRenderer.render(ctx);
 
     // 3. Сетка
-    this.gridRenderer.render(ctx);
+    if (this.editorState.get('showGrid')) {
+      this.gridRenderer.render(ctx);
+    }
 
     // 4. Рамка листа (под комнатами/стенами, как фоновый гид)
     this.sheetFrameRenderer.render(ctx);

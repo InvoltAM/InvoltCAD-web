@@ -94,6 +94,7 @@ interface CadStoreState {
   uiScale: number
   compactPanels: boolean
   orthoMode: boolean
+  gridVisible: boolean
   olsOpen: boolean
   panelEditorOpen: boolean
   projectsOpen: boolean
@@ -143,6 +144,7 @@ interface CadStoreState {
   setUiScale: (scale: number) => void
   setCompactPanels: (compact: boolean) => void
   setOrthoMode: (orthoMode: boolean) => void
+  setGridVisible: (visible: boolean) => void
   setOlsOpen: (open: boolean) => void
   setPanelEditorOpen: (open: boolean) => void
   setProjectsOpen: (open: boolean) => void
@@ -206,6 +208,7 @@ export const useCadStore = create<CadStoreState>((set) => ({
   uiScale: 1,
   compactPanels: false,
   orthoMode: false,
+  gridVisible: true,
   olsOpen: false,
   panelEditorOpen: false,
   projectsOpen: false,
@@ -258,6 +261,7 @@ export const useCadStore = create<CadStoreState>((set) => ({
   setUiScale: (uiScale) => set({ uiScale }),
   setCompactPanels: (compactPanels) => set({ compactPanels }),
   setOrthoMode: (orthoMode) => set({ orthoMode }),
+  setGridVisible: (gridVisible) => set({ gridVisible }),
   setOlsOpen: (olsOpen) => set({ olsOpen }),
   setPanelEditorOpen: (panelEditorOpen) => set({ panelEditorOpen }),
   setProjectsOpen: (projectsOpen) => set({ projectsOpen }),
