@@ -327,46 +327,60 @@ export default function Toolbar() {
     underlayInputRef.current?.click()
   }
 
-  const handleUnderlayFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const applyUnderlayDataUrl = (dataUrl: string) => {
+    const engine = engineRef.current
+    const plan = engine?.plan
+    if (!plan || !engine) return
+    const img = new Image()
+    img.onload = () => {
+      // Начальный масштаб: 1 px = 1 мм, центрируем по камере
+      const cx = plan.activeSheet.underlay?.position.x ?? engine.camera.x
+      const cy = plan.activeSheet.underlay?.position.y ?? engine.camera.y
+      plan.activeSheet.underlay = {
+        id: crypto.randomUUID(),
+        dataUrl,
+        position: { x: cx - (img.width * 1) / 2, y: cy - (img.height * 1) / 2 },
+        scale: 1,
+        opacity: 0.6,
+        visible: true,
+        locked: false,
+      }
+      engine.underlayRenderer.clearCache()
+      engine.notifyChanged?.()
+      engine.requestRender()
+    }
+    img.src = dataUrl
+  }
+
+  const handleUnderlayFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (!file.type.startsWith('image/')) {
-      alert('Поддерживаются только изображения PNG/JPEG. PDF/DWG пока не реализованы.')
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Файл слишком большой. Максимальный размер 10 МБ.')
       e.target.value = ''
       return
     }
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Файл слишком большой. Максимальный размер 5 МБ.')
-      e.target.value = ''
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = () => {
-      const dataUrl = reader.result as string
-      const engine = engineRef.current
-      const plan = engine?.plan
-      if (!plan) return
-      const img = new Image()
-      img.onload = () => {
-        // Начальный масштаб: 1 px = 1 мм, центрируем по камере
-        const cx = plan.activeSheet.underlay?.position.x ?? engine.camera.x
-        const cy = plan.activeSheet.underlay?.position.y ?? engine.camera.y
-        plan.activeSheet.underlay = {
-          id: crypto.randomUUID(),
-          dataUrl,
-          position: { x: cx - (img.width * 1) / 2, y: cy - (img.height * 1) / 2 },
-          scale: 1,
-          opacity: 0.6,
-          visible: true,
-          locked: false,
+
+    try {
+      const ext = file.name.toLowerCase().split('.').pop()
+      if (ext === 'pdf' || file.type === 'application/pdf') {
+        const { pdfFirstPageToPng } = await import('@/lib/pdfToImage')
+        const dataUrl = await pdfFirstPageToPng(file, 2)
+        applyUnderlayDataUrl(dataUrl)
+      } else if (file.type.startsWith('image/')) {
+        const reader = new FileReader()
+        reader.onload = () => {
+          applyUnderlayDataUrl(reader.result as string)
         }
-        engine.underlayRenderer.clearCache()
-        engine.notifyChanged?.()
-        engine.requestRender()
+        reader.readAsDataURL(file)
+      } else {
+        alert('Поддерживаются PNG, JPEG и PDF. DWG пока не реализован.')
       }
-      img.src = dataUrl
+    } catch (err) {
+      console.error('Ошибка загрузки подложки:', err)
+      alert('Ошибка загрузки подложки. Проверьте формат файла.')
     }
-    reader.readAsDataURL(file)
+
     e.target.value = ''
     setUnderlayMenuOpen(false)
   }
@@ -926,7 +940,7 @@ export default function Toolbar() {
             <div className="editor-dock-submenu">
               <button className="editor-dock-submenu-item" onClick={handleUploadUnderlay}>
                 <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('import') }} />
-                <span>Загрузить PNG/JPEG</span>
+                <span>Загрузить PNG/JPEG/PDF</span>
               </button>
               {engineRef.current?.plan.activeSheet.underlay && (
                 <>
@@ -950,7 +964,7 @@ export default function Toolbar() {
         <input
           ref={underlayInputRef}
           type="file"
-          accept="image/png,image/jpeg,image/jpg"
+          accept="image/png,image/jpeg,image/jpg,application/pdf,.pdf"
           className="hidden"
           onChange={handleUnderlayFileChange}
         />

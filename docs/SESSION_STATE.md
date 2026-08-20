@@ -7,7 +7,7 @@ Dev-сервер Next.js работает на `http://localhost:3003/editor`.
 
 ## Что сделано с последнего сохранения
 
-- Реализована загрузка растровой подложки (PNG/JPEG) и калибровка её масштаба:
+- Реализована загрузка подложки (PNG/JPEG/PDF) и калибровка её масштаба:
   - `packages/core/model/Sheet.ts` — добавлены `SheetUnderlay` и поле `underlay` в `Sheet`.
   - `packages/core/render/UnderlayRenderer.ts` — рендерит подложку в мировых координатах с учётом позиции, масштаба и прозрачности.
   - `packages/core/engine/CanvasEngine.ts` — подключен `UnderlayRenderer`, подложка рисуется под сеткой и объектами.
@@ -15,7 +15,8 @@ Dev-сервер Next.js работает на `http://localhost:3003/editor`.
   - `packages/core/tools/SelectTool.ts` — добавлено перетаскивание подложки мышью, если она не заблокирована.
   - `packages/core/tools/ToolManager.ts` — добавлен тип инструмента `'underlay'`.
   - `src/lib/projects/serializer.ts` — подложка сохраняется и восстанавливается вместе с планом.
-  - `src/components/editor/Toolbar.tsx` — добавлено меню «Подложка»: загрузить PNG/JPEG, калибровать масштаб, скрыть/показать, удалить.
+  - `src/lib/pdfToImage.ts` — конвертация первой страницы PDF в PNG через `pdfjs-dist`.
+  - `src/components/editor/Toolbar.tsx` — добавлено меню «Подложка»: загрузить PNG/JPEG/PDF, калибровать масштаб, скрыть/показать, удалить.
   - `src/components/editor/PropertyPanel.tsx` — раздел свойств подложки: прозрачность, масштаб, позиция X/Y, видимость, блокировка, удаление.
   - `src/components/editor/icons.ts` — добавлены иконки `underlay`, `calibrate`, `eye`, `eyeSlash`.
   - `src/components/editor/PlanEditor.tsx` — зарегистрирован `UnderlayCalibrationTool` с диалогом ввода реальной длины.
