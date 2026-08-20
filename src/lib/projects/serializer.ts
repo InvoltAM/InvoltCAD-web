@@ -99,6 +99,16 @@ export interface SerializedPrimitive {
   fillColor?: string
 }
 
+export interface SerializedUnderlay {
+  id: string
+  dataUrl: string
+  position: { x: number; y: number }
+  scale: number
+  opacity: number
+  visible: boolean
+  locked: boolean
+}
+
 export interface SerializedPlan {
   walls: SerializedWall[]
   openings: SerializedOpening[]
@@ -119,6 +129,7 @@ export interface SerializedPlan {
     automationConfigs: any[]
     rooms?: any[]
   }
+  underlay?: SerializedUnderlay
 }
 
 /**
@@ -221,7 +232,16 @@ export function serializePlan(plan: Plan): SerializedPlan {
       : undefined,
   }))
 
-  return { walls, openings, devices, cables, dimensions, primitives, electrical: plan.electrical ?? createEmptyElectrical() }
+  return {
+    walls,
+    openings,
+    devices,
+    cables,
+    dimensions,
+    primitives,
+    electrical: plan.electrical ?? createEmptyElectrical(),
+    underlay: plan.activeSheet.underlay,
+  }
 }
 
 /**
@@ -351,6 +371,9 @@ export function deserializePlan(data: SerializedPlan): Plan {
   }
 
   plan.electrical = data.electrical ?? createEmptyElectrical()
+  if (data.underlay) {
+    plan.activeSheet.underlay = { ...data.underlay }
+  }
   plan.invalidateRooms()
   return plan
 }

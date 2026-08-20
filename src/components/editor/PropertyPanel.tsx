@@ -98,6 +98,8 @@ export default function PropertyPanel() {
       {walls.length === 0 && openings.length === 0 && devices.length === 0 && cables.length === 0 && dimensions.length > 0 && <DimensionProperties dimensions={dimensions} />}
       {walls.length === 0 && openings.length === 0 && devices.length === 0 && cables.length === 0 && dimensions.length === 0 && primitives.length > 0 && <PrimitiveProperties primitives={primitives} plan={plan} />}
 
+      {plan.activeSheet.underlay && <UnderlayProperties plan={plan} />}
+
       {!hasSelection && currentTool === 'wall' && <WallToolSettings />}
       {!hasSelection && currentTool === 'door' && <DoorToolSettings />}
       {!hasSelection && currentTool === 'window' && <WindowToolSettings />}
@@ -1465,6 +1467,131 @@ function CableToolSettings() {
           className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
         />
       </div>
+    </div>
+  )
+}
+
+function UnderlayProperties({ plan }: { plan: Plan }) {
+  const { engineRef } = useEditor()
+  const underlay = plan.activeSheet.underlay
+  const [tick, setTick] = useState(0)
+
+  if (!underlay) return null
+
+  const refresh = () => {
+    setTick((t) => t + 1)
+    engineRef.current?.requestRender()
+    engineRef.current?.notifyChanged?.()
+  }
+
+  return (
+    <div key={tick} className="space-y-3 border-b border-gray-200 pb-3 dark:border-gray-700">
+      <div className="text-sm font-medium text-gray-800 dark:text-gray-100">Подложка</div>
+
+      <div>
+        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Прозрачность</label>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={underlay.opacity}
+          onChange={(e) => {
+            underlay.opacity = parseFloat(e.target.value)
+            refresh()
+          }}
+          className="w-full"
+        />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Масштаб, мм/px</label>
+        <input
+          type="number"
+          step="0.01"
+          min={0.001}
+          value={underlay.scale}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value)
+            if (v > 0) {
+              underlay.scale = v
+              refresh()
+            }
+          }}
+          className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Позиция X</label>
+          <input
+            type="number"
+            step={10}
+            value={Math.round(underlay.position.x)}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value)
+              if (Number.isFinite(v)) {
+                underlay.position.x = v
+                refresh()
+              }
+            }}
+            className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Позиция Y</label>
+          <input
+            type="number"
+            step={10}
+            value={Math.round(underlay.position.y)}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value)
+              if (Number.isFinite(v)) {
+                underlay.position.y = v
+                refresh()
+              }
+            }}
+            className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          />
+        </div>
+      </div>
+
+      <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+        <input
+          type="checkbox"
+          checked={underlay.visible}
+          onChange={(e) => {
+            underlay.visible = e.target.checked
+            refresh()
+          }}
+        />
+        Видимая
+      </label>
+
+      <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+        <input
+          type="checkbox"
+          checked={underlay.locked}
+          onChange={(e) => {
+            underlay.locked = e.target.checked
+            refresh()
+          }}
+        />
+        Заблокирована
+      </label>
+
+      <button
+        onClick={() => {
+          delete plan.activeSheet.underlay
+          engineRef.current?.underlayRenderer.clearCache()
+          engineRef.current?.requestRender()
+          engineRef.current?.notifyChanged?.()
+        }}
+        className="w-full rounded bg-red-50 px-2 py-1 text-xs text-red-600 hover:bg-red-100 dark:bg-red-900 dark:text-red-200"
+      >
+        Удалить подложку
+      </button>
     </div>
   )
 }

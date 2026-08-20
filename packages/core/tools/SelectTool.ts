@@ -91,6 +91,12 @@ interface DragCalloutTail {
   moved: boolean;
 }
 
+interface DragUnderlay {
+  startWorld: Vector2;
+  originalPos: { x: number; y: number };
+  moved: boolean;
+}
+
 /**
  * Инструмент "Выбор".
  * Выделение, перемещение проема, удаление через CommandManager,
@@ -109,6 +115,7 @@ export class SelectTool implements Tool {
   private resizeTable: ResizeTable | null = null;
   private dragPrimitive: DragPrimitive | null = null;
   private dragCalloutTail: DragCalloutTail | null = null;
+  private dragUnderlay: DragUnderlay | null = null;
   private selectionBox: {
     startWorld: Vector2;
     currentWorld: Vector2;
@@ -373,7 +380,20 @@ export class SelectTool implements Tool {
         this.dragOpening = null;
         this.dragRoomVertex = null;
       } else {
-        this.startSelectionBox(e);
+        const hitUnderlay = this.hitTestUnderlay(e.worldPoint);
+        if (hitUnderlay) {
+          const underlay = this.plan.activeSheet.underlay;
+          if (underlay && !underlay.locked) {
+            this.clearSelection();
+            this.dragUnderlay = {
+              startWorld: e.worldPoint.clone(),
+              originalPos: { ...underlay.position },
+              moved: false,
+            };
+          }
+        } else {
+          this.startSelectionBox(e);
+        }
       }
     }
   }
@@ -430,6 +450,19 @@ export class SelectTool implements Tool {
       this.canvas.setSnap(snap);
       this.dragCalloutTail.primitive.points[1] = snap.point.clone();
       this.dragCalloutTail.moved = true;
+      this.canvas.notifyChanged();
+      return;
+    }
+
+    if (this.dragUnderlay) {
+      const world = this.canvas.camera.screenToWorld(e.screenPoint);
+      const delta = world.sub(this.dragUnderlay.startWorld);
+      const underlay = this.plan.activeSheet.underlay;
+      if (underlay) {
+        underlay.position.x = this.dragUnderlay.originalPos.x + delta.x;
+        underlay.position.y = this.dragUnderlay.originalPos.y + delta.y;
+      }
+      this.dragUnderlay.moved = true;
       this.canvas.notifyChanged();
       return;
     }
@@ -608,6 +641,19 @@ export class SelectTool implements Tool {
       }
       this.dragCalloutTail = null;
       this.canvas.setSnap(null);
+      this.canvas.notifyChanged();
+      return;
+    }
+
+    if (this.dragUnderlay) {
+      const { originalPos, moved } = this.dragUnderlay;
+      if (!moved) {
+        const underlay = this.plan.activeSheet.underlay;
+        if (underlay) {
+          underlay.position = originalPos;
+        }
+      }
+      this.dragUnderlay = null;
       this.canvas.notifyChanged();
       return;
     }
@@ -1596,5 +1642,21 @@ export class SelectTool implements Tool {
       y += p.y;
     }
     return new Vector2(x / polygon.length, y / polygon.length);
+  }
+
+  /** Проверка попадания курсора в область подложки. */
+  private hitTestUnderlay(worldPoint: Vector2): boolean {
+    const underlay = this.plan.activeSheet.underlay;
+    if (!underlay || !underlay.visible) return false;
+    const img = this.canvas.underlayRenderer.getImage(underlay.id);
+    if (!img || !img.complete || img.naturalWidth === 0) return false;
+    const w = img.naturalWidth * underlay.scale;
+    const h = img.naturalHeight * underlay.scale;
+    return (
+      worldPoint.x >= underlay.position.x &&
+      worldPoint.x <= underlay.position.x + w &&
+      worldPoint.y >= underlay.position.y &&
+      worldPoint.y <= underlay.position.y + h
+    );
   }
 }

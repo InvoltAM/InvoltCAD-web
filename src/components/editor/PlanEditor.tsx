@@ -18,6 +18,7 @@ import { TrimTool } from '@core/tools/TrimTool'
 import { ExtendTool } from '@core/tools/ExtendTool'
 import { TextTool } from '@core/tools/TextTool'
 import { TableTool } from '@core/tools/TableTool'
+import { UnderlayCalibrationTool } from '@core/tools/UnderlayCalibrationTool'
 import { ThemeManager } from '@core/editor/ThemeManager'
 import { useCadStore } from '@/stores/cadStore'
 import { EditorProvider } from './EditorContext'
@@ -168,6 +169,19 @@ export default function PlanEditor() {
     const extendTool = new ExtendTool(engine, plan, engine.snapEngine)
     const textTool = new TextTool(engine, plan, engine.snapEngine)
     const tableTool = new TableTool(engine, plan, engine.snapEngine)
+    const underlayTool = new UnderlayCalibrationTool(engine, plan, ({ currentMm, onApply, onCancel }) => {
+      const input = window.prompt(`Реальная длина выбранного отрезка, мм (текущий масштаб даёт ${Math.round(currentMm)} мм)`, String(Math.round(currentMm)))
+      if (input === null) {
+        onCancel()
+        return
+      }
+      const realMm = parseFloat(input.replace(',', '.'))
+      if (!Number.isFinite(realMm) || realMm <= 0) {
+        onCancel()
+        return
+      }
+      onApply(realMm)
+    })
 
     engine.registerTool('move', moveTool)
     engine.registerTool('rotate', rotateTool)
@@ -175,6 +189,7 @@ export default function PlanEditor() {
     engine.registerTool('extend', extendTool)
     engine.registerTool('text', textTool)
     engine.registerTool('table', tableTool)
+    engine.registerTool('underlay', underlayTool)
 
     // Подписка на изменения плана для валидации и автосохранения
     engine.onChange = () => {

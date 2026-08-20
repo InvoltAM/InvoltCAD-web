@@ -20,6 +20,7 @@ import { CommandManager } from '../editor/CommandManager';
 import { ValidationIssue } from '../rules/ValidationTypes';
 import { ThemeManager } from '../editor/ThemeManager';
 import { SheetFrameRenderer } from '../render/SheetFrameRenderer';
+import { UnderlayRenderer } from '../render/UnderlayRenderer';
 import { getSheetDimensions } from '../model/Sheet';
 
 /**
@@ -44,6 +45,7 @@ export class CanvasEngine {
   tableRenderer: TableRenderer;
   primitiveRenderer: PrimitiveRenderer;
   sheetFrameRenderer: SheetFrameRenderer;
+  underlayRenderer: UnderlayRenderer;
   input: InputManager;
   snapEngine: SnapEngine;
   toolManager: ToolManager;
@@ -92,6 +94,7 @@ export class CanvasEngine {
     this.tableRenderer = new TableRenderer(plan, this.camera, this.themeManager);
     this.primitiveRenderer = new PrimitiveRenderer(plan, this.camera, this.themeManager);
     this.sheetFrameRenderer = new SheetFrameRenderer(plan, this.camera, this.themeManager, () => this.requestRender());
+    this.underlayRenderer = new UnderlayRenderer(plan, this.camera, this.themeManager, () => this.requestRender());
 
     this.input = new InputManager(canvas, this.camera);
     this.setupInput();
@@ -244,66 +247,69 @@ export class CanvasEngine {
     ctx.save();
     this.camera.applyTransform(ctx);
 
-    // 2. Сетка
+    // 2. Подложка (под сеткой и объектами)
+    this.underlayRenderer.render(ctx);
+
+    // 3. Сетка
     this.gridRenderer.render(ctx);
 
-    // 3. Рамка листа (под комнатами/стенами, как фоновый гид)
+    // 4. Рамка листа (под комнатами/стенами, как фоновый гид)
     this.sheetFrameRenderer.render(ctx);
 
-    // 4. Комнаты (под стенами)
+    // 5. Комнаты (под стенами)
     if (layers.rooms) {
       this.roomRenderer.render(ctx);
     }
 
-    // 4. Размерные линии
+    // 6. Размерные линии
     if (layers.dimensions) {
       this.dimensionRenderer.render(ctx);
     }
 
-    // 5. Авторазмеры стен
+    // 7. Авторазмеры стен
     if (layers.wallDimensions) {
       this.wallDimensionRenderer.render(ctx);
     }
 
-    // 6. Стены
+    // 8. Стены
     if (layers.walls) {
       this.wallRenderer.render(ctx);
     }
 
-    // 7. Проемы
+    // 9. Проемы
     if (layers.openings) {
       this.openingRenderer.render(ctx);
     }
 
-    // 8. Устройства
+    // 10. Устройства
     if (layers.devices) {
       this.deviceRenderer.render(ctx);
     }
 
-    // 9. Кабели
+    // 11. Кабели
     if (layers.cables) {
       this.cableRenderer.render(ctx);
     }
 
-    // 10. Примитивы рисования
+    // 12. Примитивы рисования
     this.primitiveRenderer.render(ctx);
 
-    // 11. Таблицы на листе
+    // 13. Таблицы на листе
     this.tableRenderer.render(ctx);
 
-    // 12. Ghost-слой
+    // 14. Ghost-слой
     if (this.ghostDraw) {
       this.ghostDraw(ctx);
     }
 
     ctx.restore();
 
-    // 11. Маркеры валидации (в экранных координатах)
+    // 15. Маркеры валидации (в экранных координатах)
     if (this.editorState.get('showValidation')) {
       this.renderValidationMarkers(ctx);
     }
 
-    // 12. Лупа для touch (в экранных координатах)
+    // 16. Лупа для touch (в экранных координатах)
     if (this.magnifierScreenPoint) {
       const magCanvas = this.ghostRenderer.renderMagnifier(
         this.canvas, this.magnifierScreenPoint, 60, 2,

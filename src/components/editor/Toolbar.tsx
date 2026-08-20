@@ -96,6 +96,7 @@ export default function Toolbar() {
   const devicePaletteOpen = useCadStore((s) => s.devicePaletteOpen)
   const aiChatOpen = useCadStore((s) => s.aiChatOpen)
   const { engineRef, themeManagerRef, panelManagerRef } = useEditor()
+  const [, setTick] = useState(0)
 
   const [panelMenuOpen, setPanelMenuOpen] = useState(false)
   const [panelMenuPos, setPanelMenuPos] = useState({ x: 0, y: 0 })
@@ -113,6 +114,10 @@ export default function Toolbar() {
 
   const [textMenuOpen, setTextMenuOpen] = useState(false)
   const textMenuBtnRef = useRef<HTMLButtonElement>(null)
+
+  const [underlayMenuOpen, setUnderlayMenuOpen] = useState(false)
+  const underlayMenuBtnRef = useRef<HTMLButtonElement>(null)
+  const underlayInputRef = useRef<HTMLInputElement>(null)
 
   const selectedTextMode = useCadStore((s) => s.selectedTextMode)
   const setSelectedTextMode = useCadStore((s) => s.setSelectedTextMode)
@@ -181,6 +186,17 @@ export default function Toolbar() {
     document.addEventListener('click', onDocClick)
     return () => document.removeEventListener('click', onDocClick)
   }, [textMenuOpen])
+
+  useEffect(() => {
+    if (!underlayMenuOpen) return
+    const onDocClick = (e: MouseEvent) => {
+      if (!underlayMenuBtnRef.current?.contains(e.target as Node)) {
+        setUnderlayMenuOpen(false)
+      }
+    }
+    document.addEventListener('click', onDocClick)
+    return () => document.removeEventListener('click', onDocClick)
+  }, [underlayMenuOpen])
 
   const handleToggleWallMenu = () => {
     setWallMenuOpen((prev) => !prev)
@@ -301,6 +317,83 @@ export default function Toolbar() {
     const next = !orthoMode
     setOrthoMode(next)
     engineRef.current?.editorState.set('orthoMode', next)
+  }
+
+  const handleToggleUnderlayMenu = () => {
+    setUnderlayMenuOpen((prev) => !prev)
+  }
+
+  const handleUploadUnderlay = () => {
+    underlayInputRef.current?.click()
+  }
+
+  const handleUnderlayFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      alert('Поддерживаются только изображения PNG/JPEG. PDF/DWG пока не реализованы.')
+      e.target.value = ''
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Файл слишком большой. Максимальный размер 5 МБ.')
+      e.target.value = ''
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      const engine = engineRef.current
+      const plan = engine?.plan
+      if (!plan) return
+      const img = new Image()
+      img.onload = () => {
+        // Начальный масштаб: 1 px = 1 мм, центрируем по камере
+        const cx = plan.activeSheet.underlay?.position.x ?? engine.camera.x
+        const cy = plan.activeSheet.underlay?.position.y ?? engine.camera.y
+        plan.activeSheet.underlay = {
+          id: crypto.randomUUID(),
+          dataUrl,
+          position: { x: cx - (img.width * 1) / 2, y: cy - (img.height * 1) / 2 },
+          scale: 1,
+          opacity: 0.6,
+          visible: true,
+          locked: false,
+        }
+        engine.underlayRenderer.clearCache()
+        engine.notifyChanged?.()
+        engine.requestRender()
+      }
+      img.src = dataUrl
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+    setUnderlayMenuOpen(false)
+  }
+
+  const handleDeleteUnderlay = () => {
+    const engine = engineRef.current
+    const plan = engine?.plan
+    if (!plan || !plan.activeSheet.underlay) return
+    delete plan.activeSheet.underlay
+    engine.underlayRenderer.clearCache()
+    engine.notifyChanged?.()
+    engine.requestRender()
+    setUnderlayMenuOpen(false)
+  }
+
+  const handleToggleUnderlayVisible = () => {
+    const underlay = engineRef.current?.plan.activeSheet.underlay
+    if (!underlay) return
+    underlay.visible = !underlay.visible
+    engineRef.current?.requestRender()
+    setTick((t) => t + 1)
+  }
+
+  const handleCalibrateUnderlay = () => {
+    setTool('underlay')
+    engineRef.current?.setTool('underlay')
+    setUnderlayMenuOpen(false)
   }
 
   const handleImport = () => {
@@ -810,6 +903,57 @@ export default function Toolbar() {
           <span className="editor-dock-tooltip">Таблица</span>
         </button>
         <div className="editor-dock-divider" />
+        <div key="underlay" className="editor-dock-group">
+          {(() => {
+            const underlay = engineRef.current?.plan.activeSheet.underlay
+            const hasUnderlay = !!underlay
+            return (
+              <button
+                ref={underlayMenuBtnRef}
+                onClick={handleToggleUnderlayMenu}
+                onMouseEnter={() => setHoveredDockId('underlay')}
+                className={`editor-dock-item editor-dock-item-menu ${currentTool === 'underlay' ? 'active' : ''} ${hasUnderlay ? 'has-underlay' : ''}`}
+                title={`Подложка ${hasUnderlay ? '●' : ''} ▼`}
+                style={{ transform: `scale(${getDockScale('underlay')})` }}
+              >
+                <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('underlay') }} />
+                <span className="editor-dock-arrow">▼</span>
+                <span className="editor-dock-tooltip">Подложка</span>
+              </button>
+            )
+          })()}
+          {underlayMenuOpen && (
+            <div className="editor-dock-submenu">
+              <button className="editor-dock-submenu-item" onClick={handleUploadUnderlay}>
+                <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('import') }} />
+                <span>Загрузить PNG/JPEG</span>
+              </button>
+              {engineRef.current?.plan.activeSheet.underlay && (
+                <>
+                  <button className="editor-dock-submenu-item" onClick={handleCalibrateUnderlay}>
+                    <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('calibrate') }} />
+                    <span>Калибровать масштаб</span>
+                  </button>
+                  <button className="editor-dock-submenu-item" onClick={handleToggleUnderlayVisible}>
+                    <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon(engineRef.current?.plan.activeSheet.underlay?.visible ? 'eyeSlash' : 'eye') }} />
+                    <span>{engineRef.current?.plan.activeSheet.underlay?.visible ? 'Скрыть' : 'Показать'}</span>
+                  </button>
+                  <button className="editor-dock-submenu-item" onClick={handleDeleteUnderlay}>
+                    <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('clear') }} />
+                    <span>Удалить</span>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+        <input
+          ref={underlayInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/jpg"
+          className="hidden"
+          onChange={handleUnderlayFileChange}
+        />
         {dockActions.flatMap((action) => {
           const elements: React.ReactNode[] = [
             <button

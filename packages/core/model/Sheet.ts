@@ -11,6 +11,18 @@ import { DrawingPrimitive } from './DrawingPrimitive';
 export type PageSize = 'A4' | 'A3' | 'A2' | 'A1' | 'A0';
 export type PageOrientation = 'landscape' | 'portrait';
 
+/** Растровая подложка на листе (скан плана, экспорт из PDF/DWG и т.п.). */
+export interface SheetUnderlay {
+  id: string;
+  dataUrl: string;
+  position: { x: number; y: number };
+  /** Миллиметров мира на 1 пиксель изображения. */
+  scale: number;
+  opacity: number;
+  visible: boolean;
+  locked: boolean;
+}
+
 /** Поля основной надписи (штампа) по ГОСТ 21.1101-2013, форма 3. */
 export interface SheetTitleBlock {
   /** Наименование организации */
@@ -124,6 +136,7 @@ export interface Sheet {
   orientation: PageOrientation;
   printScale: number;
   titleBlock: SheetTitleBlock;
+  underlay?: SheetUnderlay;
 }
 
 export const DEFAULT_SHEET_NAMES = [
