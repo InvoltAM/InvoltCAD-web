@@ -294,8 +294,7 @@ export default function Toolbar() {
   }
 
   const handleToggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark'
-    themeManagerRef.current?.setTheme(next)
+    const next = themeManagerRef.current?.toggle() ?? 'light'
     setTheme(next)
   }
 
@@ -558,8 +557,15 @@ export default function Toolbar() {
     },
     {
       id: 'theme',
-      label: theme === 'dark' ? 'Светлая тема' : 'Тёмная тема',
-      icon: icon(theme === 'dark' ? 'sun' : 'moon'),
+      label:
+        theme === 'light' ? 'Светлая' :
+        theme === 'dark' ? 'Тёмная' :
+        theme === 'blueprint' ? 'Чертёж' : 'Бумага',
+      icon: icon(
+        theme === 'light' ? 'themeLight' :
+        theme === 'dark' ? 'themeDark' :
+        theme === 'blueprint' ? 'themeBlueprint' : 'themePaper'
+      ),
       onClick: handleToggleTheme,
     },
   ]

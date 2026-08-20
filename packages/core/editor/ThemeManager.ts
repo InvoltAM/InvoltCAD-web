@@ -1,4 +1,4 @@
-export type ThemeName = 'light' | 'dark';
+export type ThemeName = 'light' | 'dark' | 'blueprint' | 'paper';
 
 export type ThemeColorKey =
   | 'canvasBg'
@@ -142,6 +142,102 @@ const dark: ThemePalette = {
   },
 };
 
+/** Тема «Чертёжная бумага» — синий фон, белые линии. */
+const blueprint: ThemePalette = {
+  colors: {
+    canvasBg: '#1e3a5f',
+    gridMinor: 'rgba(255,255,255,0.06)',
+    gridMajor: 'rgba(255,255,255,0.14)',
+    wall: '#ffffff',
+    wallStroke: 'rgba(255,255,255,0.25)',
+    wallShadow: 'rgba(0,0,0,0.2)',
+    openingBg: '#1e3a5f',
+    openingStroke: '#ffffff',
+    openingShadow: 'rgba(0,0,0,0.2)',
+    openingSelectedFill: 'rgba(255, 200, 80, 0.25)',
+    roomFill: 'rgba(100, 160, 220, 0.25)',
+    roomStroke: 'rgba(180, 210, 240, 0.5)',
+    roomText: '#ffffff',
+    roomHandleFill: '#ffc850',
+    roomHandleStroke: '#1e3a5f',
+    cablePower: '#ff9999',
+    cableLighting: '#ffd166',
+    cableLowCurrent: '#7fdbca',
+    deviceSocket: '#8ecae6',
+    deviceSwitch: '#cdb4db',
+    devicePanel: '#ff9999',
+    deviceBreaker: '#ffd166',
+    deviceLight: '#7fdbca',
+    deviceDefault: '#8ecae6',
+    deviceText: '#ffffff',
+    deviceIconBg: '#1e3a5f',
+    dimension: '#ffffff',
+    dimensionSelected: '#8ecae6',
+    dimensionTextBg: 'rgba(30,58,95,0.85)',
+    text: '#ffffff',
+    textBg: 'rgba(30,58,95,0.8)',
+    ghostWall: 'rgba(255,255,255,0.5)',
+    ghostOpening: 'rgba(255,200,80,0.4)',
+    ghostSnap: '#ffc850',
+    ghostSnapText: '#ffffff',
+    accent: '#ffc850',
+    selected: '#ffc850',
+    selectionFill: 'rgba(255, 200, 80, 0.25)',
+    validationError: '#ff9999',
+    validationWarning: '#ffd166',
+    validationInfo: '#8ecae6',
+    sheetFrame: '#ffffff',
+  },
+};
+
+/** Тема «Бумага» — тёплый сепия/бежевый фон, тёмные линии. */
+const paper: ThemePalette = {
+  colors: {
+    canvasBg: '#f0e6d2',
+    gridMinor: 'rgba(60,50,40,0.06)',
+    gridMajor: 'rgba(60,50,40,0.12)',
+    wall: '#4a4036',
+    wallStroke: 'rgba(60,50,40,0.15)',
+    wallShadow: 'rgba(60,50,40,0.1)',
+    openingBg: '#f0e6d2',
+    openingStroke: '#4a4036',
+    openingShadow: 'rgba(60,50,40,0.1)',
+    openingSelectedFill: 'rgba(180, 100, 40, 0.2)',
+    roomFill: 'rgba(180, 160, 120, 0.3)',
+    roomStroke: 'rgba(120, 100, 80, 0.45)',
+    roomText: '#4a4036',
+    roomHandleFill: '#b56428',
+    roomHandleStroke: '#f0e6d2',
+    cablePower: '#c0392b',
+    cableLighting: '#d35400',
+    cableLowCurrent: '#27ae60',
+    deviceSocket: '#2980b9',
+    deviceSwitch: '#8e44ad',
+    devicePanel: '#c0392b',
+    deviceBreaker: '#d35400',
+    deviceLight: '#27ae60',
+    deviceDefault: '#2980b9',
+    deviceText: '#3d3228',
+    deviceIconBg: '#f0e6d2',
+    dimension: '#3d3228',
+    dimensionSelected: '#2980b9',
+    dimensionTextBg: 'rgba(240,230,210,0.85)',
+    text: '#3d3228',
+    textBg: 'rgba(240,230,210,0.8)',
+    ghostWall: 'rgba(74,64,54,0.5)',
+    ghostOpening: 'rgba(180,100,40,0.35)',
+    ghostSnap: '#b56428',
+    ghostSnapText: '#4a4036',
+    accent: '#b56428',
+    selected: '#b56428',
+    selectionFill: 'rgba(180, 100, 40, 0.2)',
+    validationError: '#c0392b',
+    validationWarning: '#d35400',
+    validationInfo: '#2980b9',
+    sheetFrame: '#4a4036',
+  },
+};
+
 /**
  * Управляет цветовой темой редактора.
  * Предоставляет палитру цветов для canvas-рендереров и UI.
@@ -164,14 +260,23 @@ export class ThemeManager {
     for (const cb of this.listeners) cb(name);
   }
 
+  private palettes: Record<ThemeName, ThemePalette> = {
+    light,
+    dark,
+    blueprint,
+    paper,
+  };
+
   toggle(): ThemeName {
-    const next = this.current === 'light' ? 'dark' : 'light';
+    const order: ThemeName[] = ['light', 'dark', 'blueprint', 'paper'];
+    const idx = order.indexOf(this.current);
+    const next = order[(idx + 1) % order.length];
     this.setTheme(next);
     return next;
   }
 
   getColor(key: ThemeColorKey): string {
-    return (this.current === 'dark' ? dark : light).colors[key];
+    return this.palettes[this.current].colors[key];
   }
 
   subscribe(callback: (name: ThemeName) => void): () => void {

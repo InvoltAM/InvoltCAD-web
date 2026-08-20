@@ -4,6 +4,7 @@ export type IconName =
   | 'move' | 'rotate' | 'trim' | 'extend'
   | 'text' | 'table' | 'underlay' | 'calibrate' | 'eye' | 'eyeSlash'
   | 'properties' | 'layers' | 'spec' | 'menu' | 'collapseDown' | 'collapseUp' | 'ai'
+  | 'themeLight' | 'themeDark' | 'themeBlueprint' | 'themePaper'
   | 'undo' | 'redo' | 'zoomIn' | 'zoomOut' | 'save' | 'exportPng' | 'exportXlsx' | 'exportSvg' | 'print' | 'import' | 'clear'
   | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects'
   | 'sun' | 'moon' | 'ortho' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects'
@@ -57,6 +58,10 @@ const MAP: Record<IconName, string> = {
   clear: 'trash',
   sun: 'sun',
   moon: 'moon',
+  themeLight: 'sun',
+  themeDark: 'moon',
+  themeBlueprint: 'grid-four',
+  themePaper: 'scroll',
   ortho: 'ruler',
   uiScale: 'arrows-out',
   compact: 'squares-four',

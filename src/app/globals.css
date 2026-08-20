@@ -62,6 +62,32 @@ html, body {
   --shadow: rgba(0,0,0,0.3);
 }
 
+[data-theme='blueprint'] {
+  --background: #1e3a5f;
+  --foreground: #ffffff;
+  --panel-bg: #24446e;
+  --panel-header-bg: #2a4f7f;
+  --border: #3d6a9f;
+  --text: #ffffff;
+  --text-secondary: #c8d8ec;
+  --text-muted: #8fb0d8;
+  --hover-bg: #335a8a;
+  --shadow: rgba(0,0,0,0.3);
+}
+
+[data-theme='paper'] {
+  --background: #f0e6d2;
+  --foreground: #4a4036;
+  --panel-bg: #e8dec8;
+  --panel-header-bg: #e0d4bc;
+  --border: #c8bca8;
+  --text: #4a4036;
+  --text-secondary: #6b5e50;
+  --text-muted: #8a7d6e;
+  --hover-bg: #ddd2be;
+  --shadow: rgba(60,50,40,0.15);
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -644,6 +670,18 @@ body {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 
+[data-theme='blueprint'] .editor-dock {
+  background: rgba(30, 58, 95, 0.82);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+[data-theme='paper'] .editor-dock {
+  background: rgba(232, 222, 200, 0.85);
+  border-color: rgba(74, 64, 54, 0.12);
+  box-shadow: 0 8px 32px rgba(60, 50, 40, 0.15), 0 2px 8px rgba(60, 50, 40, 0.1), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+
 .editor-dock-item {
   position: relative;
   display: flex;
@@ -674,6 +712,26 @@ body {
 [data-theme='dark'] .editor-dock-item:hover,
 .dark .editor-dock-item:hover {
   background: rgba(80, 80, 80, 0.95);
+}
+
+[data-theme='blueprint'] .editor-dock-item {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
+}
+
+[data-theme='blueprint'] .editor-dock-item:hover {
+  background: rgba(255, 255, 255, 0.22);
+  color: var(--text);
+}
+
+[data-theme='paper'] .editor-dock-item {
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--text-secondary);
+}
+
+[data-theme='paper'] .editor-dock-item:hover {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text);
 }
 
 .editor-dock-item.active {
