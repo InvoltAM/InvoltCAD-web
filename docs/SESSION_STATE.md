@@ -1,4 +1,4 @@
-# Сессия разработки — 2026-08-20 (подложка плана и калибровка масштаба)
+# Сессия разработки — 2026-08-21 (кастомные темы и позиция кнопки подложки)
 
 ## Текущий контекст
 
@@ -20,6 +20,12 @@ Dev-сервер Next.js работает на `http://localhost:3003/editor`.
   - `src/components/editor/PropertyPanel.tsx` — раздел свойств подложки: прозрачность, масштаб, позиция X/Y, видимость, блокировка, удаление.
   - `src/components/editor/icons.ts` — добавлены иконки `underlay`, `calibrate`, `eye`, `eyeSlash`.
   - `src/components/editor/PlanEditor.tsx` — зарегистрирован `UnderlayCalibrationTool` с диалогом ввода реальной длины.
+- Добавлены две кастомные темы редактора:
+  - `packages/core/editor/ThemeManager.ts` — расширен `ThemeName` (`light`, `dark`, `blueprint`, `paper`) и добавлены палитры.
+  - `src/components/editor/Toolbar.tsx` — кнопка темы переключает все 4 темы по кругу.
+  - `src/components/editor/icons.ts` — добавлены иконки `themeLight`, `themeDark`, `themeBlueprint`, `themePaper`.
+  - `src/app/globals.css` — CSS-переменные и стили для тем `blueprint` и `paper`.
+- UI: кнопка «Подложка» перенесена в самый левый край нижней панели, левее кнопки «Стена».
 - Проверки:
   - `npx tsc --noEmit` — чисто.
   - `npm test` — 63/63 тестов пройдены.
@@ -27,7 +33,7 @@ Dev-сервер Next.js работает на `http://localhost:3003/editor`.
 ## Следующие шаги
 
 - Протестировать загрузку и калибровку подложки в браузере.
-- При необходимости добавить поддержку PDF/DWG через серверную конвертацию.
+- Протестировать новые темы.
 - Продолжить доработку редактора.
 
 ---
