@@ -34,6 +34,7 @@ export default function PanelEditor() {
   const [activeTab, setActiveTab] = useState<'editor' | 'basket'>('editor')
   const [componentOrder, setComponentOrder] = useState<string[]>([])
   const [fallbackEdits, setFallbackEdits] = useState<{ order: string[]; hidden: Set<string> } | null>(null)
+  const [extraRows, setExtraRows] = useState(0)
   const [dragId, setDragId] = useState<string | null>(null)
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const open = useCadStore((s) => s.panelEditorOpen)
@@ -74,6 +75,11 @@ export default function PanelEditor() {
     })
   }, [board, fallbackPanel])
 
+  // Сбрасываем добавленные пустые рейки при смене источника данных.
+  useEffect(() => {
+    setExtraRows(0)
+  }, [board ? 'board' : 'fallback'])
+
   const fallbackDeviceMap = useMemo(() => {
     const map = new Map<string, PanelDevice>()
     fallbackPanel?.rows.forEach((row) => row.devices.forEach((d) => map.set(d.id, d)))
@@ -105,11 +111,22 @@ export default function PanelEditor() {
     return splitIntoRows(visibleIds, components, RAIL_MODULES)
   }, [board, componentOrder, fallbackPanel, fallbackEdits, fallbackDeviceMap])
 
+  const displayRows = useMemo<PanelRow[]>(() => {
+    const base = rows.length
+    const empty: PanelRow[] = Array.from({ length: extraRows }, (_, i) => ({
+      id: `empty-row-${base + i}`,
+      index: base + i,
+      devices: [],
+    }))
+    return [...rows, ...empty]
+  }, [rows, extraRows])
+
   const totalUsed = useMemo(
     () => rows.reduce((sum, row) => sum + row.devices.reduce((s, d) => s + d.width, 0), 0),
     [rows],
   )
-  const totalModules = board?.dinModules ?? fallbackPanel?.totalModules ?? 0
+  const baseTotalModules = board?.dinModules ?? fallbackPanel?.totalModules ?? 0
+  const totalModules = baseTotalModules + extraRows * RAIL_MODULES
 
   const syncBoardOrder = (order: string[]) => {
     if (!board || !plan) return
@@ -160,7 +177,7 @@ export default function PanelEditor() {
   useEffect(() => {
     if (!dragId || !canDrag) return
     const handleMove = (e: PointerEvent) => {
-      const target = getDropTarget(e.clientX, e.clientY, rows, rowRefs.current, dragId)
+      const target = getDropTarget(e.clientX, e.clientY, displayRows, rowRefs.current, dragId)
       if (!target) return
       if (board) {
         setComponentOrder((prev) => moveId(prev, dragId, target.rowIndex, target.index))
@@ -194,7 +211,7 @@ export default function PanelEditor() {
       window.removeEventListener('pointermove', handleMove)
       window.removeEventListener('pointerup', handleUp)
     }
-  }, [dragId, canDrag, board, rows])
+  }, [dragId, canDrag, board, displayRows])
 
   if (!open) return null
 
@@ -242,7 +259,7 @@ export default function PanelEditor() {
             className="flex-1 overflow-auto rounded-bl-lg bg-gray-50 p-4 dark:bg-gray-900"
           >
             {activeTab === 'editor' ? (
-              rows.length > 0 ? (
+              displayRows.length > 0 ? (
                 <div className="space-y-4">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     Использовано модулей: {totalUsed} / {totalModules}
@@ -253,7 +270,7 @@ export default function PanelEditor() {
                     )}
                   </div>
 
-                  {rows.map((rail) => (
+                  {displayRows.map((rail) => (
                     <div key={rail.id} className="space-y-2">
                       <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                         Рейка {rail.index + 1}
@@ -294,6 +311,13 @@ export default function PanelEditor() {
                       </div>
                     </div>
                   ))}
+
+                  <button
+                    onClick={() => setExtraRows((n) => n + 1)}
+                    className="w-full rounded border border-dashed border-gray-300 py-2 text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700"
+                  >
+                    + Добавить рейку
+                  </button>
                 </div>
               ) : (
                 <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
