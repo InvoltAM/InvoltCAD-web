@@ -15,13 +15,13 @@ export default function HomePage() {
             href="/editor"
             className="rounded-lg bg-blue-600 px-6 py-3 text-white hover:bg-blue-700"
           >
-            Открыть редактор
+            Проектирование
           </Link>
           <Link
-            href="/pricing"
+            href="/crm"
             className="rounded-lg border border-gray-300 px-6 py-3 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
           >
-            Тарифы
+            CRM
           </Link>
         </div>
       </div>

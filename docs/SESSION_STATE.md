@@ -38,6 +38,9 @@ Dev-сервер Next.js работает на `http://localhost:3003/editor`.
   - `src/components/editor/EditorMenuButton.tsx` — кнопка с иконкой меню и надписью «Меню»; по клику возвращает на стартовую страницу (`/`).
   - `src/components/editor/PlanEditor.tsx` — компонент размещён поверх canvas.
   - `src/app/globals.css` — стили `.editor-menu-button` (fixed top-right, плавающая кнопка в общем стиле UI).
+- Обновлено главное меню:
+  - `src/app/page.tsx` — вместо «Открыть редактор» и «Тарифы» теперь кнопки «Проектирование» (`/editor`) и «CRM» (`/crm`).
+  - `src/app/crm/page.tsx` — заглушка страницы CRM с заголовком и кнопкой возврата в меню.
 - Проверки:
   - `npx tsc --noEmit` — чисто.
   - `npm test` — 63/63 тестов пройдены.
