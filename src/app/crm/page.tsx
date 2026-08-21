@@ -11,11 +11,12 @@ export default async function CrmPage() {
     redirect('/login?callbackUrl=/crm')
   }
 
-  const [clientsCount, leadsCount, dealsCount, tasksCount] = await Promise.all([
+  const [clientsCount, leadsCount, dealsCount, tasksCount, eventsCount] = await Promise.all([
     prisma.crmClient.count({ where: { userId: user.id } }),
     prisma.crmLead.count({ where: { userId: user.id } }),
     prisma.crmDeal.count({ where: { userId: user.id } }),
     prisma.crmTask.count({ where: { userId: user.id } }),
+    prisma.crmCalendarEvent.count({ where: { userId: user.id } }),
   ])
 
   return (
@@ -38,7 +39,7 @@ export default async function CrmPage() {
           </Link>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <CrmCard
             title="Клиенты"
             count={clientsCount}
@@ -63,6 +64,12 @@ export default async function CrmPage() {
             href="/crm/tasks"
             label="Перейти к задачам"
           />
+          <CrmCard
+            title="Календарь"
+            count={eventsCount}
+            href="/crm/calendar"
+            label="Открыть календарь"
+          />
         </div>
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
@@ -77,6 +84,27 @@ export default async function CrmPage() {
             className="flex items-center justify-center rounded-lg bg-green-600 px-6 py-4 text-white hover:bg-green-700"
           >
             + Добавить лида
+          </Link>
+          <Link
+            href="/crm/deals/new"
+            className="flex items-center justify-center rounded-lg bg-purple-600 px-6 py-4 text-white hover:bg-purple-700"
+          >
+            + Добавить сделку
+          </Link>
+          <Link
+            href="/crm/tasks/new"
+            className="flex items-center justify-center rounded-lg bg-orange-600 px-6 py-4 text-white hover:bg-orange-700"
+          >
+            + Добавить задачу
+          </Link>
+        </div>
+
+        <div className="mt-6 text-center">
+          <Link
+            href="/crm/activity"
+            className="inline-block rounded-lg border border-gray-300 px-6 py-3 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            История активности
           </Link>
         </div>
       </div>
