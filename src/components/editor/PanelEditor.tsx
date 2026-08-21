@@ -33,6 +33,7 @@ export default function PanelEditor() {
   const [plan, setPlan] = useState<Plan | null>(null)
   const [activeTab, setActiveTab] = useState<'editor' | 'basket'>('editor')
   const [componentOrder, setComponentOrder] = useState<string[]>([])
+  const [fallbackEdits, setFallbackEdits] = useState<{ order: string[]; hidden: Set<string> } | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const open = useCadStore((s) => s.panelEditorOpen)
@@ -55,19 +56,54 @@ export default function PanelEditor() {
     return adaptPanel(rawPanel)
   }, [plan, board])
 
-  // Синхронизируем порядок компонентов с доской при открытии/изменении доски.
+  // Синхронизируем порядок компонентов с доской или fallback-генерацией.
   useEffect(() => {
     if (board) {
       setComponentOrder(board.components.map((c) => c.id))
+      setFallbackEdits(null)
+      return
     }
-  }, [board?.components.map((c) => c.id).join(',')])
+    if (!fallbackPanel) return
+    const baseIds = fallbackPanel.rows.flatMap((r) => r.devices.map((d) => d.id))
+    setFallbackEdits((prev) => {
+      const order = prev?.order ?? baseIds
+      const hidden = prev?.hidden ?? new Set<string>()
+      const visibleOrder = order.filter((id) => baseIds.includes(id) && !hidden.has(id))
+      const newIds = baseIds.filter((id) => !order.includes(id))
+      return { order: [...visibleOrder, ...newIds], hidden }
+    })
+  }, [board, fallbackPanel])
+
+  const fallbackDeviceMap = useMemo(() => {
+    const map = new Map<string, PanelDevice>()
+    fallbackPanel?.rows.forEach((row) => row.devices.forEach((d) => map.set(d.id, d)))
+    return map
+  }, [fallbackPanel])
 
   const rows = useMemo<PanelRow[]>(() => {
     if (board) {
       return splitIntoRows(componentOrder, board.components, RAIL_MODULES)
     }
-    return fallbackPanel?.rows ?? []
-  }, [board, componentOrder, fallbackPanel])
+    if (!fallbackPanel || !fallbackEdits) return []
+    const visibleIds = fallbackEdits.order.filter((id) => !fallbackEdits.hidden.has(id))
+    const components = visibleIds
+      .map((id) => {
+        const d = fallbackDeviceMap.get(id)
+        if (!d) return null
+        const comp: BoardComponent = {
+          id: d.id,
+          type: d.type as BoardComponent['type'],
+          name: d.name,
+          widthModules: d.width,
+          ratingA: d.rating,
+          phase: 'L1',
+          circuitIds: [],
+        }
+        return comp
+      })
+      .filter((c): c is BoardComponent => !!c)
+    return splitIntoRows(visibleIds, components, RAIL_MODULES)
+  }, [board, componentOrder, fallbackPanel, fallbackEdits, fallbackDeviceMap])
 
   const totalUsed = useMemo(
     () => rows.reduce((sum, row) => sum + row.devices.reduce((s, d) => s + d.width, 0), 0),
@@ -86,17 +122,30 @@ export default function PanelEditor() {
   const dragElRef = useRef<HTMLElement | null>(null)
 
   const handleDeleteDevice = (deviceId: string) => {
-    if (!board) return
-    const comp = board.components.find((c) => c.id === deviceId)
-    if (!comp) return
-    if (!confirm(`Удалить «${comp.name}»?`)) return
-    setComponentOrder((prev) => prev.filter((id) => id !== deviceId))
-    board.components = board.components.filter((c) => c.id !== deviceId)
-    engineRef.current?.notifyChanged()
+    if (board) {
+      const comp = board.components.find((c) => c.id === deviceId)
+      if (!comp) return
+      if (!confirm(`Удалить «${comp.name}»?`)) return
+      setComponentOrder((prev) => prev.filter((id) => id !== deviceId))
+      board.components = board.components.filter((c) => c.id !== deviceId)
+      engineRef.current?.notifyChanged()
+      return
+    }
+    const d = fallbackDeviceMap.get(deviceId)
+    if (!d) return
+    if (!confirm(`Удалить «${d.name}»?`)) return
+    setFallbackEdits((prev) => {
+      if (!prev) return null
+      const nextHidden = new Set(prev.hidden)
+      nextHidden.add(deviceId)
+      return { ...prev, hidden: nextHidden }
+    })
   }
 
+  const canDrag = board || fallbackEdits !== null
+
   const handlePointerDown = (deviceId: string) => (e: React.PointerEvent) => {
-    if (!board) return
+    if (!canDrag) return
     e.preventDefault()
     const el = e.currentTarget as HTMLElement
     dragElRef.current = el
@@ -109,11 +158,18 @@ export default function PanelEditor() {
   }
 
   useEffect(() => {
-    if (!dragId || !board) return
+    if (!dragId || !canDrag) return
     const handleMove = (e: PointerEvent) => {
       const target = getDropTarget(e.clientX, e.clientY, rows, rowRefs.current, dragId)
       if (!target) return
-      setComponentOrder((prev) => moveId(prev, dragId, target.rowIndex, target.index))
+      if (board) {
+        setComponentOrder((prev) => moveId(prev, dragId, target.rowIndex, target.index))
+      } else {
+        setFallbackEdits((prev) => {
+          if (!prev) return null
+          return { ...prev, order: moveId(prev.order, dragId, target.rowIndex, target.index) }
+        })
+      }
     }
     const handleUp = (e: PointerEvent) => {
       if (dragElRef.current) {
@@ -124,10 +180,12 @@ export default function PanelEditor() {
         }
       }
       dragElRef.current = null
-      setComponentOrder((prev) => {
-        syncBoardOrder(prev)
-        return prev
-      })
+      if (board) {
+        setComponentOrder((prev) => {
+          syncBoardOrder(prev)
+          return prev
+        })
+      }
       setDragId(null)
     }
     window.addEventListener('pointermove', handleMove)
@@ -136,7 +194,7 @@ export default function PanelEditor() {
       window.removeEventListener('pointermove', handleMove)
       window.removeEventListener('pointerup', handleUp)
     }
-  }, [dragId, board, rows])
+  }, [dragId, canDrag, board, rows])
 
   if (!open) return null
 
@@ -214,16 +272,14 @@ export default function PanelEditor() {
                             style={{ width: `${device.width * MODULE_WIDTH + (device.width - 1) * MODULE_GAP}px` }}
                             title={`${device.name} (${device.rating}А)`}
                           >
-                            {board && (
-                              <button
-                                onPointerDown={(e) => e.stopPropagation()}
-                                onClick={() => handleDeleteDevice(device.id)}
-                                className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] leading-none text-white opacity-0 hover:bg-red-600 group-hover:opacity-100"
-                                title="Удалить"
-                              >
-                                ×
-                              </button>
-                            )}
+                            <button
+                              onPointerDown={(e) => e.stopPropagation()}
+                              onClick={() => handleDeleteDevice(device.id)}
+                              className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] leading-none text-white opacity-0 hover:bg-red-600 group-hover:opacity-100"
+                              title="Удалить"
+                            >
+                              ×
+                            </button>
                             <div className="text-xs font-medium text-gray-900 dark:text-white">
                               {device.type === 'breaker' ? 'QF' : device.type === 'input-breaker' ? 'QF' : device.type === 'rcd' ? 'QF+RCD' : device.type === 'busbar' ? 'Шина' : 'T'}
                             </div>
