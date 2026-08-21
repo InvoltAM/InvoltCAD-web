@@ -83,6 +83,16 @@ export default function PanelEditor() {
     engineRef.current?.notifyChanged()
   }
 
+  const handleDeleteDevice = (deviceId: string) => {
+    if (!board) return
+    const comp = board.components.find((c) => c.id === deviceId)
+    if (!comp) return
+    if (!confirm(`Удалить «${comp.name}»?`)) return
+    setComponentOrder((prev) => prev.filter((id) => id !== deviceId))
+    board.components = board.components.filter((c) => c.id !== deviceId)
+    engineRef.current?.notifyChanged()
+  }
+
   const handlePointerDown = (deviceId: string) => (e: React.PointerEvent) => {
     if (!board) return
     e.preventDefault()
@@ -187,10 +197,20 @@ export default function PanelEditor() {
                             key={device.id}
                             data-device-id={device.id}
                             onPointerDown={handlePointerDown(device.id)}
-                            className={`flex cursor-grab flex-col items-center justify-center rounded border p-2 text-center touch-none select-none ${device.color} ${dragId === device.id ? 'opacity-60' : ''}`}
+                            className={`group relative flex cursor-grab flex-col items-center justify-center rounded border p-2 text-center touch-none select-none ${device.color} ${dragId === device.id ? 'opacity-60' : ''}`}
                             style={{ width: `${device.width * MODULE_WIDTH + (device.width - 1) * MODULE_GAP}px` }}
                             title={`${device.name} (${device.rating}А)`}
                           >
+                            {board && (
+                              <button
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={() => handleDeleteDevice(device.id)}
+                                className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] leading-none text-white opacity-0 hover:bg-red-600 group-hover:opacity-100"
+                                title="Удалить"
+                              >
+                                ×
+                              </button>
+                            )}
                             <div className="text-xs font-medium text-gray-900 dark:text-white">
                               {device.type === 'breaker' ? 'QF' : device.type === 'input-breaker' ? 'QF' : device.type === 'rcd' ? 'QF+RCD' : device.type === 'busbar' ? 'Шина' : 'T'}
                             </div>
