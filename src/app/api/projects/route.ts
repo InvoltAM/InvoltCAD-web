@@ -46,13 +46,21 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
   const name = body.name?.trim() || 'Новый проект'
 
-  const project = await prisma.project.create({
-    data: {
-      name,
-      description: body.description ?? '',
-      userId: user.id,
-    },
-  })
+  const data: {
+    name: string
+    description: string
+    userId: string
+    crmClientId?: string
+    crmDealId?: string
+  } = {
+    name,
+    description: body.description ?? '',
+    userId: user.id,
+  }
+  if (body.crmClientId) data.crmClientId = body.crmClientId
+  if (body.crmDealId) data.crmDealId = body.crmDealId
+
+  const project = await prisma.project.create({ data })
 
   return NextResponse.json(project, { status: 201 })
 }

@@ -30,6 +30,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (body.company !== undefined) data.company = body.company?.trim() ?? null
   if (body.email !== undefined) data.email = body.email?.trim() ?? null
   if (body.phone !== undefined) data.phone = body.phone?.trim() ?? null
+  if (body.telegramChatId !== undefined) data.telegramChatId = body.telegramChatId?.trim() ?? null
   if (body.address !== undefined) data.address = body.address?.trim() ?? null
   if (body.status !== undefined) data.status = body.status
   if (body.source !== undefined) data.source = body.source?.trim() ?? null

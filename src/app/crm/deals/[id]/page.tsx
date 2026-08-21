@@ -243,7 +243,49 @@ export default function EditDealPage({ params }: { params: Promise<{ id: string 
             </button>
           </div>
         </form>
+
+        <RelatedProjectsPanel crmDealId={deal.id} />
       </div>
+    </div>
+  )
+}
+
+function RelatedProjectsPanel({ crmDealId }: { crmDealId: string }) {
+  const [projects, setProjects] = useState<{ id: string; name: string; updatedAt: string }[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/projects')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        const filtered = (data ?? []).filter((p: { crmDealId?: string | null }) => p.crmDealId === crmDealId)
+        setProjects(filtered)
+      })
+      .finally(() => setLoading(false))
+  }, [crmDealId])
+
+  return (
+    <div className="mt-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+      <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Связанные проекты</h2>
+      {loading ? (
+        <p className="text-sm text-gray-600 dark:text-gray-400">Загрузка...</p>
+      ) : projects.length === 0 ? (
+        <p className="text-sm text-gray-600 dark:text-gray-400">Нет связанных проектов</p>
+      ) : (
+        <ul className="space-y-2">
+          {projects.map((p) => (
+            <li key={p.id} className="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
+              <span className="font-medium text-gray-900 dark:text-white">{p.name}</span>
+              <Link
+                href={`/editor?project=${p.id}`}
+                className="rounded-lg bg-purple-600 px-3 py-1 text-xs text-white hover:bg-purple-700"
+              >
+                Открыть
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

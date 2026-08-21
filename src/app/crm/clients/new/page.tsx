@@ -21,6 +21,7 @@ export default function NewClientPage() {
       company: formData.get('company') as string,
       phone: formData.get('phone') as string,
       email: formData.get('email') as string,
+      telegramChatId: formData.get('telegramChatId') as string,
       address: formData.get('address') as string,
       status: formData.get('status') as string,
       source: formData.get('source') as string,
@@ -128,6 +129,17 @@ export default function NewClientPage() {
                 placeholder="client@example.com"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Telegram chat ID
+            </label>
+            <input
+              name="telegramChatId"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              placeholder="123456789"
+            />
           </div>
 
           <div>

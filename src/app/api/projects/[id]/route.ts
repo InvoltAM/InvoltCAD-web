@@ -126,6 +126,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       id: fullProject.id,
       name: fullProject.name,
       description: fullProject.description,
+      crmClientId: fullProject.crmClientId,
+      crmDealId: fullProject.crmDealId,
       updatedAt: fullProject.updatedAt,
       role,
       plan: serialized,
@@ -460,6 +462,53 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json(updated)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Ошибка сохранения'
+    return NextResponse.json({ error: message }, { status: 403 })
+  }
+}
+
+
+
+// PATCH /api/projects/[id] — обновление метаданных проекта (CRM-связи и т.п.)
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  const user = await getSessionUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Не авторизован' }, { status: 401 })
+  }
+
+  const { id } = await params
+
+  try {
+    await assertProjectAccess(id, user.id, 'editor')
+
+    const body = await request.json()
+    const data: Record<string, unknown> = {}
+    if (body.name !== undefined) data.name = body.name?.trim() || undefined
+    if (body.description !== undefined) data.description = body.description?.trim() ?? null
+    if (body.crmClientId !== undefined) data.crmClientId = body.crmClientId || null
+    if (body.crmDealId !== undefined) data.crmDealId = body.crmDealId || null
+
+    // Проверяем, что клиент/сделка принадлежат пользователю
+    if (data.crmClientId) {
+      const client = await prisma.crmClient.findUnique({ where: { id: data.crmClientId as string } })
+      if (!client || client.userId !== user.id) {
+        return NextResponse.json({ error: 'Клиент не найден' }, { status: 404 })
+      }
+    }
+    if (data.crmDealId) {
+      const deal = await prisma.crmDeal.findUnique({ where: { id: data.crmDealId as string } })
+      if (!deal || deal.userId !== user.id) {
+        return NextResponse.json({ error: 'Сделка не найдена' }, { status: 404 })
+      }
+    }
+
+    const updated = await prisma.project.update({
+      where: { id },
+      data,
+    })
+
+    return NextResponse.json(updated)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Ошибка обновления'
     return NextResponse.json({ error: message }, { status: 403 })
   }
 }

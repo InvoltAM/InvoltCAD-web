@@ -66,6 +66,8 @@ export interface ProjectMeta {
   name: string
   updatedAt: string
   role: string
+  crmClientId?: string | null
+  crmDealId?: string | null
 }
 
 export class ProjectSync {
@@ -226,6 +228,24 @@ export class ProjectSync {
     }
     const project = await res.json()
     return project.id
+  }
+
+  /**
+   * Обновляет CRM-связи проекта.
+   */
+  async updateProjectCrm(
+    projectId: string,
+    crmClientId: string | null,
+    crmDealId: string | null
+  ): Promise<void> {
+    const res = await fetch(`/api/projects/${projectId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ crmClientId, crmDealId }),
+    })
+    if (!res.ok) {
+      throw new Error('Ошибка обновления CRM-связей проекта')
+    }
   }
 
   getCurrentProjectId(): string | null {

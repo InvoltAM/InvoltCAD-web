@@ -13,6 +13,11 @@ export default function ProjectsPanel() {
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [shareProject, setShareProject] = useState<{ id: string; name: string } | null>(null)
+  const [crmProject, setCrmProject] = useState<{ id: string; name: string; crmClientId?: string | null; crmDealId?: string | null } | null>(null)
+  const [crmClients, setCrmClients] = useState<{ id: string; name: string }[]>([])
+  const [crmDeals, setCrmDeals] = useState<{ id: string; title: string }[]>([])
+  const [crmClientId, setCrmClientId] = useState<string>('')
+  const [crmDealId, setCrmDealId] = useState<string>('')
   const { engineRef } = useEditor()
 
   const loadProjects = async () => {
@@ -31,6 +36,38 @@ export default function ProjectsPanel() {
   useEffect(() => {
     if (open) void loadProjects()
   }, [open])
+
+  const loadCrmData = async () => {
+    try {
+      const [clients, deals] = await Promise.all([
+        fetch('/api/crm/clients').then((r) => (r.ok ? r.json() : [])),
+        fetch('/api/crm/deals').then((r) => (r.ok ? r.json() : [])),
+      ])
+      setCrmClients(clients)
+      setCrmDeals(deals)
+    } catch {
+      setCrmClients([])
+      setCrmDeals([])
+    }
+  }
+
+  const openCrmDialog = async (p: ProjectMeta) => {
+    await loadCrmData()
+    setCrmClientId(p.crmClientId ?? '')
+    setCrmDealId(p.crmDealId ?? '')
+    setCrmProject({ id: p.id, name: p.name, crmClientId: p.crmClientId, crmDealId: p.crmDealId })
+  }
+
+  const handleSaveCrm = async () => {
+    if (!crmProject) return
+    try {
+      await projectSync.updateProjectCrm(crmProject.id, crmClientId || null, crmDealId || null)
+      setCrmProject(null)
+      await loadProjects()
+    } catch {
+      alert('Ошибка сохранения CRM-связей')
+    }
+  }
 
 
   const handleOpenProject = async (id: string) => {
@@ -171,6 +208,13 @@ export default function ProjectsPanel() {
                         👥
                       </button>
                       <button
+                        onClick={() => openCrmDialog(p)}
+                        className="rounded border border-gray-200 p-1 text-sm hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-600"
+                        title="CRM"
+                      >
+                        🏷️
+                      </button>
+                      <button
                         onClick={() => handleDuplicateProject(p.id)}
                         className="rounded border border-gray-200 p-1 text-sm hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-600"
                         title="Дублировать"
@@ -199,6 +243,61 @@ export default function ProjectsPanel() {
           projectName={shareProject.name}
           onClose={() => setShareProject(null)}
         />
+      )}
+
+      {crmProject && (
+        <div
+          className="fixed inset-0 z-50 bg-black/35"
+          onClick={() => setCrmProject(null)}
+        >
+          <div
+            className="absolute left-1/2 top-1/2 w-[calc(100%-32px)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-4 dark:bg-gray-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <span className="text-lg font-semibold text-gray-900 dark:text-white">CRM: {crmProject.name}</span>
+              <button onClick={() => setCrmProject(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">×</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Клиент</label>
+                <select
+                  value={crmClientId}
+                  onChange={(e) => setCrmClientId(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="">— Не выбран —</option>
+                  {crmClients.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Сделка</label>
+                <select
+                  value={crmDealId}
+                  onChange={(e) => setCrmDealId(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="">— Не выбрана —</option>
+                  {crmDeals.map((d) => (<option key={d.id} value={d.id}>{d.title}</option>))}
+                </select>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  onClick={() => setCrmProject(null)}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleSaveCrm}
+                  className="rounded-lg bg-orange-600 px-4 py-2 text-sm text-white hover:bg-orange-700"
+                >
+                  Сохранить
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )

@@ -222,7 +222,97 @@ export default function EditLeadPage({ params }: { params: Promise<{ id: string 
             </button>
           </div>
         </form>
+
+        <TelegramPanel leadId={lead.id} chatId={lead.telegramChatId} />
       </div>
+    </div>
+  )
+}
+
+function TelegramPanel({ leadId, chatId }: { leadId: string; chatId: string | null }) {
+  const [messages, setMessages] = useState<{ id: string; message: string; status: string; sentAt: string }[]>([])
+  const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
+  const [newMessage, setNewMessage] = useState('')
+
+  useEffect(() => {
+    fetch(`/api/crm/telegram?leadId=${leadId}`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setMessages(data))
+      .finally(() => setLoading(false))
+  }, [leadId])
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!chatId || !newMessage.trim()) return
+    setSending(true)
+
+    const res = await fetch('/api/crm/telegram/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadId, chatId, message: newMessage }),
+    })
+
+    if (res.ok) {
+      const saved = await res.json()
+      setMessages((prev) => [saved.log, ...prev])
+      setNewMessage('')
+    } else {
+      alert('Не удалось отправить сообщение')
+    }
+    setSending(false)
+  }
+
+  return (
+    <div className="mt-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+      <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+        Telegram
+      </h2>
+
+      {!chatId && (
+        <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+          Укажите Telegram chat ID лида выше, чтобы отправлять сообщения.
+        </p>
+      )}
+
+      <form onSubmit={handleSend} className="mb-6 flex gap-3">
+        <input
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          disabled={!chatId || sending}
+          placeholder="Введите сообщение..."
+          className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 focus:border-green-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        />
+        <button
+          type="submit"
+          disabled={!chatId || !newMessage.trim() || sending}
+          className="rounded-lg bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700 disabled:opacity-50"
+        >
+          {sending ? 'Отправка...' : 'Отправить'}
+        </button>
+      </form>
+
+      {loading ? (
+        <p className="text-sm text-gray-600 dark:text-gray-400">Загрузка сообщений...</p>
+      ) : messages.length === 0 ? (
+        <p className="text-sm text-gray-600 dark:text-gray-400">Сообщений пока нет</p>
+      ) : (
+        <div className="space-y-3">
+          {messages.map((msg) => (
+            <div
+              key={msg.id}
+              className="rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50"
+            >
+              <p className="whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-200">
+                {msg.message}
+              </p>
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                {new Date(msg.sentAt).toLocaleString('ru-RU')} · {msg.status === 'sent' ? 'Отправлено' : 'Ошибка'}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

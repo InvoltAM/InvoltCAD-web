@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
       company: body.company?.trim() ?? null,
       email: body.email?.trim() ?? null,
       phone: body.phone?.trim() ?? null,
+      telegramChatId: body.telegramChatId?.trim() ?? null,
       address: body.address?.trim() ?? null,
       status: body.status ?? 'active',
       source: body.source?.trim() ?? null,
