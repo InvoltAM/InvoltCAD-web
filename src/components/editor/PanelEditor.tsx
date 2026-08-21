@@ -28,14 +28,52 @@ interface PanelRow {
   devices: PanelDevice[]
 }
 
+interface DeviceOption {
+  type: string
+  name: string
+  baseWidth: number
+  ratingA?: number
+  characteristic?: 'B' | 'C' | 'D'
+  rcdType?: 'AC' | 'A' | 'S'
+  rcdMA?: number
+}
+
+const DEVICE_CATALOG: DeviceOption[] = [
+  { type: 'breaker', name: 'Автомат 16А', baseWidth: 1, ratingA: 16, characteristic: 'C' },
+  { type: 'breaker', name: 'Автомат 25А', baseWidth: 1, ratingA: 25, characteristic: 'C' },
+  { type: 'breaker', name: 'Автомат 32А', baseWidth: 1, ratingA: 32, characteristic: 'C' },
+  { type: 'breaker', name: 'Автомат 40А', baseWidth: 1, ratingA: 40, characteristic: 'C' },
+  { type: 'rcd', name: 'УЗО 25А 30мА', baseWidth: 2, ratingA: 25, rcdType: 'A', rcdMA: 30 },
+  { type: 'rcd', name: 'УЗО 40А 30мА', baseWidth: 2, ratingA: 40, rcdType: 'A', rcdMA: 30 },
+  { type: 'rcd', name: 'УЗО 63А 30мА', baseWidth: 2, ratingA: 63, rcdType: 'A', rcdMA: 30 },
+  { type: 'contactor', name: 'Контактор 25А', baseWidth: 2, ratingA: 25 },
+  { type: 'bus', name: 'Шина N', baseWidth: 2 },
+  { type: 'bus', name: 'Шина PE', baseWidth: 2 },
+]
+
+function getInsertIndex(rowId: string, rows: PanelRow[]): number {
+  const rowIndex = rows.findIndex((r) => r.id === rowId)
+  if (rowIndex === -1) return -1
+  return rows.slice(0, rowIndex + 1).reduce((sum, r) => sum + r.devices.length, 0)
+}
+
+function getWidthForBoard(option: DeviceOption, phases: 'single' | 'three'): number {
+  if (phases === 'single') return option.baseWidth
+  if (option.type === 'breaker') return 3
+  if (option.type === 'rcd') return 4
+  if (option.type === 'contactor') return 3
+  return option.baseWidth
+}
+
 export default function PanelEditor() {
   const { engineRef } = useEditor()
   const [plan, setPlan] = useState<Plan | null>(null)
   const [activeTab, setActiveTab] = useState<'editor' | 'basket'>('editor')
   const [componentOrder, setComponentOrder] = useState<string[]>([])
-  const [fallbackEdits, setFallbackEdits] = useState<{ order: string[]; hidden: Set<string> } | null>(null)
+  const [fallbackEdits, setFallbackEdits] = useState<{ order: string[]; hidden: Set<string>; custom: PanelDevice[] } | null>(null)
   const [extraRows, setExtraRows] = useState(0)
   const [dragId, setDragId] = useState<string | null>(null)
+  const [menuRowId, setMenuRowId] = useState<string | null>(null)
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const open = useCadStore((s) => s.panelEditorOpen)
   const setOpen = useCadStore((s) => s.setPanelEditorOpen)
@@ -69,9 +107,10 @@ export default function PanelEditor() {
     setFallbackEdits((prev) => {
       const order = prev?.order ?? baseIds
       const hidden = prev?.hidden ?? new Set<string>()
-      const visibleOrder = order.filter((id) => baseIds.includes(id) && !hidden.has(id))
+      const custom = prev?.custom ?? []
+      const visibleOrder = order.filter((id) => (baseIds.includes(id) || custom.some((d) => d.id === id)) && !hidden.has(id))
       const newIds = baseIds.filter((id) => !order.includes(id))
-      return { order: [...visibleOrder, ...newIds], hidden }
+      return { order: [...visibleOrder, ...newIds], hidden, custom }
     })
   }, [board, fallbackPanel])
 
@@ -83,8 +122,9 @@ export default function PanelEditor() {
   const fallbackDeviceMap = useMemo(() => {
     const map = new Map<string, PanelDevice>()
     fallbackPanel?.rows.forEach((row) => row.devices.forEach((d) => map.set(d.id, d)))
+    fallbackEdits?.custom.forEach((d) => map.set(d.id, d))
     return map
-  }, [fallbackPanel])
+  }, [fallbackPanel, fallbackEdits?.custom])
 
   const rows = useMemo<PanelRow[]>(() => {
     if (board) {
@@ -155,11 +195,62 @@ export default function PanelEditor() {
       if (!prev) return null
       const nextHidden = new Set(prev.hidden)
       nextHidden.add(deviceId)
-      return { ...prev, hidden: nextHidden }
+      return {
+        ...prev,
+        hidden: nextHidden,
+        custom: prev.custom.filter((c) => c.id !== deviceId),
+      }
     })
   }
 
   const canDrag = board || fallbackEdits !== null
+
+  const handleAddDevice = (rowId: string, option: DeviceOption) => {
+    const index = getInsertIndex(rowId, displayRows)
+    if (index === -1) return
+    const id = `device-${crypto.randomUUID()}`
+    if (board) {
+      const width = getWidthForBoard(option, board.phases)
+      const comp: BoardComponent = {
+        id,
+        type: option.type as BoardComponent['type'],
+        name: option.name,
+        widthModules: width,
+        ratingA: option.ratingA,
+        characteristic: option.characteristic,
+        rcdType: option.rcdType,
+        rcdMA: option.rcdMA,
+        phase: 'L1',
+        circuitIds: [],
+      }
+      const next = [...board.components]
+      next.splice(index, 0, comp)
+      board.components = next
+      setComponentOrder((prev) => {
+        const o = [...prev]
+        o.splice(index, 0, id)
+        return o
+      })
+      engineRef.current?.notifyChanged()
+    } else if (fallbackEdits) {
+      const width = option.baseWidth
+      const customDevice: PanelDevice = {
+        id,
+        type: option.type,
+        name: option.name,
+        width,
+        rating: option.ratingA ?? 0,
+        color: deviceColor(option.type),
+      }
+      setFallbackEdits((prev) => {
+        if (!prev) return null
+        const order = [...prev.order]
+        order.splice(index, 0, id)
+        return { ...prev, order, custom: [...prev.custom, customDevice] }
+      })
+    }
+    setMenuRowId(null)
+  }
 
   const handlePointerDown = (deviceId: string) => (e: React.PointerEvent) => {
     if (!canDrag) return
@@ -271,10 +362,40 @@ export default function PanelEditor() {
                   </div>
 
                   {displayRows.map((rail) => (
-                    <div key={rail.id} className="space-y-2">
-                      <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                        Рейка {rail.index + 1}
+                    <div key={rail.id} className="relative space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                          Рейка {rail.index + 1}
+                        </div>
+                        <button
+                          onClick={() => setMenuRowId(rail.id)}
+                          className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[10px] leading-none text-white hover:bg-blue-600"
+                          title="Добавить аппарат"
+                        >
+                          +
+                        </button>
                       </div>
+
+                      {menuRowId === rail.id && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-[410]"
+                            onClick={() => setMenuRowId(null)}
+                          />
+                          <div className="absolute left-0 top-5 z-[420] w-56 rounded border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-600 dark:bg-gray-800">
+                            {DEVICE_CATALOG.map((option) => (
+                              <button
+                                key={option.name}
+                                onClick={() => handleAddDevice(rail.id, option)}
+                                className="w-full rounded px-2 py-1 text-left text-xs text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                              >
+                                {option.name}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+
                       <div
                         ref={(el) => { rowRefs.current[rail.id] = el }}
                         className="flex min-h-[60px] gap-1 rounded border border-dashed border-transparent p-1 hover:border-gray-200 dark:hover:border-gray-600"
