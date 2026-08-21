@@ -25,7 +25,7 @@ export interface Panel {
 /**
  * Автокомпоновка устройств на DIN-рейках.
  */
-export function layoutPanel(devices: PanelDevice[], modulesPerRail = 18): Panel {
+export function layoutPanel(devices: PanelDevice[], modulesPerRail = 12): Panel {
   const rows: DinRail[] = []
   let currentRow: DinRail = {
     id: `rail-${rows.length}`,

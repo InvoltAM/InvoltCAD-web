@@ -123,7 +123,7 @@ function buildPanelFromBoard(board: DistributionBoardData) {
   const rows: PanelRow[] = []
   let currentRow: PanelRow = { id: 'row-0', index: 0, devices: [] }
   let usedInRow = 0
-  const rowModules = 24
+  const rowModules = 12
 
   const sorted = [...board.components]
   // Put main breaker and main RCD first

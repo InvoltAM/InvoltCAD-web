@@ -125,7 +125,7 @@ export function buildDistributionBoard(
 
   const totalModules = components.reduce((sum, c) => sum + c.widthModules, 0);
   // Reserve ~20% for future + bus gaps
-  const dinModules = roundUpTo(Math.ceil(totalModules * 1.2), 2);
+  const dinModules = roundUpTo(Math.ceil(totalModules * 1.2), 12);
   const recommendedEnclosure = pickEnclosure(dinModules, priceLevel);
 
   return {
@@ -150,10 +150,11 @@ export function buildDistributionBoard(
 
 function pickEnclosure(modules: number, level: 'budget' | 'standard' | 'premium'): string {
   if (modules <= 12) return level === 'budget' ? 'Корпус 12 модулей' : 'Щит 12 модулей';
-  if (modules <= 18) return 'Щит 18 модулей';
   if (modules <= 24) return 'Щит 24 модуля';
   if (modules <= 36) return 'Щит 36 модулей';
-  return 'Щит 54 модуля';
+  if (modules <= 48) return 'Щит 48 модулей';
+  if (modules <= 60) return 'Щит 60 модулей';
+  return 'Щит 72 модуля';
 }
 
 export function balancePhases(circuits: CircuitData[]): CircuitData[] {

@@ -43,6 +43,11 @@ Dev-сервер Next.js работает на `http://localhost:3003/editor`.
 - Кнопка «AI» перенесена из левой панели в правый край нижней панели:
   - `src/components/editor/Toolbar.tsx` — удалена из `project-sidebar-top`; добавлена кнопка внутри `.editor-dock` после основных кнопок, отделена разделителем. Таким образом она вплотную к нижней панели и одной высоты с остальными кнопками dock.
   - `src/app/globals.css` — удалён стиль `.editor-dock-ai` (absolute).
+- Редактор визуализации щита:
+  - Стандартная ширина DIN-рейки изменена на **12 модулей**:
+    - `packages/core/panels/panelModel.ts` — `layoutPanel` по умолчанию 12 модулей.
+    - `src/components/editor/PanelEditor.tsx` — `rowModules` = 12 при построении из `DistributionBoardData`.
+    - `packages/core/electrical/BoardEngine.ts` — `dinModules` округляется до ближайшего кратного 12, корпуса подбираются по 12/24/36/48/60/72 модуля.
 - Обновлено главное меню:
   - `src/app/page.tsx` — вместо «Открыть редактор» и «Тарифы» теперь кнопки «Проектирование» (`/editor`) и «CRM» (`/crm`).
   - `src/app/crm/page.tsx` — заглушка страницы CRM с заголовком и кнопкой возврата в меню.
