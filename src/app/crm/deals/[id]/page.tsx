@@ -7,12 +7,14 @@ import Link from 'next/link'
 interface CrmClient {
   id: string
   name: string
+  email: string | null
 }
 
 interface CrmDeal {
   id: string
   title: string
   clientId: string | null
+  client: CrmClient | null
   value: number
   currency: string
   stage: string
@@ -244,8 +246,184 @@ export default function EditDealPage({ params }: { params: Promise<{ id: string 
           </div>
         </form>
 
+        <EmailPanel dealId={deal.id} clientEmail={deal.client?.email ?? null} />
+        <PaymentsPanel dealId={deal.id} amountRub={Number(valueRub)} />
         <RelatedProjectsPanel crmDealId={deal.id} />
       </div>
+    </div>
+  )
+}
+
+function EmailPanel({ dealId, clientEmail }: { dealId: string; clientEmail: string | null }) {
+  const [emails, setEmails] = useState<{ id: string; to: string; subject: string; body: string; status: string; errorMessage: string | null; sentAt: string }[]>([])
+  const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
+  const [to, setTo] = useState(clientEmail ?? '')
+  const [subject, setSubject] = useState('')
+  const [body, setBody] = useState('')
+
+  useEffect(() => {
+    fetch(`/api/crm/emails?dealId=${dealId}`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setEmails(data))
+      .finally(() => setLoading(false))
+  }, [dealId])
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!to.trim() || !subject.trim() || !body.trim()) return
+    setSending(true)
+
+    const res = await fetch('/api/crm/emails/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dealId, to, subject, html: body }),
+    })
+
+    if (res.ok) {
+      const saved = await res.json()
+      setEmails((prev) => [saved.log, ...prev])
+      setSubject('')
+      setBody('')
+      if (!saved.success && saved.note) {
+        alert(saved.note)
+      }
+    } else {
+      alert('Не удалось отправить письмо')
+    }
+    setSending(false)
+  }
+
+  return (
+    <div className="mt-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+      <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Email</h2>
+
+      <form onSubmit={handleSend} className="mb-6 space-y-3">
+        <input
+          type="email"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          placeholder="Получатель"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        />
+        <input
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder="Тема"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        />
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={4}
+          placeholder="Текст письма (HTML)"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        />
+        <button
+          type="submit"
+          disabled={!to.trim() || !subject.trim() || !body.trim() || sending}
+          className="rounded-lg bg-purple-600 px-4 py-2 text-sm text-white hover:bg-purple-700 disabled:opacity-50"
+        >
+          {sending ? 'Отправка...' : 'Отправить'}
+        </button>
+      </form>
+
+      {loading ? (
+        <p className="text-sm text-gray-600 dark:text-gray-400">Загрузка...</p>
+      ) : emails.length === 0 ? (
+        <p className="text-sm text-gray-600 dark:text-gray-400">Писем пока нет</p>
+      ) : (
+        <div className="space-y-3">
+          {emails.map((email) => (
+            <div key={email.id} className="rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {new Date(email.sentAt).toLocaleString('ru-RU')} · {email.status === 'sent' ? 'Отправлено' : 'Ошибка'}
+              </p>
+              <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">{email.subject}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Кому: {email.to}</p>
+              <div
+                className="mt-2 text-sm text-gray-800 dark:text-gray-200"
+                dangerouslySetInnerHTML={{ __html: email.body }}
+              />
+              {email.errorMessage && (
+                <p className="mt-2 text-xs text-red-600 dark:text-red-400">{email.errorMessage}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PaymentsPanel({ dealId, amountRub }: { dealId: string; amountRub: number }) {
+  const [payments, setPayments] = useState<{ id: string; amount: number; currency: string; status: string; createdAt: string }[]>([])
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+
+  useEffect(() => {
+    fetch(`/api/crm/deals/${dealId}/payments`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setPayments(data))
+      .finally(() => setLoading(false))
+  }, [dealId])
+
+  const handleCreate = async () => {
+    setCreating(true)
+    const res = await fetch(`/api/crm/deals/${dealId}/payments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amountRub }),
+    })
+
+    if (res.ok) {
+      const data = await res.json()
+      if (data.confirmationUrl) {
+        window.open(data.confirmationUrl, '_blank')
+      }
+      setPayments((prev) => [data.dbPayment, ...prev])
+    } else {
+      alert('Не удалось создать платёж')
+    }
+    setCreating(false)
+  }
+
+  return (
+    <div className="mt-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Платежи</h2>
+        <button
+          onClick={handleCreate}
+          disabled={creating || amountRub <= 0}
+          className="rounded-lg bg-purple-600 px-3 py-1 text-sm text-white hover:bg-purple-700 disabled:opacity-50"
+        >
+          {creating ? 'Создание...' : 'Создать ссылку на оплату'}
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-gray-600 dark:text-gray-400">Загрузка...</p>
+      ) : payments.length === 0 ? (
+        <p className="text-sm text-gray-600 dark:text-gray-400">Платежей пока нет</p>
+      ) : (
+        <ul className="space-y-2">
+          {payments.map((p) => (
+            <li key={p.id} className="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
+              <div>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {(p.amount / 100).toFixed(2)} {p.currency}
+                </span>
+                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                  {new Date(p.createdAt).toLocaleString('ru-RU')}
+                </span>
+              </div>
+              <span className="rounded-full bg-gray-200 px-2 py-1 text-xs dark:bg-gray-600 dark:text-white">
+                {p.status === 'succeeded' ? 'Оплачен' : p.status === 'pending' ? 'Ожидает' : p.status}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

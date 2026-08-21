@@ -5,10 +5,27 @@ import { prisma } from '@/lib/prisma'
 async function assertDealAccess(id: string, userId: string) {
   const deal = await prisma.crmDeal.findUnique({
     where: { id },
+    include: { client: { select: { id: true, name: true, email: true } } },
   })
   if (!deal) return null
   if (deal.userId !== userId) return null
   return deal
+}
+
+// GET /api/crm/deals/[id]
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getSessionUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Не авторизован' }, { status: 401 })
+  }
+
+  const { id } = await params
+  const deal = await assertDealAccess(id, user.id)
+  if (!deal) {
+    return NextResponse.json({ error: 'Сделка не найдена' }, { status: 404 })
+  }
+
+  return NextResponse.json(deal)
 }
 
 // PATCH /api/crm/deals/[id]

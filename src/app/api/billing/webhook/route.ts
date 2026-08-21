@@ -93,6 +93,23 @@ export async function POST(request: NextRequest) {
         data: { status: 'accepted' },
       })
     }
+  } else if (dbPayment.purpose === 'deal') {
+    const dealId = metadata.dealId
+    if (dealId) {
+      await prisma.crmDeal.update({
+        where: { id: dealId },
+        data: { stage: 'won', closedAt: new Date() },
+      })
+      await prisma.crmActivityLog.create({
+        data: {
+          userId: dbPayment.userId,
+          action: 'deal_payment_succeeded',
+          entityType: 'deal',
+          entityId: dealId,
+          details: { paymentId: dbPayment.id, amount: dbPayment.amount },
+        },
+      })
+    }
   }
 
   return NextResponse.json({ status: 'processed' })
