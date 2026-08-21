@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import CheckRemindersButton from './CheckRemindersButton'
 
 export default async function CrmPage() {
   const session = await auth()
@@ -118,6 +119,7 @@ export default async function CrmPage() {
           >
             Массовая рассылка
           </Link>
+          <CheckRemindersButton />
         </div>
       </div>
     </div>

@@ -50,12 +50,17 @@ export default function NewTaskPage() {
 
     const form = e.currentTarget
     const formData = new FormData(form)
+    const dueDate = formData.get('dueDate') as string
+    const dueTime = (formData.get('dueTime') as string) || '00:00'
+    const reminderDate = formData.get('reminderDate') as string
+    const reminderTime = (formData.get('reminderTime') as string) || '00:00'
     const body = {
       title: formData.get('title') as string,
       description: formData.get('description') as string,
       status: formData.get('status') as string,
       priority: formData.get('priority') as string,
-      dueDate: formData.get('dueDate') as string,
+      dueDate: dueDate ? `${dueDate}T${dueTime}:00` : null,
+      reminderAt: reminderDate ? `${reminderDate}T${reminderTime}:00` : null,
       relatedType: (formData.get('relatedType') as string) || null,
       relatedId: (formData.get('relatedId') as string) || null,
     }
@@ -143,15 +148,52 @@ export default function NewTaskPage() {
             </div>
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Срок выполнения
-            </label>
-            <input
-              name="dueDate"
-              type="date"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-orange-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            />
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Срок выполнения
+              </label>
+              <input
+                name="dueDate"
+                type="date"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-orange-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Время
+              </label>
+              <input
+                name="dueTime"
+                type="time"
+                defaultValue="00:00"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-orange-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Напомнить (дата)
+              </label>
+              <input
+                name="reminderDate"
+                type="date"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-orange-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Напомнить (время)
+              </label>
+              <input
+                name="reminderTime"
+                type="time"
+                defaultValue="00:00"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-orange-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">

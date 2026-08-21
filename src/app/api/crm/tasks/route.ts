@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
       status: body.status ?? 'todo',
       priority: body.priority ?? 'medium',
       dueDate: body.dueDate ? new Date(body.dueDate) : null,
+      reminderAt: body.reminderAt ? new Date(body.reminderAt) : null,
       relatedType,
       relatedId,
     },

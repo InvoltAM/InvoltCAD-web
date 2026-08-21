@@ -34,6 +34,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (body.dueDate !== undefined) {
     data.dueDate = body.dueDate ? new Date(body.dueDate) : null
   }
+  if (body.reminderAt !== undefined) {
+    data.reminderAt = body.reminderAt ? new Date(body.reminderAt) : null
+    if (data.reminderAt) {
+      data.reminderSent = false
+    }
+  }
 
   if (body.relatedType !== undefined || body.relatedId !== undefined) {
     const relatedType = body.relatedType ?? task.relatedType
