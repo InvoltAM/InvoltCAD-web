@@ -116,7 +116,8 @@ export default function PanelEditor() {
     sections: number
     sectionOrders: string[][]
   } | null>(null)
-  const [extraRows, setExtraRows] = useState(0)
+  const [extraRowIds, setExtraRowIds] = useState<string[]>([])
+  const nextExtraIdRef = useRef(0)
   const [dragId, setDragId] = useState<string | null>(null)
   const [menuRowId, setMenuRowId] = useState<string | null>(null)
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
@@ -170,7 +171,8 @@ export default function PanelEditor() {
 
   // Сбрасываем добавленные пустые рейки и отсеки при смене источника данных.
   useEffect(() => {
-    setExtraRows(0)
+    setExtraRowIds([])
+    nextExtraIdRef.current = 0
     setSections(1)
   }, [board ? 'board' : 'fallback'])
 
@@ -255,16 +257,16 @@ export default function PanelEditor() {
       }
       groups.push(group)
     }
-    for (let i = 0; i < extraRows; i++) {
+    extraRowIds.forEach((extraId, i) => {
       const rowIndex = maxRows + i
       const group: PanelRow[] = []
       for (let s = 0; s < sections; s++) {
-        group.push({ id: `extra-${i}-section-${s}`, index: rowIndex, section: s, devices: [] })
+        group.push({ id: `extra-${extraId}-section-${s}`, index: rowIndex, section: s, devices: [] })
       }
       groups.push(group)
-    }
+    })
     return groups
-  }, [rowGroups, sections, extraRows])
+  }, [rowGroups, sections, extraRowIds])
 
   const displayRows = useMemo<PanelRow[]>(() => displayRowGroups.flat(), [displayRowGroups])
 
@@ -309,6 +311,76 @@ export default function PanelEditor() {
         custom: prev.custom.filter((c) => c.id !== deviceId),
       }
     })
+  }
+
+  const handleDeleteRow = (rowGroupIndex: number, rowGroup: PanelRow[]) => {
+    const isExtra = rowGroup[0]?.id.startsWith('extra-') ?? false
+    if (isExtra) {
+      const match = rowGroup[0]!.id.match(/^extra-(.+?)-section-\d+$/)
+      const extraId = match?.[1]
+      if (extraId) {
+        setExtraRowIds((prev) => prev.filter((id) => id !== extraId))
+      }
+      return
+    }
+
+    const idsToRemove = new Set(rowGroup.flatMap((rail) => rail.devices.map((d) => d.id)))
+    if (idsToRemove.size === 0) return
+    if (!confirm('Удалить все аппараты на этой рейке?')) return
+
+    if (board) {
+      setSectionOrders((prev) => prev.map((sec) => sec.filter((id) => !idsToRemove.has(id))))
+      board.components = board.components.filter((c) => !idsToRemove.has(c.id))
+      engineRef.current?.notifyChanged()
+      return
+    }
+
+    setFallbackEdits((prev) => {
+      if (!prev) return null
+      const nextHidden = new Set(prev.hidden)
+      idsToRemove.forEach((id) => nextHidden.add(id))
+      return {
+        ...prev,
+        sectionOrders: prev.sectionOrders.map((sec) => sec.filter((id) => !idsToRemove.has(id))),
+        hidden: nextHidden,
+        custom: prev.custom.filter((c) => !idsToRemove.has(c.id)),
+      }
+    })
+  }
+
+  const handleDeleteSection = (sectionIndex: number) => {
+    if (sections <= 1) return
+    let idsToRemove: string[] = []
+    if (board) {
+      idsToRemove = sectionOrders[sectionIndex] ?? []
+    } else if (fallbackEdits) {
+      idsToRemove = fallbackEdits.sectionOrders[sectionIndex] ?? []
+    }
+    if (idsToRemove.length > 0 && !confirm('Удалить все аппараты в отсеке?')) return
+    const idsSet = new Set(idsToRemove)
+
+    if (board) {
+      const nextOrders = sectionOrders.filter((_, i) => i !== sectionIndex)
+      setSectionOrders(nextOrders)
+      board.components = board.components.filter((c) => !idsSet.has(c.id))
+      setSections((n) => n - 1)
+      engineRef.current?.notifyChanged()
+      return
+    }
+
+    setFallbackEdits((prev) => {
+      if (!prev) return null
+      const nextHidden = new Set(prev.hidden)
+      idsToRemove.forEach((id) => nextHidden.add(id))
+      return {
+        ...prev,
+        sectionOrders: prev.sectionOrders.filter((_, i) => i !== sectionIndex),
+        sections: prev.sections - 1,
+        hidden: nextHidden,
+        custom: prev.custom.filter((c) => !idsSet.has(c.id)),
+      }
+    })
+    setSections((n) => n - 1)
   }
 
   const canDrag = board || fallbackEdits !== null
@@ -480,9 +552,17 @@ export default function PanelEditor() {
                       {Array.from({ length: sections }, (_, s) => (
                         <div
                           key={s}
-                          className="flex-1 text-center text-xs font-semibold text-gray-700 dark:text-gray-300"
+                          className="flex flex-1 items-center justify-center gap-1 text-center text-xs font-semibold text-gray-700 dark:text-gray-300"
                         >
-                          Отсек {s + 1}
+                          <span>Отсек {s + 1}</span>
+                          <button
+                            onClick={() => handleDeleteSection(s)}
+                            disabled={sections <= 1}
+                            className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] leading-none text-red-500 hover:bg-red-50 hover:text-red-600 disabled:text-gray-300 dark:hover:bg-red-900/20 dark:disabled:text-gray-600"
+                            title="Удалить отсек"
+                          >
+                            ×
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -490,8 +570,15 @@ export default function PanelEditor() {
 
                   {displayRowGroups.map((rowGroup, rgIdx) => (
                     <div key={rgIdx} className="space-y-2">
-                      <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                        Рейка {rgIdx + 1}
+                      <div className="flex items-center gap-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        <span>Рейка {rgIdx + 1}</span>
+                        <button
+                          onClick={() => handleDeleteRow(rgIdx, rowGroup)}
+                          className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] leading-none text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+                          title="Удалить рейку"
+                        >
+                          ×
+                        </button>
                       </div>
                       <div className="flex gap-4">
                         {rowGroup.map((rail) => (
@@ -569,7 +656,9 @@ export default function PanelEditor() {
 
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setExtraRows((n) => n + 1)}
+                      onClick={() =>
+                        setExtraRowIds((prev) => [...prev, String(nextExtraIdRef.current++)])
+                      }
                       className="flex-1 rounded border border-dashed border-gray-300 py-2 text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700"
                     >
                       + Добавить рейку
