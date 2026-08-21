@@ -552,7 +552,7 @@ export default function PanelEditor() {
                       {Array.from({ length: sections }, (_, s) => (
                         <div
                           key={s}
-                          className="flex flex-1 items-center justify-center gap-1 text-center text-xs font-semibold text-gray-700 dark:text-gray-300"
+                          className="flex min-w-0 flex-1 items-center justify-center gap-1 text-center text-xs font-semibold text-gray-700 dark:text-gray-300"
                         >
                           <span>Отсек {s + 1}</span>
                           <button
@@ -582,7 +582,7 @@ export default function PanelEditor() {
                       </div>
                       <div className="flex gap-4">
                         {rowGroup.map((rail) => (
-                          <div key={rail.id} className="flex-1">
+                          <div key={rail.id} className="min-w-0 flex-1">
                             <div
                               ref={(el) => {
                                 rowRefs.current[rail.id] = el
