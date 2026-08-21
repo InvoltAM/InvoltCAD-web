@@ -590,6 +590,14 @@ body {
   scrollbar-width: none;
 }
 
+.project-sidebar-divider {
+  width: 36px;
+  height: 1px;
+  background: var(--border);
+  margin: 2px 0;
+  flex-shrink: 0;
+}
+
 .project-sidebar-bottom::-webkit-scrollbar {
   display: none;
 }

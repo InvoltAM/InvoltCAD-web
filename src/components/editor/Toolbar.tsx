@@ -610,6 +610,7 @@ export default function Toolbar() {
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('projects') }} />
             <span className="project-sidebar-label">Проекты</span>
           </button>
+          <div className="project-sidebar-divider" />
           <button
             onClick={handleToggleCableJournal}
             className={`project-sidebar-btn ${cableJournalOpen ? 'active' : ''}`}
@@ -650,6 +651,7 @@ export default function Toolbar() {
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('rooms') }} />
             <span className="project-sidebar-label">Комнаты</span>
           </button>
+          <div className="project-sidebar-divider" />
           <button
             onClick={() => setCatalogOpen(!catalogOpen)}
             className={`project-sidebar-btn ${catalogOpen ? 'active' : ''}`}
@@ -682,6 +684,7 @@ export default function Toolbar() {
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('documents') }} />
             <span className="project-sidebar-label">Документы</span>
           </button>
+          <div className="project-sidebar-divider" />
           <button
             onClick={() => setMarkingOpen(!markingOpen)}
             className={`project-sidebar-btn ${markingOpen ? 'active' : ''}`}
