@@ -84,6 +84,7 @@ model User {
   crmCalendarEvents  CrmCalendarEvent[]
   crmActivityLogs    CrmActivityLog[]
   crmEmailLogs       CrmEmailLog[]
+  crmEmailTemplates  CrmEmailTemplate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -862,6 +863,7 @@ model CrmTelegramLog {
 model CrmEmailLog {
   id           String   @id @default(cuid())
   userId       String?
+  templateId   String?
   dealId       String?
   clientId     String?
   leadId       String?
@@ -872,14 +874,31 @@ model CrmEmailLog {
   errorMessage String?  @db.Text
   sentAt       DateTime @default(now())
 
-  user   User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  deal   CrmDeal?  @relation(fields: [dealId], references: [id], onDelete: Cascade)
-  client CrmClient? @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  lead   CrmLead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  user     User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  template CrmEmailTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  deal     CrmDeal?          @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  client   CrmClient?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  lead     CrmLead?          @relation(fields: [leadId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([templateId])
   @@index([dealId])
   @@index([clientId])
   @@index([leadId])
   @@index([sentAt])
+}
+
+model CrmEmailTemplate {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  subject   String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs  CrmEmailLog[]
+
+  @@index([userId])
 }

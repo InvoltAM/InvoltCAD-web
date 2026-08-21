@@ -99,12 +99,24 @@ export default async function CrmPage() {
           </Link>
         </div>
 
-        <div className="mt-6 text-center">
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link
             href="/crm/activity"
             className="inline-block rounded-lg border border-gray-300 px-6 py-3 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
           >
             История активности
+          </Link>
+          <Link
+            href="/crm/email-templates"
+            className="inline-block rounded-lg border border-gray-300 px-6 py-3 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            Шаблоны email
+          </Link>
+          <Link
+            href="/crm/email-blast"
+            className="inline-block rounded-lg border border-purple-300 bg-purple-50 px-6 py-3 text-sm text-purple-700 hover:bg-purple-100 dark:border-purple-800 dark:bg-purple-900/20 dark:text-purple-300 dark:hover:bg-purple-900/30"
+          >
+            Массовая рассылка
           </Link>
         </div>
       </div>

@@ -259,6 +259,7 @@ export default function EditDealPage({ params }: { params: Promise<{ id: string 
 
 function EmailPanel({ dealId, clientEmail }: { dealId: string; clientEmail: string | null }) {
   const [emails, setEmails] = useState<{ id: string; to: string; subject: string; body: string; status: string; errorMessage: string | null; sentAt: string }[]>([])
+  const [templates, setTemplates] = useState<{ id: string; name: string; subject: string; body: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [to, setTo] = useState(clientEmail ?? '')
@@ -266,11 +267,24 @@ function EmailPanel({ dealId, clientEmail }: { dealId: string; clientEmail: stri
   const [body, setBody] = useState('')
 
   useEffect(() => {
-    fetch(`/api/crm/emails?dealId=${dealId}`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => setEmails(data))
+    Promise.all([
+      fetch(`/api/crm/emails?dealId=${dealId}`).then((res) => (res.ok ? res.json() : [])),
+      fetch('/api/crm/email-templates').then((res) => (res.ok ? res.json() : [])),
+    ])
+      .then(([emailsData, templatesData]) => {
+        setEmails(emailsData)
+        setTemplates(templatesData)
+      })
       .finally(() => setLoading(false))
   }, [dealId])
+
+  const applyTemplate = (templateId: string) => {
+    const t = templates.find((x) => x.id === templateId)
+    if (t) {
+      setSubject(t.subject)
+      setBody(t.body)
+    }
+  }
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -299,7 +313,15 @@ function EmailPanel({ dealId, clientEmail }: { dealId: string; clientEmail: stri
 
   return (
     <div className="mt-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-      <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Email</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Email</h2>
+        <Link
+          href="/crm/email-templates"
+          className="rounded-lg border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+        >
+          Шаблоны
+        </Link>
+      </div>
 
       <form onSubmit={handleSend} className="mb-6 space-y-3">
         <input
@@ -309,6 +331,20 @@ function EmailPanel({ dealId, clientEmail }: { dealId: string; clientEmail: stri
           placeholder="Получатель"
           className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
         />
+        {templates.length > 0 && (
+          <select
+            value=""
+            onChange={(e) => applyTemplate(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          >
+            <option value="">— Применить шаблон —</option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        )}
         <input
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
@@ -443,6 +479,8 @@ function EstimatesPanel({ dealId }: { dealId: string }) {
       .finally(() => setLoading(false))
   }, [dealId])
 
+  const [emailingId, setEmailingId] = useState<string | null>(null)
+
   const handleCreate = async () => {
     setCreating(true)
     const res = await fetch(`/api/crm/deals/${dealId}/estimates`, {
@@ -457,6 +495,25 @@ function EstimatesPanel({ dealId }: { dealId: string }) {
       alert('Не удалось создать КП')
     }
     setCreating(false)
+  }
+
+  const handleEmail = async (estimateId: string) => {
+    setEmailingId(estimateId)
+    const res = await fetch(`/api/crm/deals/${dealId}/estimates/${estimateId}/email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      if (data.publicUrl) {
+        navigator.clipboard?.writeText(data.publicUrl)
+      }
+      alert(data.success ? `КП отправлено. Ссылка скопирована: ${data.publicUrl}` : `Не удалось отправить: ${data.note}`)
+    } else {
+      alert('Не удалось отправить КП')
+    }
+    setEmailingId(null)
   }
 
   return (
@@ -486,9 +543,18 @@ function EstimatesPanel({ dealId }: { dealId: string }) {
                   {(e.total / 100).toFixed(2)} ₽ · {new Date(e.createdAt).toLocaleString('ru-RU')}
                 </span>
               </div>
-              <span className="rounded-full bg-gray-200 px-2 py-1 text-xs dark:bg-gray-600 dark:text-white">
-                {e.status}
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleEmail(e.id)}
+                  disabled={emailingId === e.id}
+                  className="rounded-lg border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                >
+                  {emailingId === e.id ? 'Отправка...' : 'Отправить'}
+                </button>
+                <span className="rounded-full bg-gray-200 px-2 py-1 text-xs dark:bg-gray-600 dark:text-white">
+                  {e.status}
+                </span>
+              </div>
             </li>
           ))}
         </ul>
@@ -509,6 +575,8 @@ function InvoicesPanel({ dealId }: { dealId: string }) {
       .finally(() => setLoading(false))
   }, [dealId])
 
+  const [emailingId, setEmailingId] = useState<string | null>(null)
+
   const handleCreate = async () => {
     setCreating(true)
     const res = await fetch(`/api/crm/deals/${dealId}/invoices`, {
@@ -523,6 +591,22 @@ function InvoicesPanel({ dealId }: { dealId: string }) {
       alert('Не удалось создать счёт')
     }
     setCreating(false)
+  }
+
+  const handleEmail = async (invoiceId: string) => {
+    setEmailingId(invoiceId)
+    const res = await fetch(`/api/crm/deals/${dealId}/invoices/${invoiceId}/email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      alert(data.success ? 'Счёт отправлен' : `Не удалось отправить: ${data.note}`)
+    } else {
+      alert('Не удалось отправить счёт')
+    }
+    setEmailingId(null)
   }
 
   return (
@@ -552,9 +636,18 @@ function InvoicesPanel({ dealId }: { dealId: string }) {
                   {(i.amount / 100).toFixed(2)} ₽ · {new Date(i.createdAt).toLocaleString('ru-RU')}
                 </span>
               </div>
-              <span className="rounded-full bg-gray-200 px-2 py-1 text-xs dark:bg-gray-600 dark:text-white">
-                {i.status === 'paid' ? 'Оплачен' : i.status === 'draft' ? 'Черновик' : i.status}
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleEmail(i.id)}
+                  disabled={emailingId === i.id}
+                  className="rounded-lg border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                >
+                  {emailingId === i.id ? 'Отправка...' : 'Отправить'}
+                </button>
+                <span className="rounded-full bg-gray-200 px-2 py-1 text-xs dark:bg-gray-600 dark:text-white">
+                  {i.status === 'paid' ? 'Оплачен' : i.status === 'draft' ? 'Черновик' : i.status}
+                </span>
+              </div>
             </li>
           ))}
         </ul>
