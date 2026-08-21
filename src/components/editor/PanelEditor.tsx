@@ -49,6 +49,7 @@ const DEVICE_CATALOG: DeviceOption[] = [
   { type: 'contactor', name: 'Контактор 25А', baseWidth: 2, ratingA: 25 },
   { type: 'bus', name: 'Шина N', baseWidth: 2 },
   { type: 'bus', name: 'Шина PE', baseWidth: 2 },
+  { type: 'blank', name: 'Заглушка', baseWidth: 1 },
 ]
 
 function getInsertIndex(rowId: string, rows: PanelRow[]): number {
@@ -390,7 +391,7 @@ export default function PanelEditor() {
                               ×
                             </button>
                             <div className="text-xs font-medium text-gray-900 dark:text-white">
-                              {device.type === 'breaker' ? 'QF' : device.type === 'input-breaker' ? 'QF' : device.type === 'rcd' ? 'QF+RCD' : device.type === 'busbar' ? 'Шина' : 'T'}
+                              {device.type === 'breaker' ? 'QF' : device.type === 'input-breaker' ? 'QF' : device.type === 'rcd' ? 'QF+RCD' : device.type === 'busbar' ? 'Шина' : device.type === 'blank' ? '' : 'T'}
                             </div>
                             <div className="text-[10px] text-gray-600 dark:text-gray-400">
                               {device.rating > 0 ? `${device.rating}A` : ''}
