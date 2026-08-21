@@ -97,6 +97,7 @@ interface CadStoreState {
   gridVisible: boolean
   olsOpen: boolean
   panelEditorOpen: boolean
+  basketOpen: boolean
   projectsOpen: boolean
   roomsOpen: boolean
   estimatesOpen: boolean
@@ -147,6 +148,7 @@ interface CadStoreState {
   setGridVisible: (visible: boolean) => void
   setOlsOpen: (open: boolean) => void
   setPanelEditorOpen: (open: boolean) => void
+  setBasketOpen: (open: boolean) => void
   setProjectsOpen: (open: boolean) => void
   setRoomsOpen: (open: boolean) => void
   setEstimatesOpen: (open: boolean) => void
@@ -211,6 +213,7 @@ export const useCadStore = create<CadStoreState>((set) => ({
   gridVisible: true,
   olsOpen: false,
   panelEditorOpen: false,
+  basketOpen: false,
   projectsOpen: false,
   roomsOpen: false,
   estimatesOpen: false,
@@ -264,6 +267,7 @@ export const useCadStore = create<CadStoreState>((set) => ({
   setGridVisible: (gridVisible) => set({ gridVisible }),
   setOlsOpen: (olsOpen) => set({ olsOpen }),
   setPanelEditorOpen: (panelEditorOpen) => set({ panelEditorOpen }),
+  setBasketOpen: (basketOpen) => set({ basketOpen }),
   setProjectsOpen: (projectsOpen) => set({ projectsOpen }),
   setRoomsOpen: (roomsOpen) => set({ roomsOpen }),
   setEstimatesOpen: (estimatesOpen) => set({ estimatesOpen }),

@@ -48,6 +48,12 @@ Dev-сервер Next.js работает на `http://localhost:3003/editor`.
     - `packages/core/panels/panelModel.ts` — `layoutPanel` по умолчанию 12 модулей.
     - `src/components/editor/PanelEditor.tsx` — `rowModules` = 12 при построении из `DistributionBoardData`.
     - `packages/core/electrical/BoardEngine.ts` — `dinModules` округляется до ближайшего кратного 12, корпуса подбираются по 12/24/36/48/60/72 модуля.
+- Добавлена левая панель «Корзина»:
+  - `src/stores/cadStore.ts` — состояние `basketOpen` и сеттер.
+  - `src/components/editor/icons.ts` — иконка `basket` (shopping-cart).
+  - `src/components/editor/Toolbar.tsx` — кнопка «Корзина» в левой панели (под «Меню»).
+  - `src/components/editor/BasketPanel.tsx` — боковая панель слева, отображает элементы щита из `plan.electrical.distributionBoards[0].components` (собранные из ОЛС): название, тип, ширина в модулях, итоговое число модулей.
+  - `src/components/editor/PlanEditor.tsx` — подключена `<BasketPanel />`.
 - Обновлено главное меню:
   - `src/app/page.tsx` — вместо «Открыть редактор» и «Тарифы» теперь кнопки «Проектирование» (`/editor`) и «CRM» (`/crm`).
   - `src/app/crm/page.tsx` — заглушка страницы CRM с заголовком и кнопкой возврата в меню.

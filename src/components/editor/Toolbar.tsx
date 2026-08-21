@@ -98,6 +98,8 @@ export default function Toolbar() {
   const cableJournalOpen = useCadStore((s) => s.cableJournalOpen)
   const devicePaletteOpen = useCadStore((s) => s.devicePaletteOpen)
   const aiChatOpen = useCadStore((s) => s.aiChatOpen)
+  const basketOpen = useCadStore((s) => s.basketOpen)
+  const setBasketOpen = useCadStore((s) => s.setBasketOpen)
   const { engineRef, themeManagerRef, panelManagerRef } = useEditor()
   const router = useRouter()
   const [, setTick] = useState(0)
@@ -602,6 +604,14 @@ export default function Toolbar() {
           >
             <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('menu') }} />
             <span className="project-sidebar-label">Меню</span>
+          </button>
+          <button
+            onClick={() => setBasketOpen(!basketOpen)}
+            className={`project-sidebar-btn ${basketOpen ? 'active' : ''}`}
+            title="Корзина"
+          >
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('basket') }} />
+            <span className="project-sidebar-label">Корзина</span>
           </button>
           <button
             onClick={() => setProjectsOpen(!projectsOpen)}

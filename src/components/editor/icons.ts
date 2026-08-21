@@ -10,7 +10,8 @@ export type IconName =
   | 'sun' | 'moon' | 'ortho' | 'grid' | 'uiScale' | 'compact' | 'ols' | 'panel' | 'validation' | 'reset' | 'projects'
   | 'rooms' | 'roomNumbers' | 'estimates' | 'invoices' | 'documents' | 'catalog' | 'marking' | 'automation' | 'templates'
   | 'dotsThreeVertical' | 'stamp' | 'exportDxf' | 'exportPdf' | 'plus'
-  | 'socket' | 'switch' | 'light' | 'sensor' | 'output' | 'camera' | 'sks' | 'drive' | 'smartHome';
+  | 'socket' | 'switch' | 'light' | 'sensor' | 'output' | 'camera' | 'sks' | 'drive' | 'smartHome'
+  | 'basket';
 
 const MAP: Record<IconName, string> = {
   wall: 'wall',
@@ -92,6 +93,7 @@ const MAP: Record<IconName, string> = {
   sks: 'network',
   drive: 'gear',
   smartHome: 'house-line',
+  basket: 'shopping-cart',
 };
 
 export function icon(name: IconName): string {
