@@ -636,14 +636,6 @@ export default function Toolbar() {
             <span className="project-sidebar-label">Щит</span>
           </button>
           <button
-            onClick={handleToggleAiChat}
-            className={`project-sidebar-btn ${aiChatOpen ? 'active' : ''}`}
-            title="AI-ассистент"
-          >
-            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('ai') }} />
-            <span className="project-sidebar-label">AI</span>
-          </button>
-          <button
             onClick={() => setRoomsOpen(!roomsOpen)}
             className={`project-sidebar-btn ${roomsOpen ? 'active' : ''}`}
             title="Комнаты и потребители"
@@ -1026,6 +1018,16 @@ export default function Toolbar() {
           return elements
         })}
       </div>
+
+      <button
+        key="ai"
+        onClick={handleToggleAiChat}
+        className={`editor-dock-item editor-dock-ai ${aiChatOpen ? 'active' : ''}`}
+        title="AI-ассистент"
+      >
+        <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('ai') }} />
+        <span className="editor-dock-tooltip">AI</span>
+      </button>
 
       {panelMenuOpen && (
         <div
