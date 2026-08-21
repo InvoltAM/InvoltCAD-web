@@ -1777,21 +1777,24 @@ Dev-сервер Next.js работает на `http://localhost:3003`.
 - API для сделок (`/api/crm/deals`, `/api/crm/deals/[id]`).
 - Страницы сделок (`/crm/deals`, `/crm/deals/new`, `/crm/deals/[id]`).
 
+- API для задач (`/api/crm/tasks`, `/api/crm/tasks/[id]`).
+- Страницы задач (`/crm/tasks`, `/crm/tasks/new`, `/crm/tasks/[id]`).
+
 ## Что ещё не сделано
 
-- API для задач (`/api/crm/tasks`, `/api/crm/tasks/[id]`).
 - API для календаря (`/api/crm/events`, `/api/crm/events/[id]`).
 - API для Telegram-логов и активности.
-- Страницы задач (`/crm/tasks`, `/crm/tasks/new`, `/crm/tasks/[id]`).
+- Страницы календаря и активности.
 - Интеграция CRM с проектами InvoltCAD (связь сделок/клиентов с проектами).
 - Telegram-бот, email-рассылки, платежи по сделкам — отложены на следующие итерации.
 
 ## Следующие шаги
 
-1. Добавить API и страницы для задач (`/api/crm/tasks`, `/crm/tasks`).
-2. Запустить `npx tsc --noEmit` и `npm test -- --run`, исправить ошибки.
-3. Закоммитить очередной рабочий срез.
-4. Обновить `docs/SESSION_STATE.md`.
+1. Добавить API и страницы календаря (`/api/crm/events`, `/crm/calendar`).
+2. Добавить API и страницу активности (`/api/crm/activity`, `/crm/activity`).
+3. Запустить `npx tsc --noEmit` и `npm test -- --run`, исправить ошибки.
+4. Закоммитить очередной рабочий срез.
+5. Обновить `docs/SESSION_STATE.md`.
 
 ## Как продолжить разработку на другом ПК
 
