@@ -8,7 +8,7 @@ export default async function CrmPage() {
   const user = session?.user
 
   if (!user?.id) {
-    redirect('/login')
+    redirect('/login?callbackUrl=/crm')
   }
 
   const [clientsCount, leadsCount, dealsCount, tasksCount] = await Promise.all([

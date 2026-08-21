@@ -1752,6 +1752,14 @@ Dev-сервер Next.js работает на `http://localhost:3003`.
 - Проверки пройдены:
   - `npx tsc --noEmit` — успешно.
   - `npm test -- --run` — 63 теста успешно.
+- Исправлены runtime-ошибки редактора `PanelEditor`:
+  - Ошибки `extraRows is not defined` и `splitIntoSections is not defined` были вызваны устаревшим кэшем Turbopack.
+  - Dev-сервер перезапущен, кэш Turbopack очищен, ошибки больше не воспроизводятся.
+  - `/editor` открывается без ошибок в консоли браузера.
+- Настроен вход в CRM через кнопку на стартовой странице:
+  - `src/app/crm/page.tsx` редиректит неавторизованного пользователя на `/login?callbackUrl=/crm`.
+  - `src/app/login/page.tsx` считывает `callbackUrl` из query string и передаёт его в `signIn` (Google и email).
+  - Проверено в браузере: клик по «CRM» на главной ведёт на страницу входа с сохранением callback, после авторизации пользователь вернётся в CRM.
 
 ## Что ещё не сделано
 

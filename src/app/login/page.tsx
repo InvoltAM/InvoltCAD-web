@@ -1,16 +1,20 @@
 'use client'
 
 import { signIn } from 'next-auth/react'
+import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 
 export default function LoginPage() {
+  const searchParams = useSearchParams()
+  const callbackUrl = searchParams.get('callbackUrl') ?? '/editor'
+
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    await signIn('email', { email, redirect: false })
+    await signIn('email', { email, redirect: false, callbackUrl })
     setLoading(false)
     alert('Проверьте почту для входа')
   }
@@ -23,7 +27,7 @@ export default function LoginPage() {
         </h1>
 
         <button
-          onClick={() => signIn('google', { callbackUrl: '/editor' })}
+          onClick={() => signIn('google', { callbackUrl })}
           className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24">
