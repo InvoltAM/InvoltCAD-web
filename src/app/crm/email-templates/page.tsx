@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { FileText, Plus, Trash2, Pencil } from 'lucide-react'
+import CrmPageHeader from '@/components/crm/CrmPageHeader'
+import CrmCard from '@/components/crm/CrmCard'
+import CrmButton from '@/components/crm/CrmButton'
+import CrmEmptyState from '@/components/crm/CrmEmptyState'
 
 interface EmailTemplate {
   id: string
@@ -77,24 +81,16 @@ export default function EmailTemplatesPage() {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 px-6 py-10 dark:bg-gray-900">
-      <div className="mx-auto max-w-3xl">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Шаблоны email</h1>
-          <Link
-            href="/crm"
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
-          >
-            Назад
-          </Link>
-        </div>
+  const inputClass =
+    'w-full px-3 py-2 bg-crm-bg-primary border border-crm-border rounded-md text-sm text-crm-text-primary placeholder:text-crm-text-muted focus:outline-none focus:border-crm-accent focus:ring-[3px] focus:ring-crm-accent/15 transition-all'
 
-        <form
-          onSubmit={handleSave}
-          className="mb-8 space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
-        >
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+  return (
+    <div className="space-y-6">
+      <CrmPageHeader title="Шаблоны email" subtitle="Управление шаблонами писем" />
+
+      <CrmCard className="p-6" hover={false}>
+        <form onSubmit={handleSave} className="space-y-4">
+          <h2 className="font-crm-manrope text-base font-semibold text-crm-text-primary mb-2">
             {editing ? 'Редактирование шаблона' : 'Новый шаблон'}
           </h2>
           <input
@@ -102,14 +98,14 @@ export default function EmailTemplatesPage() {
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             placeholder="Название шаблона"
             required
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            className={inputClass}
           />
           <input
             value={form.subject}
             onChange={(e) => setForm({ ...form, subject: e.target.value })}
             placeholder="Тема письма"
             required
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            className={inputClass}
           />
           <textarea
             value={form.body}
@@ -117,61 +113,57 @@ export default function EmailTemplatesPage() {
             placeholder="Текст письма (HTML)"
             rows={6}
             required
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            className={`${inputClass} resize-none`}
           />
           <div className="flex justify-end gap-3">
             {editing && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-              >
+              <CrmButton type="button" variant="ghost" onClick={resetForm}>
                 Отмена
-              </button>
+              </CrmButton>
             )}
-            <button
-              type="submit"
-              className="rounded-lg bg-purple-600 px-4 py-2 text-sm text-white hover:bg-purple-700"
-            >
-              {editing ? 'Сохранить' : 'Создать'}
-            </button>
+            <CrmButton type="submit">{editing ? 'Сохранить' : 'Создать'}</CrmButton>
           </div>
         </form>
+      </CrmCard>
 
-        {loading ? (
-          <p className="text-gray-600 dark:text-gray-400">Загрузка...</p>
-        ) : templates.length === 0 ? (
-          <p className="text-gray-600 dark:text-gray-400">Шаблонов пока нет</p>
-        ) : (
-          <div className="space-y-3">
-            {templates.map((t) => (
-              <div
-                key={t.id}
-                className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
-              >
+      {loading ? (
+        <div className="flex items-center justify-center h-32">
+          <div className="w-8 h-8 border-2 border-crm-accent border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : templates.length === 0 ? (
+        <CrmEmptyState
+          title="Шаблонов пока нет"
+          description="Создайте первый шаблон email"
+          icon={<FileText size={48} className="text-crm-text-muted" />}
+        />
+      ) : (
+        <div className="space-y-3">
+          {templates.map((t) => (
+            <CrmCard key={t.id} className="p-4" hover={false}>
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-white">{t.name}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{t.subject}</p>
+                  <p className="font-medium text-crm-text-primary">{t.name}</p>
+                  <p className="text-sm text-crm-text-secondary">{t.subject}</p>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleEdit(t)}
-                    className="rounded-lg border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                    className="inline-flex items-center gap-1 rounded-lg border border-crm-border px-3 py-1.5 text-sm text-crm-text-secondary hover:text-crm-text-primary hover:border-crm-border-hover transition-colors"
                   >
-                    Редактировать
+                    <Pencil size={14} /> Редактировать
                   </button>
                   <button
                     onClick={() => handleDelete(t.id)}
-                    className="rounded-lg border border-red-300 px-3 py-1 text-sm text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/20"
+                    className="inline-flex items-center gap-1 rounded-lg border border-crm-status-unpaid/30 px-3 py-1.5 text-sm text-crm-status-unpaid hover:bg-crm-status-unpaid/10 transition-colors"
                   >
-                    Удалить
+                    <Trash2 size={14} /> Удалить
                   </button>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            </CrmCard>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

@@ -3,6 +3,12 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { Plus } from 'lucide-react'
+import CrmPageHeader from '@/components/crm/CrmPageHeader'
+import CrmTable from '@/components/crm/CrmTable'
+import CrmEmptyState from '@/components/crm/CrmEmptyState'
+import CrmButton from '@/components/crm/CrmButton'
+import CrmStatusBadge from '@/components/crm/CrmStatusBadge'
 
 interface CrmLead {
   id: string
@@ -13,6 +19,13 @@ interface CrmLead {
   status: string
   source: string | null
   createdAt: string
+}
+
+const statusLabels: Record<string, string> = {
+  new: 'Новый',
+  contacted: 'В работе',
+  qualified: 'Квалифицирован',
+  lost: 'Потерян',
 }
 
 export default function LeadsPage() {
@@ -48,127 +61,80 @@ export default function LeadsPage() {
     }
   }
 
-  if (loading) return <div className="p-8">Загрузка...</div>
-  if (error) return <div className="p-8 text-red-600">{error}</div>
-
   return (
-    <div className="min-h-screen bg-gray-50 px-6 py-10 dark:bg-gray-900">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Лиды
-          </h1>
-          <div className="flex gap-3">
-            <Link
-              href="/crm"
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
-            >
-              Назад в CRM
-            </Link>
-            <Link
-              href="/crm/leads/new"
-              className="rounded-lg bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700"
-            >
-              + Добавить лида
-            </Link>
-          </div>
-        </div>
+    <div className="space-y-6">
+      <CrmPageHeader title="Лиды" count={leads.length} subtitle="Управление лидами">
+        <Link href="/crm/leads/new">
+          <CrmButton icon={<Plus size={18} />}>Добавить лида</CrmButton>
+        </Link>
+      </CrmPageHeader>
 
-        {leads.length === 0 ? (
-          <div className="rounded-lg border border-gray-200 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-800">
-            <p className="text-gray-600 dark:text-gray-400">Лидов пока нет</p>
-            <Link
-              href="/crm/leads/new"
-              className="mt-4 inline-block rounded-lg bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700"
-            >
-              Добавить первого лида
-            </Link>
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-gray-100 dark:bg-gray-700">
-                <tr>
-                  <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">
-                    Имя
-                  </th>
-                  <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">
-                    Компания
-                  </th>
-                  <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">
-                    Телефон
-                  </th>
-                  <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">
-                    Статус
-                  </th>
-                  <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">
-                    Источник
-                  </th>
-                  <th className="px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {leads.map((lead) => (
-                  <tr
-                    key={lead.id}
-                    onClick={() => router.push(`/crm/leads/${lead.id}`)}
-                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                  >
-                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
-                      {lead.name}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                      {lead.company || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                      {lead.phone || '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={lead.status} />
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                      {lead.source || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDelete(lead.id, lead.name)
-                        }}
-                        className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                      >
-                        Удалить
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {error && <div className="text-crm-status-unpaid text-center py-8">{error}</div>}
+
+      <CrmTable
+        loading={loading}
+        data={leads}
+        onRowClick={(lead) => router.push(`/crm/leads/${lead.id}`)}
+        empty={
+          <CrmEmptyState
+            title="Лидов пока нет"
+            description="Добавьте первого лида, чтобы начать работу с потенциальными клиентами"
+            action={
+              <Link href="/crm/leads/new">
+                <CrmButton icon={<Plus size={18} />}>Добавить лида</CrmButton>
+              </Link>
+            }
+          />
+        }
+        columns={[
+          {
+            key: 'name',
+            title: 'Имя',
+            render: (lead) => (
+              <div>
+                <p className="text-[14px] font-medium text-crm-text-primary">{lead.name}</p>
+                {lead.company && <p className="text-[12px] text-crm-text-secondary">{lead.company}</p>}
+              </div>
+            ),
+          },
+          {
+            key: 'phone',
+            title: 'Телефон',
+            render: (lead) => <span className="text-crm-text-secondary">{lead.phone || '—'}</span>,
+          },
+          {
+            key: 'email',
+            title: 'Email',
+            render: (lead) => <span className="text-crm-text-secondary">{lead.email || '—'}</span>,
+          },
+          {
+            key: 'status',
+            title: 'Статус',
+            render: (lead) => <CrmStatusBadge status={lead.status} label={statusLabels[lead.status] ?? lead.status} />,
+          },
+          {
+            key: 'source',
+            title: 'Источник',
+            render: (lead) => <span className="text-crm-text-secondary">{lead.source || '—'}</span>,
+          },
+          {
+            key: 'actions',
+            title: '',
+            width: '80px',
+            render: (lead) => (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleDelete(lead.id, lead.name)
+                }}
+                className="text-crm-status-unpaid hover:text-red-400 text-sm"
+              >
+                Удалить
+              </button>
+            ),
+          },
+        ]}
+      />
     </div>
-  )
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    new: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-    contacted: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-    qualified: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-    lost: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-  }
-  const labels: Record<string, string> = {
-    new: 'Новый',
-    contacted: 'В работе',
-    qualified: 'Квалифицирован',
-    lost: 'Потерян',
-  }
-  return (
-    <span
-      className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${colors[status] ?? colors.new}`}
-    >
-      {labels[status] ?? status}
-    </span>
   )
 }

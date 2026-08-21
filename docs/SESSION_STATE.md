@@ -2017,3 +2017,35 @@ npx prisma generate
 npx prisma db push
 npm run dev
 ```
+
+## 2026-08-21 — Редизайн CRM под стиль «СтройУчет»
+
+### Что сделано
+- Установлены `recharts` и `framer-motion`.
+- Создана тёмная CRM-тема (dark cobalt) в `src/app/crm/crm-theme.css` и общий layout `src/app/crm/layout.tsx`.
+- Добавлены базовые компоненты:
+  - `CrmSidebar`, `CrmTopBar`, `CrmPageHeader`
+  - `CrmCard`, `CrmButton`, `CrmStatusBadge`
+  - `CrmSearch`, `CrmEmptyState`, `CrmTable`, `CrmModal`
+- Созданы API-агрегаты:
+  - `GET /api/crm/dashboard` — KPI, графики, последние сделки, активность.
+  - `GET /api/crm/analytics` — распределения, динамика, топ клиентов.
+- Переделаны страницы:
+  - `/crm/page.tsx` — Dashboard с KPI, графиками, быстрыми действиями.
+  - `/crm/clients/page.tsx` — карточная сетка клиентов.
+  - `/crm/clients/[id]/page.tsx` — профиль клиента со статистикой.
+  - `/crm/clients/[id]/edit/page.tsx` — редактирование клиента + Telegram.
+  - `/crm/deals/page.tsx` — таблица сделок с KPI.
+  - `/crm/analytics/page.tsx` — новая страница аналитики.
+  - `/crm/leads/page.tsx`, `/crm/tasks/page.tsx` — перекрашены в CRM-стиль.
+  - `/crm/calendar/page.tsx`, `/crm/funnel/page.tsx`, `/crm/activity/page.tsx`
+  - `/crm/email-blast/page.tsx`, `/crm/email-templates/page.tsx` — перекрашены.
+- Проверки:
+  - `npx tsc --noEmit` — без ошибок.
+  - `npm test -- --run` — 63/63 тестов пройдены.
+  - Dev-сервер на `http://localhost:3002` работает, CRM-страницы открываются.
+
+### Следующие шаги
+- Проверить связность новых страниц (добавление/редактирование клиентов, сделок, лидов, задач).
+- Добавить логирование активности в API при создании/изменении CRM-сущностей.
+- Рассмотреть единый DataService/хуки для CRM-запросов.

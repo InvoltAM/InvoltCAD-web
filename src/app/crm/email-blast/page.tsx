@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { Mail, Plus } from 'lucide-react'
+import CrmPageHeader from '@/components/crm/CrmPageHeader'
+import CrmCard from '@/components/crm/CrmCard'
+import CrmButton from '@/components/crm/CrmButton'
+import CrmEmptyState from '@/components/crm/CrmEmptyState'
 
 interface Recipient {
   id: string
@@ -99,28 +103,20 @@ export default function EmailBlastPage() {
     setSending(false)
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 px-6 py-10 dark:bg-gray-900">
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Массовая email-рассылка</h1>
-          <Link
-            href="/crm"
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
-          >
-            Назад
-          </Link>
-        </div>
+  const inputClass =
+    'w-full px-3 py-2 bg-crm-bg-primary border border-crm-border rounded-md text-sm text-crm-text-primary placeholder:text-crm-text-muted focus:outline-none focus:border-crm-accent focus:ring-[3px] focus:ring-crm-accent/15 transition-all'
 
-        <form
-          onSubmit={handleSend}
-          className="mb-8 space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
-        >
+  return (
+    <div className="space-y-6">
+      <CrmPageHeader title="Массовая email-рассылка" subtitle="Отправка писем клиентам" />
+
+      <CrmCard className="p-6" hover={false}>
+        <form onSubmit={handleSend} className="space-y-4">
           {templates.length > 0 && (
             <select
               value={templateId}
               onChange={(e) => applyTemplate(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              className={inputClass}
             >
               <option value="">— Выберите шаблон —</option>
               {templates.map((t) => (
@@ -135,7 +131,7 @@ export default function EmailBlastPage() {
             onChange={(e) => setSubject(e.target.value)}
             placeholder="Тема"
             required
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            className={inputClass}
           />
           <textarea
             value={body}
@@ -143,54 +139,54 @@ export default function EmailBlastPage() {
             placeholder="Текст письма (HTML)"
             rows={6}
             required
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            className={`${inputClass} resize-none`}
           />
-          <button
-            type="submit"
-            disabled={selected.size === 0 || sending}
-            className="rounded-lg bg-purple-600 px-4 py-2 text-sm text-white hover:bg-purple-700 disabled:opacity-50"
-          >
+          <CrmButton type="submit" disabled={selected.size === 0 || sending}>
             {sending ? 'Отправка...' : `Отправить (${selected.size})`}
-          </button>
+          </CrmButton>
         </form>
+      </CrmCard>
 
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Получатели</h2>
-            <button
-              onClick={toggleAll}
-              className="text-sm text-purple-600 hover:text-purple-700 dark:text-purple-400"
-            >
-              {selected.size === recipients.length ? 'Снять все' : 'Выбрать все'}
-            </button>
-          </div>
-          <div className="max-h-96 space-y-2 overflow-y-auto">
-            {recipients.length === 0 ? (
-              <p className="text-sm text-gray-600 dark:text-gray-400">Нет получателей с email</p>
-            ) : (
-              recipients.map((r) => (
-                <label
-                  key={r.id}
-                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-100 p-2 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selected.has(r.id)}
-                    onChange={() => toggle(r.id)}
-                    className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{r.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {r.email} · {r.type === 'client' ? 'Клиент' : 'Лид'}
-                    </p>
-                  </div>
-                </label>
-              ))
-            )}
-          </div>
+      <CrmCard className="p-5" hover={false}>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-crm-manrope text-base font-semibold text-crm-text-primary">Получатели</h2>
+          <button
+            onClick={toggleAll}
+            className="text-sm text-crm-accent hover:text-crm-accent-light transition-colors"
+          >
+            {selected.size === recipients.length ? 'Снять все' : 'Выбрать все'}
+          </button>
         </div>
-      </div>
+        <div className="max-h-96 space-y-2 overflow-y-auto">
+          {recipients.length === 0 ? (
+            <CrmEmptyState
+              title="Нет получателей с email"
+              description="Добавьте email клиентам или лидам"
+              icon={<Mail size={48} className="text-crm-text-muted" />}
+            />
+          ) : (
+            recipients.map((r) => (
+              <label
+                key={r.id}
+                className="flex cursor-pointer items-center gap-3 rounded-lg border border-crm-border p-3 hover:bg-crm-bg-tertiary/50 transition-colors"
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.has(r.id)}
+                  onChange={() => toggle(r.id)}
+                  className="h-4 w-4 cursor-pointer rounded border-crm-border bg-crm-bg-primary text-crm-accent focus:ring-crm-accent"
+                />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-crm-text-primary">{r.name}</p>
+                  <p className="text-xs text-crm-text-muted">
+                    {r.email} · {r.type === 'client' ? 'Клиент' : 'Лид'}
+                  </p>
+                </div>
+              </label>
+            ))
+          )}
+        </div>
+      </CrmCard>
     </div>
   )
 }

@@ -1,8 +1,12 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
+import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import CrmPageHeader from '@/components/crm/CrmPageHeader'
+import CrmCard from '@/components/crm/CrmCard'
+import CrmButton from '@/components/crm/CrmButton'
 
 interface CrmEvent {
   id: string
@@ -19,6 +23,18 @@ interface RelatedOption {
   id: string
   name: string
   type: 'client' | 'lead' | 'deal'
+}
+
+const eventTypeColor = (type: string) => {
+  switch (type) {
+    case 'call':
+      return 'bg-crm-status-paid/20 text-crm-status-paid border-crm-status-paid/30'
+    case 'reminder':
+      return 'bg-crm-status-partial/20 text-crm-status-partial border-crm-status-partial/30'
+    case 'meeting':
+    default:
+      return 'bg-crm-accent/20 text-crm-accent border-crm-accent/30'
+  }
 }
 
 export default function CalendarPage() {
@@ -173,147 +189,133 @@ export default function CalendarPage() {
   const monthName = currentDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })
   const weekDays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 
-  if (loading) return <div className="p-8">Загрузка...</div>
-  if (error) return <div className="p-8 text-red-600">{error}</div>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-2 border-crm-accent border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (error) return <div className="p-8 text-crm-status-unpaid">{error}</div>
+
+  const inputClass =
+    'w-full px-3 py-2 bg-crm-bg-primary border border-crm-border rounded-md text-sm text-crm-text-primary placeholder:text-crm-text-muted focus:outline-none focus:border-crm-accent focus:ring-[3px] focus:ring-crm-accent/15 transition-all'
 
   return (
-    <div className="min-h-screen bg-gray-50 px-6 py-10 dark:bg-gray-900">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Календарь
-          </h1>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/crm"
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
-            >
-              Назад в CRM
-            </Link>
-            <div className="flex items-center rounded-lg border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800">
-              <button
-                onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
-                className="px-3 py-2 text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-              >
-                ←
-              </button>
-              <span className="min-w-[140px] px-3 py-2 text-center text-sm font-medium capitalize text-gray-900 dark:text-white">
-                {monthName}
-              </span>
-              <button
-                onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
-                className="px-3 py-2 text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-              >
-                →
-              </button>
-            </div>
+    <div className="space-y-6">
+      <CrmPageHeader title="Календарь" subtitle="События и встречи">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center rounded-lg border border-crm-border bg-crm-bg-secondary overflow-hidden">
             <button
-              onClick={() => openNewModal()}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700"
+              onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
+              className="px-3 py-2 text-crm-text-secondary hover:text-crm-text-primary hover:bg-crm-bg-tertiary transition-colors"
             >
-              + Событие
+              <ChevronLeft size={18} />
+            </button>
+            <span className="min-w-[140px] px-3 py-2 text-center text-sm font-medium capitalize text-crm-text-primary">
+              {monthName}
+            </span>
+            <button
+              onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
+              className="px-3 py-2 text-crm-text-secondary hover:text-crm-text-primary hover:bg-crm-bg-tertiary transition-colors"
+            >
+              <ChevronRight size={18} />
             </button>
           </div>
+          <CrmButton onClick={() => openNewModal()} icon={<Plus size={18} />}>Событие</CrmButton>
         </div>
+      </CrmPageHeader>
 
-        <div className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-          <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-700">
-            {weekDays.map((d) => (
-              <div key={d} className="px-2 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300">
-                {d}
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7">
-            {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-              <div key={`empty-${i}`} className="min-h-[100px] border-b border-r border-gray-100 dark:border-gray-700/50" />
-            ))}
-            {Array.from({ length: daysInMonth }).map((_, dayIndex) => {
-              const day = dayIndex + 1
-              const dayEvents = eventsByDay.get(day) ?? []
-              const isToday =
-                new Date().getDate() === day &&
-                new Date().getMonth() === month &&
-                new Date().getFullYear() === year
+      <CrmCard className="p-0 overflow-hidden" hover={false}>
+        <div className="grid grid-cols-7 border-b border-crm-border bg-crm-bg-tertiary">
+          {weekDays.map((d) => (
+            <div key={d} className="px-2 py-3 text-center text-xs font-semibold text-crm-text-muted uppercase tracking-wider">
+              {d}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7">
+          {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+            <div key={`empty-${i}`} className="min-h-[110px] border-b border-r border-crm-border/50" />
+          ))}
+          {Array.from({ length: daysInMonth }).map((_, dayIndex) => {
+            const day = dayIndex + 1
+            const dayEvents = eventsByDay.get(day) ?? []
+            const isToday =
+              new Date().getDate() === day &&
+              new Date().getMonth() === month &&
+              new Date().getFullYear() === year
 
-              return (
+            return (
+              <div
+                key={day}
+                onClick={() => openNewModal(new Date(year, month, day))}
+                className="min-h-[110px] cursor-pointer border-b border-r border-crm-border/50 p-2 hover:bg-crm-bg-tertiary/30 transition-colors"
+              >
                 <div
-                  key={day}
-                  onClick={() => openNewModal(new Date(year, month, day))}
-                  className="min-h-[100px] cursor-pointer border-b border-r border-gray-100 p-2 hover:bg-gray-50 dark:border-gray-700/50 dark:hover:bg-gray-700/30"
+                  className={`mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${
+                    isToday ? 'bg-crm-accent text-white' : 'text-crm-text-secondary'
+                  }`}
                 >
-                  <div
-                    className={`mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${
-                      isToday
-                        ? 'bg-indigo-600 text-white'
-                        : 'text-gray-700 dark:text-gray-300'
-                    }`}
-                  >
-                    {day}
-                  </div>
-                  <div className="space-y-1">
-                    {dayEvents.slice(0, 3).map((event) => (
-                      <div
-                        key={event.id}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          openEditModal(event)
-                        }}
-                        className={`truncate rounded px-1.5 py-0.5 text-xs ${eventTypeColor(event.type)}`}
-                      >
-                        {formatTime(event.start)} {event.title}
-                      </div>
-                    ))}
-                    {dayEvents.length > 3 && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        +{dayEvents.length - 3}
-                      </div>
-                    )}
-                  </div>
+                  {day}
                 </div>
-              )
-            })}
-          </div>
+                <div className="space-y-1">
+                  {dayEvents.slice(0, 3).map((event) => (
+                    <div
+                      key={event.id}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openEditModal(event)
+                      }}
+                      className={`truncate rounded px-1.5 py-0.5 text-xs border ${eventTypeColor(event.type)}`}
+                    >
+                      {formatTime(event.start)} {event.title}
+                    </div>
+                  ))}
+                  {dayEvents.length > 3 && (
+                    <div className="text-xs text-crm-text-muted">+{dayEvents.length - 3}</div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
         </div>
-      </div>
+      </CrmCard>
 
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(7, 10, 18, 0.75)', backdropFilter: 'blur(4px)' }}
           onClick={() => setModalOpen(false)}
         >
-          <div
-            className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800"
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-md rounded-xl bg-crm-bg-elevated border border-crm-border p-6 shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
+            <h2 className="mb-4 font-crm-manrope text-xl font-semibold text-crm-text-primary">
               {editingEvent ? 'Редактирование события' : 'Новое событие'}
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {formError && (
-                <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                <div className="rounded-lg bg-crm-status-unpaid/10 p-3 text-sm text-crm-status-unpaid border border-crm-status-unpaid/30">
                   {formError}
                 </div>
               )}
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Название <span className="text-red-500">*</span>
+                <label className="block text-xs font-semibold text-crm-text-secondary mb-1.5">
+                  Название <span className="text-crm-status-unpaid">*</span>
                 </label>
-                <input
-                  name="title"
-                  required
-                  defaultValue={editingEvent?.title ?? ''}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                />
+                <input name="title" required defaultValue={editingEvent?.title ?? ''} className={inputClass} />
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Дата
-                  </label>
+                  <label className="block text-xs font-semibold text-crm-text-secondary mb-1.5">Дата</label>
                   <input
                     name="date"
                     type="date"
@@ -325,18 +327,12 @@ export default function CalendarPage() {
                             .split('T')[0]
                         : ''
                     }
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Тип
-                  </label>
-                  <select
-                    name="type"
-                    defaultValue={editingEvent?.type ?? 'meeting'}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                  >
+                  <label className="block text-xs font-semibold text-crm-text-secondary mb-1.5">Тип</label>
+                  <select name="type" defaultValue={editingEvent?.type ?? 'meeting'} className={inputClass}>
                     <option value="meeting">Встреча</option>
                     <option value="call">Звонок</option>
                     <option value="reminder">Напоминание</option>
@@ -346,25 +342,21 @@ export default function CalendarPage() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Начало
-                  </label>
+                  <label className="block text-xs font-semibold text-crm-text-secondary mb-1.5">Начало</label>
                   <input
                     name="time"
                     type="time"
                     defaultValue={editingEvent ? formatTimeInput(editingEvent.start) : '09:00'}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Окончание
-                  </label>
+                  <label className="block text-xs font-semibold text-crm-text-secondary mb-1.5">Окончание</label>
                   <input
                     name="endTime"
                     type="time"
                     defaultValue={editingEvent?.end ? formatTimeInput(editingEvent.end) : ''}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    className={inputClass}
                   />
                 </div>
               </div>
@@ -374,21 +366,19 @@ export default function CalendarPage() {
                   name="allDay"
                   type="checkbox"
                   defaultChecked={editingEvent?.allDay ?? false}
-                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  className="h-4 w-4 rounded border-crm-border bg-crm-bg-primary text-crm-accent focus:ring-crm-accent"
                 />
-                <label className="text-sm text-gray-700 dark:text-gray-300">Весь день</label>
+                <label className="text-sm text-crm-text-secondary">Весь день</label>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Тип связи
-                  </label>
+                  <label className="block text-xs font-semibold text-crm-text-secondary mb-1.5">Тип связи</label>
                   <select
                     name="relatedType"
                     value={relatedType}
                     onChange={(e) => setRelatedType(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    className={inputClass}
                   >
                     <option value="">— Нет связи —</option>
                     <option value="client">Клиент</option>
@@ -397,14 +387,12 @@ export default function CalendarPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Связанный объект
-                  </label>
+                  <label className="block text-xs font-semibold text-crm-text-secondary mb-1.5">Связанный объект</label>
                   <select
                     name="relatedId"
                     defaultValue={editingEvent?.relatedId ?? ''}
                     disabled={!relatedType}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    className={inputClass}
                   >
                     <option value="">— Выберите —</option>
                     {filteredOptions.map((opt) => (
@@ -418,47 +406,28 @@ export default function CalendarPage() {
 
               <div className="flex justify-end gap-3 pt-2">
                 {editingEvent && (
-                  <button
+                  <CrmButton
                     type="button"
+                    variant="danger"
                     onClick={() => handleDelete(editingEvent.id)}
-                    className="mr-auto rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300"
+                    className="mr-auto"
                   >
                     Удалить
-                  </button>
+                  </CrmButton>
                 )}
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-                >
+                <CrmButton type="button" variant="ghost" onClick={() => setModalOpen(false)}>
                   Отмена
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50"
-                >
+                </CrmButton>
+                <CrmButton type="submit" disabled={saving}>
                   {saving ? 'Сохранение...' : 'Сохранить'}
-                </button>
+                </CrmButton>
               </div>
             </form>
-          </div>
+          </motion.div>
         </div>
       )}
     </div>
   )
-}
-
-function eventTypeColor(type: string) {
-  switch (type) {
-    case 'call':
-      return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-    case 'reminder':
-      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-    case 'meeting':
-    default:
-      return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200'
-  }
 }
 
 function formatTime(iso: string) {
