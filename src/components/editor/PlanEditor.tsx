@@ -35,7 +35,6 @@ import CableJournalPanel from './CableJournalPanel'
 import SheetCablesPanel from './SheetCablesPanel'
 import OlsPanel from './OlsPanel'
 import PanelEditor from './PanelEditor'
-import BasketPanel from './BasketPanel'
 import RoomsPanel from './RoomsPanel'
 import RoomNumbersPanel from './RoomNumbersPanel'
 import DevicePalettePanel from './DevicePalettePanel'
@@ -405,7 +404,6 @@ export default function PlanEditor() {
         <Toolbar />
         <MobileMenu />
         <ProjectsPanel />
-        <BasketPanel />
         <OlsPanel />
         <PanelEditor />
         <RoomsPanel />
