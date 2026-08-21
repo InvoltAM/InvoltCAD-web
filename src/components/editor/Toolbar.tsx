@@ -502,6 +502,7 @@ export default function Toolbar() {
         'validation',
         'theme',
         'grid',
+        'ai',
       ] as string[]
       const idx = allIds.indexOf(id)
       const hoverIdx = allIds.indexOf(hoveredDockId)
@@ -1017,17 +1018,19 @@ export default function Toolbar() {
           }
           return elements
         })}
+        <div key="divider-before-ai" className="editor-dock-divider" />
+        <button
+          key="ai"
+          onClick={handleToggleAiChat}
+          onMouseEnter={() => setHoveredDockId('ai')}
+          className={`editor-dock-item ${aiChatOpen ? 'active' : ''}`}
+          title="AI-ассистент"
+          style={{ transform: `scale(${getDockScale('ai')})` }}
+        >
+          <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('ai') }} />
+          <span className="editor-dock-tooltip">AI</span>
+        </button>
       </div>
-
-      <button
-        key="ai"
-        onClick={handleToggleAiChat}
-        className={`editor-dock-item editor-dock-ai ${aiChatOpen ? 'active' : ''}`}
-        title="AI-ассистент"
-      >
-        <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('ai') }} />
-        <span className="editor-dock-tooltip">AI</span>
-      </button>
 
       {panelMenuOpen && (
         <div

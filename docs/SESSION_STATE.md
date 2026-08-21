@@ -41,8 +41,8 @@ Dev-сервер Next.js работает на `http://localhost:3003/editor`.
   - `src/components/editor/Toolbar.tsx` — разделители после кнопок «Проекты», «Комнаты» и «Документы».
   - `src/app/globals.css` — стиль `.project-sidebar-divider`.
 - Кнопка «AI» перенесена из левой панели в правый край нижней панели:
-  - `src/components/editor/Toolbar.tsx` — удалена из `project-sidebar-top`; добавлена отдельная кнопка `.editor-dock-ai` справа от `.editor-dock`.
-  - `src/app/globals.css` — стиль `.editor-dock-ai` (absolute, right: 12px, bottom: 12px).
+  - `src/components/editor/Toolbar.tsx` — удалена из `project-sidebar-top`; добавлена кнопка внутри `.editor-dock` после основных кнопок, отделена разделителем. Таким образом она вплотную к нижней панели и одной высоты с остальными кнопками dock.
+  - `src/app/globals.css` — удалён стиль `.editor-dock-ai` (absolute).
 - Обновлено главное меню:
   - `src/app/page.tsx` — вместо «Открыть редактор» и «Тарифы» теперь кнопки «Проектирование» (`/editor`) и «CRM» (`/crm`).
   - `src/app/crm/page.tsx` — заглушка страницы CRM с заголовком и кнопкой возврата в меню.
