@@ -277,6 +277,29 @@ body {
   z-index: 250;
 }
 
+.editor-menu-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 2px 12px var(--shadow);
+  cursor: pointer;
+  z-index: 260;
+}
+
+.editor-menu-button:hover {
+  background: var(--hover-bg);
+}
+
 .sheets-bar-tabs {
   display: flex;
   align-items: center;
