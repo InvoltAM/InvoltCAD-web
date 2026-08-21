@@ -25,6 +25,7 @@ interface PanelDevice {
 interface PanelRow {
   id: string
   index: number
+  section?: number
   devices: PanelDevice[]
 }
 
@@ -95,12 +96,6 @@ function DeviceIcon({ type }: { type: string }) {
   }
 }
 
-function getInsertIndex(rowId: string, rows: PanelRow[]): number {
-  const rowIndex = rows.findIndex((r) => r.id === rowId)
-  if (rowIndex === -1) return -1
-  return rows.slice(0, rowIndex + 1).reduce((sum, r) => sum + r.devices.length, 0)
-}
-
 function getWidthForBoard(option: DeviceOption, phases: 'single' | 'three'): number {
   if (phases === 'single') return option.baseWidth
   if (option.type === 'breaker') return 3
@@ -113,8 +108,14 @@ export default function PanelEditor() {
   const { engineRef } = useEditor()
   const [plan, setPlan] = useState<Plan | null>(null)
   const [activeTab, setActiveTab] = useState<'editor' | 'basket'>('editor')
-  const [componentOrder, setComponentOrder] = useState<string[]>([])
-  const [fallbackEdits, setFallbackEdits] = useState<{ order: string[]; hidden: Set<string>; custom: PanelDevice[] } | null>(null)
+  const [sections, setSections] = useState(1)
+  const [sectionOrders, setSectionOrders] = useState<string[][]>([])
+  const [fallbackEdits, setFallbackEdits] = useState<{
+    hidden: Set<string>
+    custom: PanelDevice[]
+    sections: number
+    sectionOrders: string[][]
+  } | null>(null)
   const [extraRows, setExtraRows] = useState(0)
   const [dragId, setDragId] = useState<string | null>(null)
   const [menuRowId, setMenuRowId] = useState<string | null>(null)
@@ -142,26 +143,53 @@ export default function PanelEditor() {
   // Синхронизируем порядок компонентов с доской или fallback-генерацией.
   useEffect(() => {
     if (board) {
-      setComponentOrder(board.components.map((c) => c.id))
+      setSectionOrders([board.components.map((c) => c.id)])
       setFallbackEdits(null)
       return
     }
     if (!fallbackPanel) return
     const baseIds = fallbackPanel.rows.flatMap((r) => r.devices.map((d) => d.id))
     setFallbackEdits((prev) => {
-      const order = prev?.order ?? baseIds
+      const sectionOrders = prev?.sectionOrders ?? [baseIds]
       const hidden = prev?.hidden ?? new Set<string>()
       const custom = prev?.custom ?? []
-      const visibleOrder = order.filter((id) => (baseIds.includes(id) || custom.some((d) => d.id === id)) && !hidden.has(id))
-      const newIds = baseIds.filter((id) => !order.includes(id))
-      return { order: [...visibleOrder, ...newIds], hidden, custom }
+      const visibleOrder =
+        sectionOrders[0]?.filter(
+          (id) => (baseIds.includes(id) || custom.some((d) => d.id === id)) && !hidden.has(id),
+        ) ?? []
+      const newIds = baseIds.filter((id) => !sectionOrders[0]?.includes(id))
+      return {
+        sectionOrders: [[...visibleOrder, ...newIds]],
+        hidden,
+        custom,
+        sections: 1,
+      }
     })
+    setSectionOrders([])
   }, [board, fallbackPanel])
 
-  // Сбрасываем добавленные пустые рейки при смене источника данных.
+  // Сбрасываем добавленные пустые рейки и отсеки при смене источника данных.
   useEffect(() => {
     setExtraRows(0)
+    setSections(1)
   }, [board ? 'board' : 'fallback'])
+
+  // Корректируем sectionOrders при изменении числа отсеков.
+  useEffect(() => {
+    if (board) {
+      setSectionOrders((prev) => adjustSectionOrders(prev, sections))
+    } else if (fallbackEdits) {
+      setFallbackEdits((prev) => {
+        if (!prev) return null
+        if (prev.sections === sections) return prev
+        return {
+          ...prev,
+          sectionOrders: adjustSectionOrders(prev.sectionOrders, sections),
+          sections,
+        }
+      })
+    }
+  }, [sections, board, fallbackEdits])
 
   const fallbackDeviceMap = useMemo(() => {
     const map = new Map<string, PanelDevice>()
@@ -170,13 +198,23 @@ export default function PanelEditor() {
     return map
   }, [fallbackPanel, fallbackEdits?.custom])
 
-  const rows = useMemo<PanelRow[]>(() => {
+  const rowGroups = useMemo<PanelRow[][]>(() => {
     if (board) {
-      return splitIntoRows(componentOrder, board.components, RAIL_MODULES)
+      return sectionOrders.map((order, s) =>
+        splitIntoRows(order, board.components, RAIL_MODULES).map((row, rowIndex) => ({
+          ...row,
+          id: `section-${s}-row-${rowIndex}`,
+          section: s,
+          index: rowIndex,
+        })),
+      )
     }
     if (!fallbackPanel || !fallbackEdits) return []
-    const visibleIds = fallbackEdits.order.filter((id) => !fallbackEdits.hidden.has(id))
-    const components = visibleIds
+    const visibleOrders = fallbackEdits.sectionOrders.map((order) =>
+      order.filter((id) => !fallbackEdits.hidden.has(id)),
+    )
+    const components = visibleOrders
+      .flat()
       .map((id) => {
         const d = fallbackDeviceMap.get(id)
         if (!d) return null
@@ -192,33 +230,59 @@ export default function PanelEditor() {
         return comp
       })
       .filter((c): c is BoardComponent => !!c)
-    return splitIntoRows(visibleIds, components, RAIL_MODULES)
-  }, [board, componentOrder, fallbackPanel, fallbackEdits, fallbackDeviceMap])
+    return visibleOrders.map((order, s) =>
+      splitIntoRows(order, components, RAIL_MODULES).map((row, rowIndex) => ({
+        ...row,
+        id: `section-${s}-row-${rowIndex}`,
+        section: s,
+        index: rowIndex,
+      })),
+    )
+  }, [board, sectionOrders, fallbackPanel, fallbackEdits, fallbackDeviceMap])
 
-  const displayRows = useMemo<PanelRow[]>(() => {
-    const base = rows.length
-    const empty: PanelRow[] = Array.from({ length: extraRows }, (_, i) => ({
-      id: `empty-row-${base + i}`,
-      index: base + i,
-      devices: [],
-    }))
-    return [...rows, ...empty]
-  }, [rows, extraRows])
+  const displayRowGroups = useMemo<PanelRow[][]>(() => {
+    const maxRows = Math.max(...rowGroups.map((g) => g.length), 0)
+    const groups: PanelRow[][] = []
+    for (let i = 0; i < maxRows; i++) {
+      const group: PanelRow[] = []
+      for (let s = 0; s < sections; s++) {
+        const row = rowGroups[s]?.[i]
+        if (row) {
+          group.push(row)
+        } else {
+          group.push({ id: `section-${s}-row-${i}`, index: i, section: s, devices: [] })
+        }
+      }
+      groups.push(group)
+    }
+    for (let i = 0; i < extraRows; i++) {
+      const rowIndex = maxRows + i
+      const group: PanelRow[] = []
+      for (let s = 0; s < sections; s++) {
+        group.push({ id: `extra-${i}-section-${s}`, index: rowIndex, section: s, devices: [] })
+      }
+      groups.push(group)
+    }
+    return groups
+  }, [rowGroups, sections, extraRows])
+
+  const displayRows = useMemo<PanelRow[]>(() => displayRowGroups.flat(), [displayRowGroups])
 
   const totalUsed = useMemo(
-    () => rows.reduce((sum, row) => sum + row.devices.reduce((s, d) => s + d.width, 0), 0),
-    [rows],
+    () => displayRows.reduce((sum, row) => sum + row.devices.reduce((s, d) => s + d.width, 0), 0),
+    [displayRows],
   )
-  const baseTotalModules = board?.dinModules ?? fallbackPanel?.totalModules ?? 0
-  const totalModules = baseTotalModules + extraRows * RAIL_MODULES
+  const totalModules = sections * RAIL_MODULES * Math.max(displayRowGroups.length, 1)
 
-  const syncBoardOrder = (order: string[]) => {
-    if (!board || !plan) return
+  // Синхронизируем порядок компонентов доски с sectionOrders.
+  useEffect(() => {
+    if (!board) return
+    const flatOrder = sectionOrders.flat()
     const map = new Map(board.components.map((c) => [c.id, c]))
-    const next = order.map((id) => map.get(id)).filter((c): c is BoardComponent => !!c)
+    const next = flatOrder.map((id) => map.get(id)).filter((c): c is BoardComponent => !!c)
     board.components = next
     engineRef.current?.notifyChanged()
-  }
+  }, [sectionOrders, board, engineRef])
 
   const dragElRef = useRef<HTMLElement | null>(null)
 
@@ -227,7 +291,7 @@ export default function PanelEditor() {
       const comp = board.components.find((c) => c.id === deviceId)
       if (!comp) return
       if (!confirm(`Удалить «${comp.name}»?`)) return
-      setComponentOrder((prev) => prev.filter((id) => id !== deviceId))
+      setSectionOrders((prev) => prev.map((sec) => sec.filter((id) => id !== deviceId)))
       board.components = board.components.filter((c) => c.id !== deviceId)
       engineRef.current?.notifyChanged()
       return
@@ -250,8 +314,18 @@ export default function PanelEditor() {
   const canDrag = board || fallbackEdits !== null
 
   const handleAddDevice = (rowId: string, option: DeviceOption) => {
-    const index = getInsertIndex(rowId, displayRows)
-    if (index === -1) return
+    const section = parseSectionFromRowId(rowId)
+    const rowIndex = parseRowIndexFromRowId(rowId, rowGroups)
+    const sectionRows = rowGroups[section] ?? []
+    let insertIndex = 0
+    for (const row of sectionRows) {
+      if (row.index < rowIndex) {
+        insertIndex += row.devices.length
+      } else {
+        break
+      }
+    }
+
     const id = `device-${crypto.randomUUID()}`
     if (board) {
       const width = getWidthForBoard(option, board.phases)
@@ -267,13 +341,14 @@ export default function PanelEditor() {
         phase: 'L1',
         circuitIds: [],
       }
+      const globalPos = sectionOrders.slice(0, section).reduce((sum, sec) => sum + sec.length, 0) + insertIndex
       const next = [...board.components]
-      next.splice(index, 0, comp)
+      next.splice(globalPos, 0, comp)
       board.components = next
-      setComponentOrder((prev) => {
-        const o = [...prev]
-        o.splice(index, 0, id)
-        return o
+      setSectionOrders((prev) => {
+        const nextOrders = prev.map((sec) => [...sec])
+        nextOrders[section]!.splice(insertIndex, 0, id)
+        return nextOrders
       })
       engineRef.current?.notifyChanged()
     } else if (fallbackEdits) {
@@ -288,9 +363,9 @@ export default function PanelEditor() {
       }
       setFallbackEdits((prev) => {
         if (!prev) return null
-        const order = [...prev.order]
-        order.splice(index, 0, id)
-        return { ...prev, order, custom: [...prev.custom, customDevice] }
+        const nextOrders = prev.sectionOrders.map((sec) => [...sec])
+        nextOrders[section]!.splice(insertIndex, 0, id)
+        return { ...prev, sectionOrders: nextOrders, custom: [...prev.custom, customDevice] }
       })
     }
     setMenuRowId(null)
@@ -312,14 +387,17 @@ export default function PanelEditor() {
   useEffect(() => {
     if (!dragId || !canDrag) return
     const handleMove = (e: PointerEvent) => {
-      const target = getDropTarget(e.clientX, e.clientY, displayRows, rowRefs.current, dragId)
+      const target = getDropTargetSection(e.clientX, e.clientY, displayRowGroups, rowRefs.current, dragId)
       if (!target) return
       if (board) {
-        setComponentOrder((prev) => moveId(prev, dragId, target.rowIndex, target.index))
+        setSectionOrders((prev) => moveIdInSection(prev, dragId, target.sectionIndex, target.index))
       } else {
         setFallbackEdits((prev) => {
           if (!prev) return null
-          return { ...prev, order: moveId(prev.order, dragId, target.rowIndex, target.index) }
+          return {
+            ...prev,
+            sectionOrders: moveIdInSection(prev.sectionOrders, dragId, target.sectionIndex, target.index),
+          }
         })
       }
     }
@@ -332,12 +410,6 @@ export default function PanelEditor() {
         }
       }
       dragElRef.current = null
-      if (board) {
-        setComponentOrder((prev) => {
-          syncBoardOrder(prev)
-          return prev
-        })
-      }
       setDragId(null)
     }
     window.addEventListener('pointermove', handleMove)
@@ -346,7 +418,7 @@ export default function PanelEditor() {
       window.removeEventListener('pointermove', handleMove)
       window.removeEventListener('pointerup', handleUp)
     }
-  }, [dragId, canDrag, board, displayRows])
+  }, [dragId, canDrag, board, displayRowGroups])
 
   if (!open) return null
 
@@ -390,11 +462,9 @@ export default function PanelEditor() {
           </div>
 
           {/* Основная область */}
-          <div
-            className="flex-1 overflow-auto rounded-bl-lg bg-gray-50 p-4 dark:bg-gray-900"
-          >
+          <div className="flex-1 overflow-auto rounded-bl-lg bg-gray-50 p-4 dark:bg-gray-900">
             {activeTab === 'editor' ? (
-              displayRows.length > 0 ? (
+              displayRowGroups.length > 0 ? (
                 <div className="space-y-4">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     Использовано модулей: {totalUsed} / {totalModules}
@@ -405,84 +475,112 @@ export default function PanelEditor() {
                     )}
                   </div>
 
-                  {displayRows.map((rail) => (
-                    <div key={rail.id} className="relative space-y-2">
-                      <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                        Рейка {rail.index + 1}
-                      </div>
+                  {sections > 1 && (
+                    <div className="flex gap-4">
+                      {Array.from({ length: sections }, (_, s) => (
+                        <div
+                          key={s}
+                          className="flex-1 text-center text-xs font-semibold text-gray-700 dark:text-gray-300"
+                        >
+                          Отсек {s + 1}
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-                      <div
-                        ref={(el) => { rowRefs.current[rail.id] = el }}
-                        className="flex min-h-[60px] gap-1 rounded border border-dashed border-transparent p-1 hover:border-gray-200 dark:hover:border-gray-600"
-                        data-row-id={rail.id}
-                      >
-                        {rail.devices.map((device) => (
-                          <div
-                            key={device.id}
-                            data-device-id={device.id}
-                            onPointerDown={handlePointerDown(device.id)}
-                            className={`group relative flex cursor-grab flex-col items-center justify-center rounded border p-2 text-center touch-none select-none ${device.color} ${dragId === device.id ? 'opacity-60' : ''}`}
-                            style={{ width: `${device.width * MODULE_WIDTH + (device.width - 1) * MODULE_GAP}px` }}
-                            title={`${device.name} (${device.rating}А)`}
-                          >
-                            <button
-                              onPointerDown={(e) => e.stopPropagation()}
-                              onClick={() => handleDeleteDevice(device.id)}
-                              className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] leading-none text-white opacity-0 hover:bg-red-600 group-hover:opacity-100"
-                              title="Удалить"
+                  {displayRowGroups.map((rowGroup, rgIdx) => (
+                    <div key={rgIdx} className="space-y-2">
+                      <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        Рейка {rgIdx + 1}
+                      </div>
+                      <div className="flex gap-4">
+                        {rowGroup.map((rail) => (
+                          <div key={rail.id} className="flex-1">
+                            <div
+                              ref={(el) => {
+                                rowRefs.current[rail.id] = el
+                              }}
+                              className="flex min-h-[60px] gap-1 rounded border border-dashed border-transparent p-1 hover:border-gray-200 dark:hover:border-gray-600"
+                              data-row-id={rail.id}
                             >
-                              ×
-                            </button>
-                            <div className="flex h-6 items-center justify-center text-gray-900 dark:text-white">
-                              <DeviceIcon type={device.type} />
-                            </div>
-                            <div className="text-[10px] text-gray-600 dark:text-gray-400">
-                              {device.rating > 0 ? `${device.rating}A` : ''}
-                            </div>
-                            <div className="mt-1 max-w-full truncate text-[9px] text-gray-500 dark:text-gray-400">
-                              {device.name}
+                              {rail.devices.map((device) => (
+                                <div
+                                  key={device.id}
+                                  data-device-id={device.id}
+                                  onPointerDown={handlePointerDown(device.id)}
+                                  className={`group relative flex cursor-grab flex-col items-center justify-center rounded border p-2 text-center touch-none select-none ${device.color} ${dragId === device.id ? 'opacity-60' : ''}`}
+                                  style={{ width: `${device.width * MODULE_WIDTH + (device.width - 1) * MODULE_GAP}px` }}
+                                  title={`${device.name} (${device.rating}А)`}
+                                >
+                                  <button
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={() => handleDeleteDevice(device.id)}
+                                    className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] leading-none text-white opacity-0 hover:bg-red-600 group-hover:opacity-100"
+                                    title="Удалить"
+                                  >
+                                    ×
+                                  </button>
+                                  <div className="flex h-6 items-center justify-center text-gray-900 dark:text-white">
+                                    <DeviceIcon type={device.type} />
+                                  </div>
+                                  <div className="text-[10px] text-gray-600 dark:text-gray-400">
+                                    {device.rating > 0 ? `${device.rating}A` : ''}
+                                  </div>
+                                  <div className="mt-1 max-w-full truncate text-[9px] text-gray-500 dark:text-gray-400">
+                                    {device.name}
+                                  </div>
+                                </div>
+                              ))}
+
+                              <div className="relative ml-1 self-stretch">
+                                <button
+                                  onClick={() => setMenuRowId(rail.id)}
+                                  className="flex h-full w-8 flex-none items-center justify-center rounded border border-dashed border-gray-300 text-sm text-gray-500 hover:border-gray-400 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:bg-gray-700"
+                                  title="Добавить аппарат"
+                                >
+                                  +
+                                </button>
+                                {menuRowId === rail.id && (
+                                  <>
+                                    <div
+                                      className="fixed inset-0 z-[410]"
+                                      onClick={() => setMenuRowId(null)}
+                                    />
+                                    <div className="absolute left-0 top-full z-[420] mt-1 w-56 rounded border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-600 dark:bg-gray-800">
+                                      {DEVICE_CATALOG.map((option) => (
+                                        <button
+                                          key={option.name}
+                                          onClick={() => handleAddDevice(rail.id, option)}
+                                          className="w-full rounded px-2 py-1 text-left text-xs text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                        >
+                                          {option.name}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ))}
-
-                        <div className="relative ml-1 self-stretch">
-                          <button
-                            onClick={() => setMenuRowId(rail.id)}
-                            className="flex h-full w-8 flex-none items-center justify-center rounded border border-dashed border-gray-300 text-sm text-gray-500 hover:border-gray-400 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:bg-gray-700"
-                            title="Добавить аппарат"
-                          >
-                            +
-                          </button>
-                          {menuRowId === rail.id && (
-                            <>
-                              <div
-                                className="fixed inset-0 z-[410]"
-                                onClick={() => setMenuRowId(null)}
-                              />
-                              <div className="absolute left-0 top-full z-[420] mt-1 w-56 rounded border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-600 dark:bg-gray-800">
-                                {DEVICE_CATALOG.map((option) => (
-                                  <button
-                                    key={option.name}
-                                    onClick={() => handleAddDevice(rail.id, option)}
-                                    className="w-full rounded px-2 py-1 text-left text-xs text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                                  >
-                                    {option.name}
-                                  </button>
-                                ))}
-                              </div>
-                            </>
-                          )}
-                        </div>
                       </div>
                     </div>
                   ))}
 
-                  <button
-                    onClick={() => setExtraRows((n) => n + 1)}
-                    className="w-full rounded border border-dashed border-gray-300 py-2 text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700"
-                  >
-                    + Добавить рейку
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setExtraRows((n) => n + 1)}
+                      className="flex-1 rounded border border-dashed border-gray-300 py-2 text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700"
+                    >
+                      + Добавить рейку
+                    </button>
+                    <button
+                      onClick={() => setSections((n) => n + 1)}
+                      className="flex-1 rounded border border-dashed border-gray-300 py-2 text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700"
+                    >
+                      + Добавить отсек
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
@@ -565,64 +663,108 @@ function splitIntoRows(order: string[], components: BoardComponent[], modulesPer
   return rows
 }
 
-function getDropTarget(
+function getDropTargetSection(
   clientX: number,
   clientY: number,
-  rows: PanelRow[],
+  displayRowGroups: PanelRow[][],
   rowRefs: Record<string, HTMLDivElement | null>,
-  dragId: string,
-): { rowIndex: number; index: number } | null {
-  let targetRowIndex = -1
-  for (let i = 0; i < rows.length; i++) {
-    const el = rowRefs[rows[i]!.id]
-    if (!el) continue
-    const rect = el.getBoundingClientRect()
-    if (clientY >= rect.top && clientY <= rect.bottom) {
-      targetRowIndex = i
-      break
+  _dragId: string,
+): { sectionIndex: number; index: number } | null {
+  let targetRail: PanelRow | null = null
+  let targetEl: HTMLDivElement | null = null
+  for (const group of displayRowGroups) {
+    for (const rail of group) {
+      const el = rowRefs[rail.id]
+      if (!el) continue
+      const rect = el.getBoundingClientRect()
+      if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+        targetRail = rail
+        targetEl = el
+        break
+      }
     }
+    if (targetRail) break
   }
-  if (targetRowIndex === -1) return null
+  if (!targetRail || !targetEl) return null
 
-  const row = rows[targetRowIndex]!
-  const rowEl = rowRefs[row.id]
-  if (!rowEl) return { rowIndex: targetRowIndex, index: row.devices.length }
-
-  const rowRect = rowEl.getBoundingClientRect()
-  const relX = clientX - rowRect.left
+  const rect = targetEl.getBoundingClientRect()
+  const relX = clientX - rect.left
   let index = 0
   let x = 0
-  for (const device of row.devices) {
+  for (const device of targetRail.devices) {
     const w = device.width * MODULE_WIDTH + (device.width - 1) * MODULE_GAP
     if (relX < x + w / 2) break
     x += w + MODULE_GAP
     index++
   }
 
-  // Пересчитываем индекс в общем порядке componentOrder
-  const overallIndex = rows.slice(0, targetRowIndex).reduce((sum, r) => sum + r.devices.length, 0) + index
-  return { rowIndex: overallIndex, index: overallIndex }
+  let sectionOrderIndex = 0
+  const section = targetRail.section ?? 0
+  for (const group of displayRowGroups) {
+    const rail = group[section]
+    if (!rail) continue
+    if (rail.index < targetRail.index) {
+      sectionOrderIndex += rail.devices.length
+    } else if (rail.index === targetRail.index) {
+      sectionOrderIndex += index
+      break
+    }
+  }
+  return { sectionIndex: section, index: sectionOrderIndex }
 }
 
-function moveId(order: string[], dragId: string, targetIndex: number, _unused: number): string[] {
-  const currentIndex = order.indexOf(dragId)
-  if (currentIndex === -1) return order
-  if (targetIndex === currentIndex) return order
-  const next = [...order]
-  next.splice(currentIndex, 1)
-  const insertAt = targetIndex > currentIndex ? targetIndex - 1 : targetIndex
-  next.splice(insertAt, 0, dragId)
+function moveIdInSection(
+  orders: string[][],
+  dragId: string,
+  targetSection: number,
+  targetIndex: number,
+): string[][] {
+  const sourceSection = orders.findIndex((sec) => sec.includes(dragId))
+  if (sourceSection === -1) return orders
+  if (sourceSection === targetSection) {
+    const currentIndex = orders[sourceSection]!.indexOf(dragId)
+    if (targetIndex === currentIndex) return orders
+  }
+  const next = orders.map((sec) => [...sec])
+  next[sourceSection] = next[sourceSection]!.filter((id) => id !== dragId)
+  let insertAt = targetIndex
+  if (sourceSection === targetSection) {
+    const currentIndex = orders[sourceSection]!.indexOf(dragId)
+    if (targetIndex > currentIndex) insertAt = targetIndex - 1
+  }
+  insertAt = Math.max(0, Math.min(insertAt, next[targetSection]!.length))
+  next[targetSection]!.splice(insertAt, 0, dragId)
   return next
 }
 
-function buildPanelFromBoard(board: DistributionBoardData) {
-  const sorted = [...board.components]
-  sorted.sort((a, b) => {
-    const orderA = a.type === 'input-breaker' ? 0 : a.type === 'rcd' && a.id === 'main-rcd' ? 1 : 2
-    const orderB = b.type === 'input-breaker' ? 0 : b.type === 'rcd' && b.id === 'main-rcd' ? 1 : 2
-    return orderA - orderB
-  })
-  return splitIntoRows(sorted.map((c) => c.id), board.components, RAIL_MODULES)
+function adjustSectionOrders(orders: string[][], sections: number): string[][] {
+  const current = orders.length
+  if (sections > current) {
+    return [...orders, ...Array.from({ length: sections - current }, () => [])]
+  }
+  if (sections < current) {
+    const removed = orders.slice(sections).flat()
+    const next = orders.slice(0, sections)
+    next[0] = [...(next[0] ?? []), ...removed]
+    return next
+  }
+  return orders
+}
+
+function parseSectionFromRowId(rowId: string): number {
+  const match = rowId.match(/section-(\d+)/)
+  return match ? parseInt(match[1]!, 10) : 0
+}
+
+function parseRowIndexFromRowId(rowId: string, rowGroups: PanelRow[][]): number {
+  const rowMatch = rowId.match(/row-(\d+)/)
+  if (rowMatch) return parseInt(rowMatch[1]!, 10)
+  const extraMatch = rowId.match(/extra-(\d+)/)
+  if (extraMatch) {
+    const maxRows = Math.max(...rowGroups.map((g) => g.length), 0)
+    return maxRows + parseInt(extraMatch[1]!, 10)
+  }
+  return 0
 }
 
 function deviceColor(type: string): string {
@@ -633,7 +775,15 @@ function deviceColor(type: string): string {
   return 'border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-700'
 }
 
-function adaptPanel(raw: { usedModules: number; totalModules: number; rows: Array<{ id: string; index: number; devices: Array<{ id: string; type: string; name: string; width: number; rating: number }> }> }) {
+function adaptPanel(raw: {
+  usedModules: number
+  totalModules: number
+  rows: Array<{
+    id: string
+    index: number
+    devices: Array<{ id: string; type: string; name: string; width: number; rating: number }>
+  }>
+}) {
   return {
     usedModules: raw.usedModules,
     totalModules: raw.totalModules,
