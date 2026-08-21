@@ -1722,3 +1722,63 @@ npx playwright test e2e/editor.spec.ts  # E2E
 - Dev-сервер работает на **3002**, потому что Windows/Hyper-V занимает порт 3000.
 - Раскладка плавающих панелей хранится в `localStorage` (`involtcad-panels-layout`). При проблемах с позициями можно нажать в редакторе: **Панели → Упорядочить панели** или удалить ключ из `localStorage`.
 - Последнее состояние сессии и следующие шаги описаны в этом файле (`docs/SESSION_STATE.md`).
+
+---
+
+# Сессия разработки — 2026-08-21 (интеграция CRM)
+
+## Текущий контекст
+
+Работа ведётся в репозитории **InvoltCAD-web**, ветка `main`.
+Dev-сервер Next.js работает на `http://localhost:3003`.
+
+## Что сделано в текущей сессии
+
+- Добавлены CRM-модели в `prisma/schema.prisma`:
+  - `CrmClient`, `CrmLead`, `CrmDeal`, `CrmTask`, `CrmCalendarEvent`, `CrmActivityLog`, `CrmTelegramLog`.
+  - Добавлены связи в модели `User`.
+- Синхронизирована база данных: `npx prisma db push`.
+- Сгенерирован Prisma Client: `npx prisma generate`.
+- Создан API для клиентов:
+  - `src/app/api/crm/clients/route.ts` — GET/POST.
+  - `src/app/api/crm/clients/[id]/route.ts` — PATCH/DELETE.
+- Создан API для лидов:
+  - `src/app/api/crm/leads/route.ts` — GET/POST.
+  - `src/app/api/crm/leads/[id]/route.ts` — PATCH/DELETE.
+- Обновлён дашборд CRM `src/app/crm/page.tsx`:
+  - Показывает количество клиентов, лидов, сделок и задач.
+  - Добавлены кнопки перехода к разделам и быстрого создания клиента/лида.
+- Все операции API пишут лог в `CrmActivityLog`.
+- Проверки пройдены:
+  - `npx tsc --noEmit` — успешно.
+  - `npm test -- --run` — 63 теста успешно.
+
+## Что ещё не сделано
+
+- API для сделок (`/api/crm/deals`, `/api/crm/deals/[id]`).
+- API для задач (`/api/crm/tasks`, `/api/crm/tasks/[id]`).
+- API для календаря (`/api/crm/events`, `/api/crm/events/[id]`).
+- API для Telegram-логов и активности.
+- Страницы списков и форм: `/crm/clients`, `/crm/clients/new`, `/crm/leads`, `/crm/leads/new` и т.д.
+- Интеграция CRM с проектами InvoltCAD (связь сделок/клиентов с проектами).
+- Telegram-бот, email-рассылки, платежи по сделкам — отложены на следующие итерации.
+
+## Следующие шаги
+
+1. Создать страницы `/crm/clients` и `/crm/clients/new` для просмотра и создания клиентов.
+2. Создать страницы `/crm/leads` и `/crm/leads/new` для просмотра и создания лидов.
+3. Добавить API и страницы для сделок (`/crm/deals`).
+4. Добавить API и страницы для задач (`/crm/tasks`).
+5. Запустить `npx tsc --noEmit` и `npm test -- --run`, исправить ошибки.
+6. Закоммитить очередной рабочий срез.
+7. Обновить `docs/SESSION_STATE.md`.
+
+## Как продолжить разработку на другом ПК
+
+См. инструкцию выше. После клонирования и настройки БД запустить:
+
+```bash
+npx prisma generate
+npx prisma db push
+npm run dev
+```
