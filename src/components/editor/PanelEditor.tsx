@@ -83,6 +83,8 @@ export default function PanelEditor() {
     engineRef.current?.notifyChanged()
   }
 
+  const dragElRef = useRef<HTMLElement | null>(null)
+
   const handleDeleteDevice = (deviceId: string) => {
     if (!board) return
     const comp = board.components.find((c) => c.id === deviceId)
@@ -96,32 +98,45 @@ export default function PanelEditor() {
   const handlePointerDown = (deviceId: string) => (e: React.PointerEvent) => {
     if (!board) return
     e.preventDefault()
-    e.currentTarget.setPointerCapture(e.pointerId)
-    setDragId(deviceId)
-  }
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!dragId || !board) return
-    e.preventDefault()
-    const target = getDropTarget(e.clientX, e.clientY, rows, rowRefs.current, dragId)
-    if (!target) return
-    setComponentOrder((prev) => moveId(prev, dragId, target.rowIndex, target.index))
-  }
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    if (!dragId || !board) return
-    e.preventDefault()
+    const el = e.currentTarget as HTMLElement
+    dragElRef.current = el
     try {
-      e.currentTarget.releasePointerCapture(e.pointerId)
+      el.setPointerCapture(e.pointerId)
     } catch {
       // ignore
     }
-    setComponentOrder((prev) => {
-      syncBoardOrder(prev)
-      return prev
-    })
-    setDragId(null)
+    setDragId(deviceId)
   }
+
+  useEffect(() => {
+    if (!dragId || !board) return
+    const handleMove = (e: PointerEvent) => {
+      const target = getDropTarget(e.clientX, e.clientY, rows, rowRefs.current, dragId)
+      if (!target) return
+      setComponentOrder((prev) => moveId(prev, dragId, target.rowIndex, target.index))
+    }
+    const handleUp = (e: PointerEvent) => {
+      if (dragElRef.current) {
+        try {
+          dragElRef.current.releasePointerCapture(e.pointerId)
+        } catch {
+          // ignore
+        }
+      }
+      dragElRef.current = null
+      setComponentOrder((prev) => {
+        syncBoardOrder(prev)
+        return prev
+      })
+      setDragId(null)
+    }
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp, { once: true })
+    return () => {
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', handleUp)
+    }
+  }, [dragId, board, rows])
 
   if (!open) return null
 
@@ -167,8 +182,6 @@ export default function PanelEditor() {
           {/* Основная область */}
           <div
             className="flex-1 overflow-auto rounded-bl-lg bg-gray-50 p-4 dark:bg-gray-900"
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
           >
             {activeTab === 'editor' ? (
               rows.length > 0 ? (
