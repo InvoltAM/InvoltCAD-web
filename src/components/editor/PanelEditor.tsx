@@ -201,7 +201,7 @@ export default function PanelEditor() {
   const components = board?.components ?? []
 
   return (
-    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/35" onClick={() => setOpen(false)}>
+    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/35">
       <div
         className="flex h-[80vh] w-[90vw] max-w-5xl flex-col rounded-lg bg-white dark:bg-gray-800"
         onClick={(e) => e.stopPropagation()}
