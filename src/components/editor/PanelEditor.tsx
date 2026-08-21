@@ -363,38 +363,9 @@ export default function PanelEditor() {
 
                   {displayRows.map((rail) => (
                     <div key={rail.id} className="relative space-y-2">
-                      <div className="flex items-center gap-2">
-                        <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                          Рейка {rail.index + 1}
-                        </div>
-                        <button
-                          onClick={() => setMenuRowId(rail.id)}
-                          className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[10px] leading-none text-white hover:bg-blue-600"
-                          title="Добавить аппарат"
-                        >
-                          +
-                        </button>
+                      <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        Рейка {rail.index + 1}
                       </div>
-
-                      {menuRowId === rail.id && (
-                        <>
-                          <div
-                            className="fixed inset-0 z-[410]"
-                            onClick={() => setMenuRowId(null)}
-                          />
-                          <div className="absolute left-0 top-5 z-[420] w-56 rounded border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-600 dark:bg-gray-800">
-                            {DEVICE_CATALOG.map((option) => (
-                              <button
-                                key={option.name}
-                                onClick={() => handleAddDevice(rail.id, option)}
-                                className="w-full rounded px-2 py-1 text-left text-xs text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                              >
-                                {option.name}
-                              </button>
-                            ))}
-                          </div>
-                        </>
-                      )}
 
                       <div
                         ref={(el) => { rowRefs.current[rail.id] = el }}
@@ -429,6 +400,35 @@ export default function PanelEditor() {
                             </div>
                           </div>
                         ))}
+
+                        <div className="relative ml-1 self-stretch">
+                          <button
+                            onClick={() => setMenuRowId(rail.id)}
+                            className="flex h-full w-8 flex-none items-center justify-center rounded border border-dashed border-gray-300 text-sm text-gray-500 hover:border-gray-400 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:bg-gray-700"
+                            title="Добавить аппарат"
+                          >
+                            +
+                          </button>
+                          {menuRowId === rail.id && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-[410]"
+                                onClick={() => setMenuRowId(null)}
+                              />
+                              <div className="absolute left-0 top-full z-[420] mt-1 w-56 rounded border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-600 dark:bg-gray-800">
+                                {DEVICE_CATALOG.map((option) => (
+                                  <button
+                                    key={option.name}
+                                    onClick={() => handleAddDevice(rail.id, option)}
+                                    className="w-full rounded px-2 py-1 text-left text-xs text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                  >
+                                    {option.name}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
