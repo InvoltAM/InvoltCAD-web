@@ -25,7 +25,6 @@ import { EditorProvider } from './EditorContext'
 import { projectSync } from '@/lib/projects/sync'
 import { realtimeSync } from '@/lib/projects/realtime'
 import Toolbar from './Toolbar'
-import EditorMenuButton from './EditorMenuButton'
 import PropertyPanel from './PropertyPanel'
 import LayersPanel from './LayersPanel'
 import SpecPanel from './SpecPanel'
@@ -402,7 +401,6 @@ export default function PlanEditor() {
           ref={canvasRef}
           className="block h-full w-full touch-none"
         />
-        <EditorMenuButton />
         <Toolbar />
         <MobileMenu />
         <ProjectsPanel />

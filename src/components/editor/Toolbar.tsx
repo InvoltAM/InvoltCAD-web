@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { useCadStore } from '@/stores/cadStore'
 import { useEditor } from './EditorContext'
 import type { ToolName } from '@core/tools/ToolManager'
@@ -98,6 +99,7 @@ export default function Toolbar() {
   const devicePaletteOpen = useCadStore((s) => s.devicePaletteOpen)
   const aiChatOpen = useCadStore((s) => s.aiChatOpen)
   const { engineRef, themeManagerRef, panelManagerRef } = useEditor()
+  const router = useRouter()
   const [, setTick] = useState(0)
 
   const [panelMenuOpen, setPanelMenuOpen] = useState(false)
@@ -592,6 +594,14 @@ export default function Toolbar() {
       {/* Left project sidebar */}
       <div className="project-sidebar">
         <div className="project-sidebar-top">
+          <button
+            onClick={() => router.push('/')}
+            className="project-sidebar-btn"
+            title="Меню"
+          >
+            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('menu') }} />
+            <span className="project-sidebar-label">Меню</span>
+          </button>
           <button
             onClick={() => setProjectsOpen(!projectsOpen)}
             className={`project-sidebar-btn ${projectsOpen ? 'active' : ''}`}

@@ -34,10 +34,9 @@ Dev-сервер Next.js работает на `http://localhost:3003/editor`.
   - `src/components/editor/Toolbar.tsx` — кнопка в правой части dock переключает видимость сетки.
   - `src/components/editor/icons.ts` — добавлена иконка `grid`.
   - Исправление: при клике по кнопке вызывается `engine.requestRender()`, чтобы canvas перерисовался сразу.
-- Добавлена кнопка «Меню» в верхний правый угол редактора:
-  - `src/components/editor/EditorMenuButton.tsx` — кнопка с иконкой меню и надписью «Меню»; по клику возвращает на стартовую страницу (`/`).
-  - `src/components/editor/PlanEditor.tsx` — компонент размещён поверх canvas.
-  - `src/app/globals.css` — стили `.editor-menu-button` (fixed top-right, плавающая кнопка в общем стиле UI).
+- Кнопка «Меню» перенесена в самый верх левой панели:
+  - `src/components/editor/Toolbar.tsx` — добавлена первая кнопка «Меню» в `project-sidebar-top`; по клику возвращает на стартовую страницу (`/`).
+  - Удалён отдельный компонент `EditorMenuButton` и его стили.
 - Обновлено главное меню:
   - `src/app/page.tsx` — вместо «Открыть редактор» и «Тарифы» теперь кнопки «Проектирование» (`/editor`) и «CRM» (`/crm`).
   - `src/app/crm/page.tsx` — заглушка страницы CRM с заголовком и кнопкой возврата в меню.
