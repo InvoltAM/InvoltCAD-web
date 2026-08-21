@@ -119,6 +119,12 @@ export default async function CrmPage() {
           >
             Массовая рассылка
           </Link>
+          <Link
+            href="/crm/funnel"
+            className="inline-block rounded-lg border border-blue-300 bg-blue-50 px-6 py-3 text-sm text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30"
+          >
+            Воронка продаж
+          </Link>
           <CheckRemindersButton />
         </div>
       </div>
