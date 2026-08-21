@@ -2,9 +2,11 @@ import { PrismaAdapter } from '@auth/prisma-adapter'
 import NextAuth from 'next-auth'
 import Google from 'next-auth/providers/google'
 import Email from 'next-auth/providers/email'
+import Credentials from 'next-auth/providers/credentials'
 import { prisma } from './prisma'
 
 const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build'
+const isDev = process.env.NODE_ENV === 'development'
 
 function createAuth() {
   const providers: unknown[] = [
@@ -31,6 +33,35 @@ function createAuth() {
     )
   }
 
+  // Тестовый вход только в dev-режиме
+  if (isDev) {
+    providers.push(
+      Credentials({
+        name: 'test',
+        credentials: {
+          email: { label: 'Email', type: 'email' },
+          password: { label: 'Пароль', type: 'password' },
+        },
+        async authorize(credentials) {
+          if (credentials?.password !== 'password') return null
+          const email = (credentials?.email as string)?.trim().toLowerCase() || 'admin@example.com'
+          let user = await prisma.user.findUnique({ where: { email } })
+          if (!user) {
+            user = await prisma.user.create({
+              data: {
+                email,
+                name: email.split('@')[0] || 'Test User',
+                role: 'admin',
+                credits: 1000,
+              },
+            })
+          }
+          return { id: user.id, email: user.email ?? email, name: user.name, image: user.image }
+        },
+      })
+    )
+  }
+
   // Во время сборки используем JWT и не подключаемся к БД
   if (isBuildTime) {
     return NextAuth({
@@ -49,15 +80,24 @@ function createAuth() {
     // @ts-expect-error — типы провайдеров NextAuth сложны
     providers,
     session: {
-      strategy: 'database',
+      strategy: 'jwt',
     },
     callbacks: {
-      async session({ session, user }) {
-        if (session.user) {
-          session.user.id = user.id
+      async jwt({ token, user }) {
+        if (user) {
+          token.sub = user.id
+          token.email = user.email
+          token.name = user.name
+          token.picture = user.image
+        }
+        return token
+      },
+      async session({ session, token }) {
+        if (session.user && token.sub) {
+          session.user.id = token.sub
           // Загружаем роль и кредиты из БД
           const dbUser = await prisma.user.findUnique({
-            where: { id: user.id },
+            where: { id: token.sub },
             select: { role: true, credits: true },
           })
           if (dbUser) {

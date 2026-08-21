@@ -1,15 +1,21 @@
 'use client'
 
 import { signIn } from 'next-auth/react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 export default function LoginPage() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const callbackUrl = searchParams.get('callbackUrl') ?? '/editor'
 
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const [testEmail, setTestEmail] = useState('admin@example.com')
+  const [testPassword, setTestPassword] = useState('')
+  const [testLoading, setTestLoading] = useState(false)
+  const isDev = process.env.NODE_ENV === 'development'
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -17,6 +23,24 @@ export default function LoginPage() {
     await signIn('email', { email, redirect: false, callbackUrl })
     setLoading(false)
     alert('Проверьте почту для входа')
+  }
+
+  const handleTestSignIn = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!testPassword) return
+    setTestLoading(true)
+    const res = await signIn('credentials', {
+      email: testEmail,
+      password: testPassword,
+      redirect: false,
+      callbackUrl,
+    })
+    setTestLoading(false)
+    if (res?.ok) {
+      router.push(callbackUrl)
+    } else {
+      alert('Неверный пароль. Попробуйте "password".')
+    }
   }
 
   return (
@@ -82,6 +106,50 @@ export default function LoginPage() {
             {loading ? 'Отправка...' : 'Войти по email'}
           </button>
         </form>
+
+        {isDev && (
+          <>
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300 dark:border-gray-600" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-white px-2 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                  тестовый вход
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handleTestSignIn} className="space-y-3">
+              <input
+                type="email"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+                required
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                placeholder="Email"
+              />
+              <input
+                type="password"
+                value={testPassword}
+                onChange={(e) => setTestPassword(e.target.value)}
+                required
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                placeholder="Пароль"
+              />
+              <button
+                type="submit"
+                disabled={testLoading}
+                className="w-full rounded-lg bg-gray-700 px-4 py-2 text-white hover:bg-gray-800 disabled:opacity-50"
+              >
+                {testLoading ? 'Вход...' : 'Войти (тест)'}
+              </button>
+              <p className="text-center text-xs text-gray-500 dark:text-gray-400">
+                Пароль по умолчанию: <b>password</b>
+              </p>
+            </form>
+          </>
+        )}
       </div>
     </div>
   )
