@@ -108,7 +108,11 @@ export default function ClientsPage() {
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {clients.map((client) => (
-                  <tr key={client.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                  <tr
+                    key={client.id}
+                    onClick={() => router.push(`/crm/clients/${client.id}`)}
+                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                  >
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
                       {client.name}
                     </td>
@@ -126,7 +130,10 @@ export default function ClientsPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button
-                        onClick={() => handleDelete(client.id, client.name)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(client.id, client.name)
+                        }}
                         className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
                       >
                         Удалить

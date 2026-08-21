@@ -109,7 +109,11 @@ export default function LeadsPage() {
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {leads.map((lead) => (
-                  <tr key={lead.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                  <tr
+                    key={lead.id}
+                    onClick={() => router.push(`/crm/leads/${lead.id}`)}
+                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                  >
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
                       {lead.name}
                     </td>
@@ -127,7 +131,10 @@ export default function LeadsPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button
-                        onClick={() => handleDelete(lead.id, lead.name)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(lead.id, lead.name)
+                        }}
                         className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
                       >
                         Удалить
