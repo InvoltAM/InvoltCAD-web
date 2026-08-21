@@ -257,6 +257,9 @@ function TelegramPanel({ leadId, chatId }: { leadId: string; chatId: string | nu
       const saved = await res.json()
       setMessages((prev) => [saved.log, ...prev])
       setNewMessage('')
+      if (!saved.success && saved.note) {
+        alert(saved.note)
+      }
     } else {
       alert('Не удалось отправить сообщение')
     }

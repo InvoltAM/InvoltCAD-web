@@ -237,6 +237,7 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
         </form>
 
         <TelegramPanel clientId={client.id} chatId={client.telegramChatId} />
+
         <RelatedProjectsPanel crmClientId={client.id} />
       </div>
     </div>
@@ -304,13 +305,16 @@ function TelegramPanel({ clientId, chatId }: { clientId: string; chatId: string 
     const res = await fetch('/api/crm/telegram/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chatId, message: newMessage }),
+      body: JSON.stringify({ clientId, chatId, message: newMessage }),
     })
 
     if (res.ok) {
       const saved = await res.json()
       setMessages((prev) => [saved.log, ...prev])
       setNewMessage('')
+      if (!saved.success && saved.note) {
+        alert(saved.note)
+      }
     } else {
       alert('Не удалось отправить сообщение')
     }

@@ -13,9 +13,27 @@ export async function GET(request: NextRequest) {
   const leadId = searchParams.get('leadId')
   const clientId = searchParams.get('clientId')
 
+  if (leadId) {
+    const lead = await prisma.crmLead.findUnique({ where: { id: leadId } })
+    if (!lead || lead.userId !== user.id) {
+      return NextResponse.json({ error: 'Лид не найден' }, { status: 404 })
+    }
+  }
+
+  let chatIdFilter: string | null = null
+  if (clientId) {
+    const client = await prisma.crmClient.findUnique({ where: { id: clientId } })
+    if (!client || client.userId !== user.id) {
+      return NextResponse.json({ error: 'Клиент не найден' }, { status: 404 })
+    }
+    chatIdFilter = client.telegramChatId
+  }
+
   const where: Record<string, unknown> = {}
   if (leadId) where.leadId = leadId
-  if (clientId) where.chatId = clientId
+  if (clientId) {
+    where.chatId = chatIdFilter ?? '__no_chat_id__'
+  }
 
   const logs = await prisma.crmTelegramLog.findMany({
     where,
