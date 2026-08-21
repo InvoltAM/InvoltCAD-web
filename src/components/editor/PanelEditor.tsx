@@ -52,6 +52,49 @@ const DEVICE_CATALOG: DeviceOption[] = [
   { type: 'blank', name: 'Заглушка', baseWidth: 1 },
 ]
 
+function DeviceIcon({ type }: { type: string }) {
+  const t = type === 'busbar' ? 'bus' : type
+  const sw = 1.5
+  switch (t) {
+    case 'input-breaker':
+    case 'breaker':
+      return (
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={sw}>
+          <rect x="4" y="6" width="16" height="12" rx="2" />
+          <path d="M7 15 L17 9" />
+        </svg>
+      )
+    case 'rcd':
+      return (
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={sw}>
+          <rect x="4" y="6" width="7" height="12" rx="1" />
+          <rect x="13" y="6" width="7" height="12" rx="1" />
+          <path d="M6 15 L9 9" />
+          <path d="M15 15 L18 9" />
+        </svg>
+      )
+    case 'contactor':
+      return (
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={sw}>
+          <rect x="4" y="4" width="16" height="16" rx="2" />
+          <path d="M8 8 Q12 12 8 16" />
+          <path d="M16 8 Q12 12 16 16" />
+          <line x1="8" y1="12" x2="16" y2="12" />
+        </svg>
+      )
+    case 'bus':
+      return (
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={sw}>
+          <line x1="4" y1="10" x2="20" y2="10" />
+          <line x1="4" y1="14" x2="20" y2="14" />
+        </svg>
+      )
+    case 'blank':
+    default:
+      return null
+  }
+}
+
 function getInsertIndex(rowId: string, rows: PanelRow[]): number {
   const rowIndex = rows.findIndex((r) => r.id === rowId)
   if (rowIndex === -1) return -1
@@ -390,8 +433,8 @@ export default function PanelEditor() {
                             >
                               ×
                             </button>
-                            <div className="text-xs font-medium text-gray-900 dark:text-white">
-                              {device.type === 'breaker' ? 'QF' : device.type === 'input-breaker' ? 'QF' : device.type === 'rcd' ? 'QF+RCD' : device.type === 'busbar' ? 'Шина' : device.type === 'blank' ? '' : 'T'}
+                            <div className="flex h-6 items-center justify-center text-gray-900 dark:text-white">
+                              <DeviceIcon type={device.type} />
                             </div>
                             <div className="text-[10px] text-gray-600 dark:text-gray-400">
                               {device.rating > 0 ? `${device.rating}A` : ''}
