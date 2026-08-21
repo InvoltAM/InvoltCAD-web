@@ -69,6 +69,26 @@ export default function ProjectsPanel() {
     }
   }
 
+  const handleCreateDealFromProject = async () => {
+    if (!crmProject) return
+    try {
+      const res = await fetch(`/api/projects/${crmProject.id}/deal`, { method: 'POST' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(data.error || 'Ошибка создания сделки')
+        return
+      }
+      const deal = await res.json()
+      setCrmDealId(deal.id)
+      await projectSync.updateProjectCrm(crmProject.id, crmClientId || null, deal.id)
+      await loadCrmData()
+      await loadProjects()
+      setCrmProject((prev) => (prev ? { ...prev, crmDealId: deal.id } : null))
+    } catch {
+      alert('Ошибка создания сделки')
+    }
+  }
+
 
   const handleOpenProject = async (id: string) => {
     if (!engineRef.current) return
@@ -280,6 +300,14 @@ export default function ProjectsPanel() {
                   <option value="">— Не выбрана —</option>
                   {crmDeals.map((d) => (<option key={d.id} value={d.id}>{d.title}</option>))}
                 </select>
+                {!crmProject.crmDealId && (
+                  <button
+                    onClick={handleCreateDealFromProject}
+                    className="mt-2 w-full rounded-lg border border-orange-300 bg-orange-50 px-3 py-1.5 text-sm text-orange-700 hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-900/20 dark:text-orange-300"
+                  >
+                    ＋ Создать сделку из проекта
+                  </button>
+                )}
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button

@@ -371,6 +371,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         data: {
           id: e.id,
           projectId: id,
+          crmDealId: e.crmDealId || null,
           name: e.name,
           priceLevel: e.priceLevel ?? 'standard',
           discountPercent: e.discountPercent ?? 0,
@@ -407,6 +408,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         data: {
           id: i.id,
           projectId: id,
+          crmDealId: i.crmDealId || null,
           estimateId: i.estimateId || null,
           number: i.number,
           amount: i.amount ?? 0,
@@ -426,6 +428,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         data: {
           id: d.id,
           projectId: id,
+          crmDealId: d.crmDealId || null,
           type: d.type,
           name: d.name,
           fileUrl: d.fileUrl,

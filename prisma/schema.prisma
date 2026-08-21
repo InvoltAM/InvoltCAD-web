@@ -379,6 +379,7 @@ model PriceWorkItem {
 model Estimate {
   id            String   @id @default(cuid())
   projectId     String
+  crmDealId     String?
   name          String   @default("Смета")
   priceLevel    String   @default("standard")
   discountPercent Float  @default(0)
@@ -394,9 +395,11 @@ model Estimate {
   updatedAt     DateTime @updatedAt
 
   project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  deal          CrmDeal?      @relation(fields: [crmDealId], references: [id], onDelete: SetNull)
   items         EstimateItem[]
 
   @@index([projectId])
+  @@index([crmDealId])
   @@index([publicSlug])
 }
 
@@ -420,6 +423,7 @@ model EstimateItem {
 model Invoice {
   id            String   @id @default(cuid())
   projectId     String
+  crmDealId     String?
   estimateId    String?
   number        String
   amount        Int      @default(0)
@@ -434,14 +438,17 @@ model Invoice {
   updatedAt     DateTime @updatedAt
 
   project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  deal          CrmDeal? @relation(fields: [crmDealId], references: [id], onDelete: SetNull)
 
   @@index([projectId])
+  @@index([crmDealId])
   @@index([estimateId])
 }
 
 model Document {
   id            String   @id @default(cuid())
   projectId     String
+  crmDealId     String?
   type          String   // contract | act | invoice | estimate | spec
   name          String
   fileUrl       String?
@@ -451,8 +458,10 @@ model Document {
   updatedAt     DateTime @updatedAt
 
   project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  deal          CrmDeal? @relation(fields: [crmDealId], references: [id], onDelete: SetNull)
 
   @@index([projectId])
+  @@index([crmDealId])
   @@index([type])
 }
 
@@ -772,6 +781,9 @@ model CrmDeal {
   projects Project[]
   emails   CrmEmailLog[]
   payments Payment[]
+  estimates Estimate[]
+  invoices Invoice[]
+  documents Document[]
 
   @@index([userId])
   @@index([clientId])

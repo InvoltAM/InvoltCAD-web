@@ -248,6 +248,9 @@ export default function EditDealPage({ params }: { params: Promise<{ id: string 
 
         <EmailPanel dealId={deal.id} clientEmail={deal.client?.email ?? null} />
         <PaymentsPanel dealId={deal.id} amountRub={Number(valueRub)} />
+        <EstimatesPanel dealId={deal.id} />
+        <InvoicesPanel dealId={deal.id} />
+        <DocumentsPanel dealId={deal.id} />
         <RelatedProjectsPanel crmDealId={deal.id} />
       </div>
     </div>
@@ -419,6 +422,177 @@ function PaymentsPanel({ dealId, amountRub }: { dealId: string; amountRub: numbe
               </div>
               <span className="rounded-full bg-gray-200 px-2 py-1 text-xs dark:bg-gray-600 dark:text-white">
                 {p.status === 'succeeded' ? 'Оплачен' : p.status === 'pending' ? 'Ожидает' : p.status}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function EstimatesPanel({ dealId }: { dealId: string }) {
+  const [estimates, setEstimates] = useState<{ id: string; name: string; total: number; status: string; createdAt: string }[]>([])
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+
+  useEffect(() => {
+    fetch(`/api/crm/deals/${dealId}/estimates`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setEstimates(data))
+      .finally(() => setLoading(false))
+  }, [dealId])
+
+  const handleCreate = async () => {
+    setCreating(true)
+    const res = await fetch(`/api/crm/deals/${dealId}/estimates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      setEstimates((prev) => [data, ...prev])
+    } else {
+      alert('Не удалось создать КП')
+    }
+    setCreating(false)
+  }
+
+  return (
+    <div className="mt-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Коммерческие предложения</h2>
+        <button
+          onClick={handleCreate}
+          disabled={creating}
+          className="rounded-lg bg-purple-600 px-3 py-1 text-sm text-white hover:bg-purple-700 disabled:opacity-50"
+        >
+          {creating ? 'Создание...' : '＋ КП из сделки'}
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-gray-600 dark:text-gray-400">Загрузка...</p>
+      ) : estimates.length === 0 ? (
+        <p className="text-sm text-gray-600 dark:text-gray-400">КП пока нет</p>
+      ) : (
+        <ul className="space-y-2">
+          {estimates.map((e) => (
+            <li key={e.id} className="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
+              <div>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{e.name}</span>
+                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                  {(e.total / 100).toFixed(2)} ₽ · {new Date(e.createdAt).toLocaleString('ru-RU')}
+                </span>
+              </div>
+              <span className="rounded-full bg-gray-200 px-2 py-1 text-xs dark:bg-gray-600 dark:text-white">
+                {e.status}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function InvoicesPanel({ dealId }: { dealId: string }) {
+  const [invoices, setInvoices] = useState<{ id: string; number: string; name: string; amount: number; status: string; createdAt: string }[]>([])
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+
+  useEffect(() => {
+    fetch(`/api/crm/deals/${dealId}/invoices`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setInvoices(data))
+      .finally(() => setLoading(false))
+  }, [dealId])
+
+  const handleCreate = async () => {
+    setCreating(true)
+    const res = await fetch(`/api/crm/deals/${dealId}/invoices`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      setInvoices((prev) => [data, ...prev])
+    } else {
+      alert('Не удалось создать счёт')
+    }
+    setCreating(false)
+  }
+
+  return (
+    <div className="mt-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Счета</h2>
+        <button
+          onClick={handleCreate}
+          disabled={creating}
+          className="rounded-lg bg-purple-600 px-3 py-1 text-sm text-white hover:bg-purple-700 disabled:opacity-50"
+        >
+          {creating ? 'Создание...' : '＋ Счёт из сделки'}
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-gray-600 dark:text-gray-400">Загрузка...</p>
+      ) : invoices.length === 0 ? (
+        <p className="text-sm text-gray-600 dark:text-gray-400">Счетов пока нет</p>
+      ) : (
+        <ul className="space-y-2">
+          {invoices.map((i) => (
+            <li key={i.id} className="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
+              <div>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{i.number}</span>
+                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                  {(i.amount / 100).toFixed(2)} ₽ · {new Date(i.createdAt).toLocaleString('ru-RU')}
+                </span>
+              </div>
+              <span className="rounded-full bg-gray-200 px-2 py-1 text-xs dark:bg-gray-600 dark:text-white">
+                {i.status === 'paid' ? 'Оплачен' : i.status === 'draft' ? 'Черновик' : i.status}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function DocumentsPanel({ dealId }: { dealId: string }) {
+  const [documents, setDocuments] = useState<{ id: string; name: string; type: string; status: string; createdAt: string }[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch(`/api/crm/deals/${dealId}/documents`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setDocuments(data))
+      .finally(() => setLoading(false))
+  }, [dealId])
+
+  return (
+    <div className="mt-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+      <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Документы</h2>
+      {loading ? (
+        <p className="text-sm text-gray-600 dark:text-gray-400">Загрузка...</p>
+      ) : documents.length === 0 ? (
+        <p className="text-sm text-gray-600 dark:text-gray-400">Документов пока нет</p>
+      ) : (
+        <ul className="space-y-2">
+          {documents.map((d) => (
+            <li key={d.id} className="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
+              <div>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{d.name}</span>
+                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                  {d.type} · {new Date(d.createdAt).toLocaleString('ru-RU')}
+                </span>
+              </div>
+              <span className="rounded-full bg-gray-200 px-2 py-1 text-xs dark:bg-gray-600 dark:text-white">
+                {d.status}
               </span>
             </li>
           ))}
