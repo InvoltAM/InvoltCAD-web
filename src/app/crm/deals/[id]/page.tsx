@@ -467,10 +467,48 @@ function PaymentsPanel({ dealId, amountRub }: { dealId: string; amountRub: numbe
   )
 }
 
+const estimateStatuses = [
+  { value: 'draft', label: 'Черновик' },
+  { value: 'sent', label: 'Отправлено' },
+  { value: 'accepted', label: 'Принято' },
+  { value: 'rejected', label: 'Отклонено' },
+]
+
+const invoiceStatuses = [
+  { value: 'draft', label: 'Черновик' },
+  { value: 'sent', label: 'Отправлен' },
+  { value: 'paid', label: 'Оплачен' },
+  { value: 'cancelled', label: 'Отменён' },
+]
+
+const documentTypes = [
+  { value: 'contract', label: 'Договор' },
+  { value: 'act', label: 'Акт' },
+  { value: 'invoice', label: 'Счёт' },
+  { value: 'estimate', label: 'Смета' },
+  { value: 'spec', label: 'Спецификация' },
+]
+
+const documentStatuses = [
+  { value: 'draft', label: 'Черновик' },
+  { value: 'signed', label: 'Подписан' },
+  { value: 'cancelled', label: 'Отменён' },
+]
+
+function formatMoney(kopecks: number) {
+  return (kopecks / 100).toFixed(2)
+}
+
 function EstimatesPanel({ dealId }: { dealId: string }) {
   const [estimates, setEstimates] = useState<{ id: string; name: string; total: number; status: string; createdAt: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
+  const [emailingId, setEmailingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editTotal, setEditTotal] = useState('')
+  const [editStatus, setEditStatus] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     fetch(`/api/crm/deals/${dealId}/estimates`)
@@ -478,8 +516,6 @@ function EstimatesPanel({ dealId }: { dealId: string }) {
       .then((data) => setEstimates(data))
       .finally(() => setLoading(false))
   }, [dealId])
-
-  const [emailingId, setEmailingId] = useState<string | null>(null)
 
   const handleCreate = async () => {
     setCreating(true)
@@ -516,6 +552,51 @@ function EstimatesPanel({ dealId }: { dealId: string }) {
     setEmailingId(null)
   }
 
+  const startEdit = (e: (typeof estimates)[0]) => {
+    setEditingId(e.id)
+    setEditName(e.name)
+    setEditTotal(formatMoney(e.total))
+    setEditStatus(e.status)
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+  }
+
+  const handleSave = async (estimateId: string) => {
+    setSaving(true)
+    const totalRub = Number(editTotal.replace(',', '.'))
+    const res = await fetch(`/api/crm/deals/${dealId}/estimates/${estimateId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: editName,
+        total: Number.isFinite(totalRub) ? Math.round(totalRub * 100) : 0,
+        status: editStatus,
+      }),
+    })
+    if (res.ok) {
+      const updated = await res.json()
+      setEstimates((prev) => prev.map((e) => (e.id === estimateId ? updated : e)))
+      setEditingId(null)
+    } else {
+      alert('Не удалось сохранить КП')
+    }
+    setSaving(false)
+  }
+
+  const handleDelete = async (estimateId: string) => {
+    if (!confirm('Удалить коммерческое предложение?')) return
+    const res = await fetch(`/api/crm/deals/${dealId}/estimates/${estimateId}`, {
+      method: 'DELETE',
+    })
+    if (res.ok) {
+      setEstimates((prev) => prev.filter((e) => e.id !== estimateId))
+    } else {
+      alert('Не удалось удалить КП')
+    }
+  }
+
   return (
     <div className="mt-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="mb-4 flex items-center justify-between">
@@ -535,28 +616,88 @@ function EstimatesPanel({ dealId }: { dealId: string }) {
         <p className="text-sm text-gray-600 dark:text-gray-400">КП пока нет</p>
       ) : (
         <ul className="space-y-2">
-          {estimates.map((e) => (
-            <li key={e.id} className="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
-              <div>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">{e.name}</span>
-                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                  {(e.total / 100).toFixed(2)} ₽ · {new Date(e.createdAt).toLocaleString('ru-RU')}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleEmail(e.id)}
-                  disabled={emailingId === e.id}
-                  className="rounded-lg border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-                >
-                  {emailingId === e.id ? 'Отправка...' : 'Отправить'}
-                </button>
-                <span className="rounded-full bg-gray-200 px-2 py-1 text-xs dark:bg-gray-600 dark:text-white">
-                  {e.status}
-                </span>
-              </div>
-            </li>
-          ))}
+          {estimates.map((e) =>
+            editingId === e.id ? (
+              <li key={e.id} className="space-y-2 rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
+                <input
+                  value={editName}
+                  onChange={(evt) => setEditName(evt.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  placeholder="Название"
+                />
+                <div className="flex gap-2">
+                  <input
+                    value={editTotal}
+                    onChange={(evt) => setEditTotal(evt.target.value)}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-32 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    placeholder="Сумма"
+                  />
+                  <select
+                    value={editStatus}
+                    onChange={(evt) => setEditStatus(evt.target.value)}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  >
+                    {estimateStatuses.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleSave(e.id)}
+                    disabled={saving}
+                    className="rounded-lg bg-purple-600 px-3 py-1 text-xs text-white hover:bg-purple-700 disabled:opacity-50"
+                  >
+                    {saving ? 'Сохранение...' : 'Сохранить'}
+                  </button>
+                  <button
+                    onClick={cancelEdit}
+                    className="rounded-lg border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </li>
+            ) : (
+              <li key={e.id} className="flex flex-col gap-2 rounded-lg bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:bg-gray-700/50">
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{e.name}</span>
+                  <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                    {formatMoney(e.total)} ₽ · {new Date(e.createdAt).toLocaleString('ru-RU')}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => handleEmail(e.id)}
+                    disabled={emailingId === e.id}
+                    className="rounded-lg border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    {emailingId === e.id ? 'Отправка...' : 'Отправить'}
+                  </button>
+                  <span className="rounded-full bg-gray-200 px-2 py-1 text-xs dark:bg-gray-600 dark:text-white">
+                    {estimateStatuses.find((s) => s.value === e.status)?.label ?? e.status}
+                  </span>
+                  <button
+                    onClick={() => startEdit(e)}
+                    className="rounded-lg border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    Изменить
+                  </button>
+                  <button
+                    onClick={() => handleDelete(e.id)}
+                    className="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/30"
+                  >
+                    Удалить
+                  </button>
+                </div>
+              </li>
+            )
+          )}
         </ul>
       )}
     </div>
@@ -564,9 +705,15 @@ function EstimatesPanel({ dealId }: { dealId: string }) {
 }
 
 function InvoicesPanel({ dealId }: { dealId: string }) {
-  const [invoices, setInvoices] = useState<{ id: string; number: string; name: string; amount: number; status: string; createdAt: string }[]>([])
+  const [invoices, setInvoices] = useState<{ id: string; number: string; amount: number; status: string; createdAt: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
+  const [emailingId, setEmailingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editNumber, setEditNumber] = useState('')
+  const [editAmount, setEditAmount] = useState('')
+  const [editStatus, setEditStatus] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     fetch(`/api/crm/deals/${dealId}/invoices`)
@@ -574,8 +721,6 @@ function InvoicesPanel({ dealId }: { dealId: string }) {
       .then((data) => setInvoices(data))
       .finally(() => setLoading(false))
   }, [dealId])
-
-  const [emailingId, setEmailingId] = useState<string | null>(null)
 
   const handleCreate = async () => {
     setCreating(true)
@@ -609,6 +754,49 @@ function InvoicesPanel({ dealId }: { dealId: string }) {
     setEmailingId(null)
   }
 
+  const startEdit = (i: (typeof invoices)[0]) => {
+    setEditingId(i.id)
+    setEditNumber(i.number)
+    setEditAmount(formatMoney(i.amount))
+    setEditStatus(i.status)
+  }
+
+  const cancelEdit = () => setEditingId(null)
+
+  const handleSave = async (invoiceId: string) => {
+    setSaving(true)
+    const amountRub = Number(editAmount.replace(',', '.'))
+    const res = await fetch(`/api/crm/deals/${dealId}/invoices/${invoiceId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        number: editNumber,
+        amount: Number.isFinite(amountRub) ? Math.round(amountRub * 100) : 0,
+        status: editStatus,
+      }),
+    })
+    if (res.ok) {
+      const updated = await res.json()
+      setInvoices((prev) => prev.map((i) => (i.id === invoiceId ? updated : i)))
+      setEditingId(null)
+    } else {
+      alert('Не удалось сохранить счёт')
+    }
+    setSaving(false)
+  }
+
+  const handleDelete = async (invoiceId: string) => {
+    if (!confirm('Удалить счёт?')) return
+    const res = await fetch(`/api/crm/deals/${dealId}/invoices/${invoiceId}`, {
+      method: 'DELETE',
+    })
+    if (res.ok) {
+      setInvoices((prev) => prev.filter((i) => i.id !== invoiceId))
+    } else {
+      alert('Не удалось удалить счёт')
+    }
+  }
+
   return (
     <div className="mt-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="mb-4 flex items-center justify-between">
@@ -628,28 +816,88 @@ function InvoicesPanel({ dealId }: { dealId: string }) {
         <p className="text-sm text-gray-600 dark:text-gray-400">Счетов пока нет</p>
       ) : (
         <ul className="space-y-2">
-          {invoices.map((i) => (
-            <li key={i.id} className="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
-              <div>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">{i.number}</span>
-                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                  {(i.amount / 100).toFixed(2)} ₽ · {new Date(i.createdAt).toLocaleString('ru-RU')}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleEmail(i.id)}
-                  disabled={emailingId === i.id}
-                  className="rounded-lg border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-                >
-                  {emailingId === i.id ? 'Отправка...' : 'Отправить'}
-                </button>
-                <span className="rounded-full bg-gray-200 px-2 py-1 text-xs dark:bg-gray-600 dark:text-white">
-                  {i.status === 'paid' ? 'Оплачен' : i.status === 'draft' ? 'Черновик' : i.status}
-                </span>
-              </div>
-            </li>
-          ))}
+          {invoices.map((i) =>
+            editingId === i.id ? (
+              <li key={i.id} className="space-y-2 rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
+                <div className="flex gap-2">
+                  <input
+                    value={editNumber}
+                    onChange={(evt) => setEditNumber(evt.target.value)}
+                    className="w-40 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    placeholder="Номер"
+                  />
+                  <input
+                    value={editAmount}
+                    onChange={(evt) => setEditAmount(evt.target.value)}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-32 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    placeholder="Сумма"
+                  />
+                  <select
+                    value={editStatus}
+                    onChange={(evt) => setEditStatus(evt.target.value)}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  >
+                    {invoiceStatuses.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleSave(i.id)}
+                    disabled={saving}
+                    className="rounded-lg bg-purple-600 px-3 py-1 text-xs text-white hover:bg-purple-700 disabled:opacity-50"
+                  >
+                    {saving ? 'Сохранение...' : 'Сохранить'}
+                  </button>
+                  <button
+                    onClick={cancelEdit}
+                    className="rounded-lg border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </li>
+            ) : (
+              <li key={i.id} className="flex flex-col gap-2 rounded-lg bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:bg-gray-700/50">
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{i.number}</span>
+                  <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                    {formatMoney(i.amount)} ₽ · {new Date(i.createdAt).toLocaleString('ru-RU')}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => handleEmail(i.id)}
+                    disabled={emailingId === i.id}
+                    className="rounded-lg border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    {emailingId === i.id ? 'Отправка...' : 'Отправить'}
+                  </button>
+                  <span className="rounded-full bg-gray-200 px-2 py-1 text-xs dark:bg-gray-600 dark:text-white">
+                    {invoiceStatuses.find((s) => s.value === i.status)?.label ?? i.status}
+                  </span>
+                  <button
+                    onClick={() => startEdit(i)}
+                    className="rounded-lg border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    Изменить
+                  </button>
+                  <button
+                    onClick={() => handleDelete(i.id)}
+                    className="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/30"
+                  >
+                    Удалить
+                  </button>
+                </div>
+              </li>
+            )
+          )}
         </ul>
       )}
     </div>
@@ -659,6 +907,12 @@ function InvoicesPanel({ dealId }: { dealId: string }) {
 function DocumentsPanel({ dealId }: { dealId: string }) {
   const [documents, setDocuments] = useState<{ id: string; name: string; type: string; status: string; createdAt: string }[]>([])
   const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editType, setEditType] = useState('')
+  const [editStatus, setEditStatus] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     fetch(`/api/crm/deals/${dealId}/documents`)
@@ -667,28 +921,160 @@ function DocumentsPanel({ dealId }: { dealId: string }) {
       .finally(() => setLoading(false))
   }, [dealId])
 
+  const handleCreate = async () => {
+    setCreating(true)
+    const res = await fetch(`/api/crm/deals/${dealId}/documents`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'contract' }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      setDocuments((prev) => [data, ...prev])
+    } else {
+      alert('Не удалось создать документ')
+    }
+    setCreating(false)
+  }
+
+  const startEdit = (d: (typeof documents)[0]) => {
+    setEditingId(d.id)
+    setEditName(d.name)
+    setEditType(d.type)
+    setEditStatus(d.status)
+  }
+
+  const cancelEdit = () => setEditingId(null)
+
+  const handleSave = async (documentId: string) => {
+    setSaving(true)
+    const res = await fetch(`/api/crm/deals/${dealId}/documents/${documentId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: editName,
+        type: editType,
+        status: editStatus,
+      }),
+    })
+    if (res.ok) {
+      const updated = await res.json()
+      setDocuments((prev) => prev.map((d) => (d.id === documentId ? updated : d)))
+      setEditingId(null)
+    } else {
+      alert('Не удалось сохранить документ')
+    }
+    setSaving(false)
+  }
+
+  const handleDelete = async (documentId: string) => {
+    if (!confirm('Удалить документ?')) return
+    const res = await fetch(`/api/crm/deals/${dealId}/documents/${documentId}`, {
+      method: 'DELETE',
+    })
+    if (res.ok) {
+      setDocuments((prev) => prev.filter((d) => d.id !== documentId))
+    } else {
+      alert('Не удалось удалить документ')
+    }
+  }
+
   return (
     <div className="mt-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-      <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Документы</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Документы</h2>
+        <button
+          onClick={handleCreate}
+          disabled={creating}
+          className="rounded-lg bg-purple-600 px-3 py-1 text-sm text-white hover:bg-purple-700 disabled:opacity-50"
+        >
+          {creating ? 'Создание...' : '＋ Документ'}
+        </button>
+      </div>
+
       {loading ? (
         <p className="text-sm text-gray-600 dark:text-gray-400">Загрузка...</p>
       ) : documents.length === 0 ? (
         <p className="text-sm text-gray-600 dark:text-gray-400">Документов пока нет</p>
       ) : (
         <ul className="space-y-2">
-          {documents.map((d) => (
-            <li key={d.id} className="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
-              <div>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">{d.name}</span>
-                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                  {d.type} · {new Date(d.createdAt).toLocaleString('ru-RU')}
-                </span>
-              </div>
-              <span className="rounded-full bg-gray-200 px-2 py-1 text-xs dark:bg-gray-600 dark:text-white">
-                {d.status}
-              </span>
-            </li>
-          ))}
+          {documents.map((d) =>
+            editingId === d.id ? (
+              <li key={d.id} className="space-y-2 rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
+                <input
+                  value={editName}
+                  onChange={(evt) => setEditName(evt.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  placeholder="Название"
+                />
+                <div className="flex gap-2">
+                  <select
+                    value={editType}
+                    onChange={(evt) => setEditType(evt.target.value)}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  >
+                    {documentTypes.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={editStatus}
+                    onChange={(evt) => setEditStatus(evt.target.value)}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  >
+                    {documentStatuses.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleSave(d.id)}
+                    disabled={saving}
+                    className="rounded-lg bg-purple-600 px-3 py-1 text-xs text-white hover:bg-purple-700 disabled:opacity-50"
+                  >
+                    {saving ? 'Сохранение...' : 'Сохранить'}
+                  </button>
+                  <button
+                    onClick={cancelEdit}
+                    className="rounded-lg border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </li>
+            ) : (
+              <li key={d.id} className="flex flex-col gap-2 rounded-lg bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:bg-gray-700/50">
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{d.name}</span>
+                  <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                    {documentTypes.find((t) => t.value === d.type)?.label ?? d.type} · {new Date(d.createdAt).toLocaleString('ru-RU')}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-gray-200 px-2 py-1 text-xs dark:bg-gray-600 dark:text-white">
+                    {documentStatuses.find((s) => s.value === d.status)?.label ?? d.status}
+                  </span>
+                  <button
+                    onClick={() => startEdit(d)}
+                    className="rounded-lg border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    Изменить
+                  </button>
+                  <button
+                    onClick={() => handleDelete(d.id)}
+                    className="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/30"
+                  >
+                    Удалить
+                  </button>
+                </div>
+              </li>
+            )
+          )}
         </ul>
       )}
     </div>
