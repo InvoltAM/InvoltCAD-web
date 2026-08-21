@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/immutability -- редактор работает через мутации плана по дизайну */
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useEditor } from './EditorContext'
 import { useCadStore } from '@/stores/cadStore'
 import { Plan } from '@core/model/Plan'
@@ -11,24 +11,30 @@ import { icon } from './icons'
 
 const MODULE_WIDTH = 40
 const MODULE_GAP = 4
+const RAIL_MODULES = 12
+
+interface PanelDevice {
+  id: string
+  type: string
+  name: string
+  width: number
+  rating: number
+  color: string
+}
 
 interface PanelRow {
   id: string
   index: number
-  devices: Array<{
-    id: string
-    type: string
-    name: string
-    width: number
-    rating: number
-    color: string
-  }>
+  devices: PanelDevice[]
 }
 
 export default function PanelEditor() {
   const { engineRef } = useEditor()
   const [plan, setPlan] = useState<Plan | null>(null)
   const [activeTab, setActiveTab] = useState<'editor' | 'basket'>('editor')
+  const [componentOrder, setComponentOrder] = useState<string[]>([])
+  const [dragId, setDragId] = useState<string | null>(null)
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const open = useCadStore((s) => s.panelEditorOpen)
   const setOpen = useCadStore((s) => s.setPanelEditorOpen)
 
@@ -41,16 +47,71 @@ export default function PanelEditor() {
 
   const board = (plan?.electrical.distributionBoards?.[0] as DistributionBoardData | undefined) || null
 
-  const panel = useMemo(() => {
-    if (board) {
-      return buildPanelFromBoard(board)
-    }
-    if (!plan) return null
+  const fallbackPanel = useMemo(() => {
+    if (board || !plan) return null
     const groupCount = new Set(plan.cables.map((c) => c.type)).size
     const devices = generatePanelDevices(Math.max(groupCount, 3))
     const rawPanel = layoutPanel(devices)
     return adaptPanel(rawPanel)
   }, [plan, board])
+
+  // Синхронизируем порядок компонентов с доской при открытии/изменении доски.
+  useEffect(() => {
+    if (board) {
+      setComponentOrder(board.components.map((c) => c.id))
+    }
+  }, [board?.components.map((c) => c.id).join(',')])
+
+  const rows = useMemo<PanelRow[]>(() => {
+    if (board) {
+      return splitIntoRows(componentOrder, board.components, RAIL_MODULES)
+    }
+    return fallbackPanel?.rows ?? []
+  }, [board, componentOrder, fallbackPanel])
+
+  const totalUsed = useMemo(
+    () => rows.reduce((sum, row) => sum + row.devices.reduce((s, d) => s + d.width, 0), 0),
+    [rows],
+  )
+  const totalModules = board?.dinModules ?? fallbackPanel?.totalModules ?? 0
+
+  const syncBoardOrder = (order: string[]) => {
+    if (!board || !plan) return
+    const map = new Map(board.components.map((c) => [c.id, c]))
+    const next = order.map((id) => map.get(id)).filter((c): c is BoardComponent => !!c)
+    board.components = next
+    engineRef.current?.notifyChanged()
+  }
+
+  const handlePointerDown = (deviceId: string) => (e: React.PointerEvent) => {
+    if (!board) return
+    e.preventDefault()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    setDragId(deviceId)
+  }
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!dragId || !board) return
+    e.preventDefault()
+    const target = getDropTarget(e.clientX, e.clientY, rows, rowRefs.current, dragId)
+    if (!target) return
+    setComponentOrder((prev) => moveId(prev, dragId, target.rowIndex, target.index))
+  }
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!dragId || !board) return
+    e.preventDefault()
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    } catch {
+      // ignore
+    }
+    setComponentOrder((prev) => {
+      syncBoardOrder(prev)
+      return prev
+    })
+    setDragId(null)
+  }
 
   if (!open) return null
 
@@ -94,12 +155,16 @@ export default function PanelEditor() {
           </div>
 
           {/* Основная область */}
-          <div className="flex-1 overflow-auto rounded-bl-lg bg-gray-50 p-4 dark:bg-gray-900">
+          <div
+            className="flex-1 overflow-auto rounded-bl-lg bg-gray-50 p-4 dark:bg-gray-900"
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+          >
             {activeTab === 'editor' ? (
-              panel ? (
+              rows.length > 0 ? (
                 <div className="space-y-4">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Использовано модулей: {panel.usedModules} / {panel.totalModules}
+                    Использовано модулей: {totalUsed} / {totalModules}
                     {board && (
                       <span className="ml-2">
                         · {board.phases === 'three' ? '3-ф' : '1-ф'} · {board.voltage}В · {board.totalPowerW.toFixed(0)}Вт
@@ -107,16 +172,22 @@ export default function PanelEditor() {
                     )}
                   </div>
 
-                  {panel.rows.map((rail) => (
+                  {rows.map((rail) => (
                     <div key={rail.id} className="space-y-2">
                       <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                         Рейка {rail.index + 1}
                       </div>
-                      <div className="flex gap-1">
+                      <div
+                        ref={(el) => { rowRefs.current[rail.id] = el }}
+                        className="flex min-h-[60px] gap-1 rounded border border-dashed border-transparent p-1 hover:border-gray-200 dark:hover:border-gray-600"
+                        data-row-id={rail.id}
+                      >
                         {rail.devices.map((device) => (
                           <div
                             key={device.id}
-                            className={`flex flex-col items-center justify-center rounded border p-2 text-center ${device.color}`}
+                            data-device-id={device.id}
+                            onPointerDown={handlePointerDown(device.id)}
+                            className={`flex cursor-grab flex-col items-center justify-center rounded border p-2 text-center touch-none select-none ${device.color} ${dragId === device.id ? 'opacity-60' : ''}`}
                             style={{ width: `${device.width * MODULE_WIDTH + (device.width - 1) * MODULE_GAP}px` }}
                             title={`${device.name} (${device.rating}А)`}
                           >
@@ -187,27 +258,21 @@ export default function PanelEditor() {
   )
 }
 
-function buildPanelFromBoard(board: DistributionBoardData) {
+function splitIntoRows(order: string[], components: BoardComponent[], modulesPerRow: number): PanelRow[] {
+  const map = new Map(components.map((c) => [c.id, c]))
   const rows: PanelRow[] = []
-  let currentRow: PanelRow = { id: 'row-0', index: 0, devices: [] }
-  let usedInRow = 0
-  const rowModules = 12
+  let current: PanelRow = { id: `row-${rows.length}`, index: rows.length, devices: [] }
+  let used = 0
 
-  const sorted = [...board.components]
-  // Put main breaker and main RCD first
-  sorted.sort((a, b) => {
-    const orderA = a.type === 'input-breaker' ? 0 : a.type === 'rcd' && a.id === 'main-rcd' ? 1 : 2
-    const orderB = b.type === 'input-breaker' ? 0 : b.type === 'rcd' && b.id === 'main-rcd' ? 1 : 2
-    return orderA - orderB
-  })
-
-  for (const comp of sorted) {
-    if (usedInRow + comp.widthModules > rowModules) {
-      rows.push(currentRow)
-      currentRow = { id: `row-${rows.length}`, index: rows.length, devices: [] }
-      usedInRow = 0
+  for (const id of order) {
+    const comp = map.get(id)
+    if (!comp) continue
+    if (used + comp.widthModules > modulesPerRow && current.devices.length > 0) {
+      rows.push(current)
+      current = { id: `row-${rows.length}`, index: rows.length, devices: [] }
+      used = 0
     }
-    currentRow.devices.push({
+    current.devices.push({
       id: comp.id,
       type: comp.type,
       name: comp.name,
@@ -215,15 +280,71 @@ function buildPanelFromBoard(board: DistributionBoardData) {
       rating: comp.ratingA ?? 0,
       color: deviceColor(comp.type),
     })
-    usedInRow += comp.widthModules
+    used += comp.widthModules
   }
-  if (currentRow.devices.length > 0) rows.push(currentRow)
+  if (current.devices.length > 0) rows.push(current)
 
-  return {
-    usedModules: board.components.reduce((s, c) => s + c.widthModules, 0),
-    totalModules: board.dinModules,
-    rows,
+  return rows
+}
+
+function getDropTarget(
+  clientX: number,
+  clientY: number,
+  rows: PanelRow[],
+  rowRefs: Record<string, HTMLDivElement | null>,
+  dragId: string,
+): { rowIndex: number; index: number } | null {
+  let targetRowIndex = -1
+  for (let i = 0; i < rows.length; i++) {
+    const el = rowRefs[rows[i]!.id]
+    if (!el) continue
+    const rect = el.getBoundingClientRect()
+    if (clientY >= rect.top && clientY <= rect.bottom) {
+      targetRowIndex = i
+      break
+    }
   }
+  if (targetRowIndex === -1) return null
+
+  const row = rows[targetRowIndex]!
+  const rowEl = rowRefs[row.id]
+  if (!rowEl) return { rowIndex: targetRowIndex, index: row.devices.length }
+
+  const rowRect = rowEl.getBoundingClientRect()
+  const relX = clientX - rowRect.left
+  let index = 0
+  let x = 0
+  for (const device of row.devices) {
+    const w = device.width * MODULE_WIDTH + (device.width - 1) * MODULE_GAP
+    if (relX < x + w / 2) break
+    x += w + MODULE_GAP
+    index++
+  }
+
+  // Пересчитываем индекс в общем порядке componentOrder
+  const overallIndex = rows.slice(0, targetRowIndex).reduce((sum, r) => sum + r.devices.length, 0) + index
+  return { rowIndex: overallIndex, index: overallIndex }
+}
+
+function moveId(order: string[], dragId: string, targetIndex: number, _unused: number): string[] {
+  const currentIndex = order.indexOf(dragId)
+  if (currentIndex === -1) return order
+  if (targetIndex === currentIndex) return order
+  const next = [...order]
+  next.splice(currentIndex, 1)
+  const insertAt = targetIndex > currentIndex ? targetIndex - 1 : targetIndex
+  next.splice(insertAt, 0, dragId)
+  return next
+}
+
+function buildPanelFromBoard(board: DistributionBoardData) {
+  const sorted = [...board.components]
+  sorted.sort((a, b) => {
+    const orderA = a.type === 'input-breaker' ? 0 : a.type === 'rcd' && a.id === 'main-rcd' ? 1 : 2
+    const orderB = b.type === 'input-breaker' ? 0 : b.type === 'rcd' && b.id === 'main-rcd' ? 1 : 2
+    return orderA - orderB
+  })
+  return splitIntoRows(sorted.map((c) => c.id), board.components, RAIL_MODULES)
 }
 
 function deviceColor(type: string): string {
