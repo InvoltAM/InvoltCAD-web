@@ -11,7 +11,8 @@ export type IconName =
   | 'rooms' | 'roomNumbers' | 'estimates' | 'invoices' | 'documents' | 'catalog' | 'marking' | 'automation' | 'templates'
   | 'dotsThreeVertical' | 'stamp' | 'exportDxf' | 'exportPdf' | 'plus'
   | 'socket' | 'switch' | 'light' | 'sensor' | 'output' | 'camera' | 'sks' | 'drive' | 'smartHome'
-  | 'basket';
+  | 'basket'
+  | 'terminal' | 'relay' | 'psu' | 'contactor' | 'bus';
 
 const MAP: Record<IconName, string> = {
   wall: 'wall',
@@ -94,6 +95,11 @@ const MAP: Record<IconName, string> = {
   drive: 'gear',
   smartHome: 'house-line',
   basket: 'shopping-cart',
+  terminal: 'terminal',
+  relay: 'toggle-right',
+  psu: 'battery-charging',
+  contactor: 'arrows-left-right',
+  bus: 'line-segments',
 };
 
 export function icon(name: IconName): string {

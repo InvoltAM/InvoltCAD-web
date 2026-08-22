@@ -39,20 +39,38 @@ interface DeviceOption {
   characteristic?: 'B' | 'C' | 'D'
   rcdType?: 'AC' | 'A' | 'S'
   rcdMA?: number
+  category?: string
 }
 
+interface DeviceCategory {
+  id: string
+  label: string
+  icon: Parameters<typeof icon>[0]
+}
+
+const PANEL_CATEGORIES: DeviceCategory[] = [
+  { id: 'panel', label: 'Щиты', icon: 'panel' },
+  { id: 'smartHome', label: 'УД', icon: 'smartHome' },
+  { id: 'terminal', label: 'Клеммы', icon: 'terminal' },
+  { id: 'automation', label: 'Автоматика', icon: 'automation' },
+  { id: 'contactor', label: 'Контакторы', icon: 'contactor' },
+  { id: 'bus', label: 'Шины', icon: 'bus' },
+  { id: 'relay', label: 'Реле', icon: 'relay' },
+  { id: 'psu', label: 'БП', icon: 'psu' },
+]
+
 const DEVICE_CATALOG: DeviceOption[] = [
-  { type: 'breaker', name: 'Автомат 16А', baseWidth: 1, ratingA: 16, characteristic: 'C' },
-  { type: 'breaker', name: 'Автомат 25А', baseWidth: 1, ratingA: 25, characteristic: 'C' },
-  { type: 'breaker', name: 'Автомат 32А', baseWidth: 1, ratingA: 32, characteristic: 'C' },
-  { type: 'breaker', name: 'Автомат 40А', baseWidth: 1, ratingA: 40, characteristic: 'C' },
-  { type: 'rcd', name: 'УЗО 25А 30мА', baseWidth: 2, ratingA: 25, rcdType: 'A', rcdMA: 30 },
-  { type: 'rcd', name: 'УЗО 40А 30мА', baseWidth: 2, ratingA: 40, rcdType: 'A', rcdMA: 30 },
-  { type: 'rcd', name: 'УЗО 63А 30мА', baseWidth: 2, ratingA: 63, rcdType: 'A', rcdMA: 30 },
-  { type: 'contactor', name: 'Контактор 25А', baseWidth: 2, ratingA: 25 },
-  { type: 'bus', name: 'Шина N', baseWidth: 2 },
-  { type: 'bus', name: 'Шина PE', baseWidth: 2 },
-  { type: 'blank', name: 'Заглушка', baseWidth: 1 },
+  { category: 'automation', type: 'breaker', name: 'Автомат 16А', baseWidth: 1, ratingA: 16, characteristic: 'C' },
+  { category: 'automation', type: 'breaker', name: 'Автомат 25А', baseWidth: 1, ratingA: 25, characteristic: 'C' },
+  { category: 'automation', type: 'breaker', name: 'Автомат 32А', baseWidth: 1, ratingA: 32, characteristic: 'C' },
+  { category: 'automation', type: 'breaker', name: 'Автомат 40А', baseWidth: 1, ratingA: 40, characteristic: 'C' },
+  { category: 'automation', type: 'rcd', name: 'УЗО 25А 30мА', baseWidth: 2, ratingA: 25, rcdType: 'A', rcdMA: 30 },
+  { category: 'automation', type: 'rcd', name: 'УЗО 40А 30мА', baseWidth: 2, ratingA: 40, rcdType: 'A', rcdMA: 30 },
+  { category: 'automation', type: 'rcd', name: 'УЗО 63А 30мА', baseWidth: 2, ratingA: 63, rcdType: 'A', rcdMA: 30 },
+  { category: 'contactor', type: 'contactor', name: 'Контактор 25А', baseWidth: 2, ratingA: 25 },
+  { category: 'bus', type: 'bus', name: 'Шина N', baseWidth: 2 },
+  { category: 'bus', type: 'bus', name: 'Шина PE', baseWidth: 2 },
+  { category: 'terminal', type: 'blank', name: 'Заглушка', baseWidth: 1 },
 ]
 
 function DeviceIcon({ type }: { type: string }) {
@@ -109,7 +127,9 @@ function getWidthForBoard(option: DeviceOption, phases: 'single' | 'three'): num
 export default function PanelEditor() {
   const { engineRef } = useEditor()
   const [plan, setPlan] = useState<Plan | null>(null)
-  const [activeTab, setActiveTab] = useState<'editor' | 'basket'>('editor')
+  const [activeTab, setActiveTab] = useState<'editor' | 'basket' | 'devices'>('editor')
+  const [catalogCategory, setCatalogCategory] = useState<string | null>(null)
+  const [catalogDevice, setCatalogDevice] = useState<DeviceOption | null>(null)
   const [sections, setSections] = useState(1)
   const [sectionOrders, setSectionOrders] = useState<string[][][]>([])
   const [fallbackEdits, setFallbackEdits] = useState<{
@@ -645,7 +665,7 @@ export default function PanelEditor() {
           {/* Левая панель с кнопками */}
           <div className="flex w-16 flex-col items-center gap-2 border-r border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">
             <button
-              onClick={() => setActiveTab('editor')}
+              onClick={() => { setActiveTab('editor'); setCatalogCategory(null) }}
               className={`project-sidebar-btn ${activeTab === 'editor' ? 'active' : ''}`}
               title="Редактор"
             >
@@ -653,12 +673,20 @@ export default function PanelEditor() {
               <span className="project-sidebar-label">Щит</span>
             </button>
             <button
-              onClick={() => setActiveTab('basket')}
+              onClick={() => { setActiveTab('devices'); setCatalogCategory(null) }}
+              className={`project-sidebar-btn ${activeTab === 'devices' ? 'active' : ''}`}
+              title="Устройства"
+            >
+              <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('device') }} />
+              <span className="project-sidebar-label">Устройства</span>
+            </button>
+            <button
+              onClick={() => { setActiveTab('basket'); setCatalogCategory(null) }}
               className={`project-sidebar-btn ${activeTab === 'basket' ? 'active' : ''}`}
-              title="Набор"
+              title="Набор из проекта"
             >
               <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('basket') }} />
-              <span className="project-sidebar-label">Набор</span>
+              <span className="project-sidebar-label">Набор из проекта</span>
             </button>
           </div>
 
@@ -668,9 +696,22 @@ export default function PanelEditor() {
             style={{ position: 'relative' }}
           >
             <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
-              {activeTab === 'editor' ? (
+              {activeTab === 'editor' && (
                 displayRowGroups.length > 0 ? (
                   <div className="space-y-4">
+                    {catalogDevice && (
+                      <div className="flex items-center justify-between rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+                        <span>Выбрано устройство: <strong>{catalogDevice.name}</strong></span>
+                        <button
+                          onClick={() => setCatalogDevice(null)}
+                          className="text-blue-700 hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100"
+                          title="Сбросить выбор"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )}
+
                     <div className="text-sm text-gray-600 dark:text-gray-400">
                       Использовано модулей: {totalUsed} / {totalModules}
                       {board && (
@@ -737,7 +778,7 @@ export default function PanelEditor() {
                                     key={device.id}
                                     data-device-id={device.id}
                                     onPointerDown={handlePointerDown(device.id)}
-                                    className={`group relative flex h-full cursor-grab flex-col items-center justify-center rounded border px-0.5 py-1 text-center touch-none select-none ${device.color} ${dragId === device.id ? 'opacity-60' : ''}`}
+                                    className={`group relative flex h-full cursor-grab flex-col items-center justify-center rounded border px-0.5 py-1 text-center touch-none select-none ${device.color} ${dragId === device.id ? 'opacity-60 pointer-events-none' : ''}`}
                                     style={{ width: `${device.width * MODULE_WIDTH + (device.width - 1) * MODULE_GAP}mm` }}
                                     title={`${device.name} (${device.rating}А)`}
                                   >
@@ -763,13 +804,19 @@ export default function PanelEditor() {
 
                                 <div className="relative ml-1 self-stretch">
                                   <button
-                                    onClick={() => setMenuRowId(rail.id)}
+                                    onClick={() => {
+                                      if (catalogDevice) {
+                                        handleAddDevice(rail.id, catalogDevice)
+                                      } else {
+                                        setMenuRowId(rail.id)
+                                      }
+                                    }}
                                     className="flex h-full w-8 flex-none items-center justify-center rounded border border-dashed border-gray-300 text-sm text-gray-500 hover:border-gray-400 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:bg-gray-700"
-                                    title="Добавить аппарат"
+                                    title={catalogDevice ? `Добавить ${catalogDevice.name}` : 'Добавить аппарат'}
                                   >
-                                    +
+                                    {catalogDevice ? '→' : '+'}
                                   </button>
-                                  {menuRowId === rail.id && (
+                                  {menuRowId === rail.id && !catalogDevice && (
                                     <>
                                       <div
                                         className="fixed inset-0 z-[410]"
@@ -825,7 +872,9 @@ export default function PanelEditor() {
                     Нет данных для визуализации щита
                   </div>
                 )
-              ) : (
+              )}
+
+              {activeTab === 'basket' && (
                 <div className="space-y-3">
                   <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Элементы щита из однолинейной схемы
@@ -860,6 +909,71 @@ export default function PanelEditor() {
                       </div>
                       <div className="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-gray-600 dark:text-gray-400">
                         Всего: {components.reduce((s, c) => s + c.widthModules, 0)} модулей
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'devices' && (
+                <div className="space-y-3">
+                  {catalogCategory === null ? (
+                    <>
+                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Категории устройств</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {PANEL_CATEGORIES.map((cat) => (
+                          <button
+                            key={cat.id}
+                            onClick={() => setCatalogCategory(cat.id)}
+                            className="flex flex-col items-center gap-1 rounded border border-gray-200 bg-white p-3 text-xs text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                            title={cat.label}
+                          >
+                            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon(cat.icon) }} />
+                            <span>{cat.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setCatalogCategory(null)}
+                          className="rounded border border-gray-200 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                        >
+                          ← Назад
+                        </button>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {PANEL_CATEGORIES.find((c) => c.id === catalogCategory)?.label}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {DEVICE_CATALOG.filter((d) => d.category === catalogCategory).length === 0 ? (
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            В этой категории пока нет устройств.
+                          </div>
+                        ) : (
+                          DEVICE_CATALOG.filter((d) => d.category === catalogCategory).map((option) => (
+                            <button
+                              key={option.name}
+                              onClick={() => {
+                                setCatalogDevice(option)
+                                setActiveTab('editor')
+                                setCatalogCategory(null)
+                              }}
+                              className={`w-full rounded border p-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                                catalogDevice?.name === option.name
+                                  ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20'
+                                  : 'border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800'
+                              }`}
+                            >
+                              <div className="font-medium text-gray-900 dark:text-white">{option.name}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                {option.baseWidth} модуль
+                              </div>
+                            </button>
+                          ))
+                        )}
                       </div>
                     </>
                   )}
@@ -955,7 +1069,7 @@ function getDropTargetSection(
   clientY: number,
   displayRowGroups: PanelRow[][],
   rowRefs: Record<string, HTMLDivElement | null>,
-  _dragId: string,
+  dragId: string,
 ): { sectionIndex: number; rowIndex: number; index: number } | null {
   let targetRail: PanelRow | null = null
   let targetEl: HTMLDivElement | null = null
@@ -974,14 +1088,15 @@ function getDropTargetSection(
   }
   if (!targetRail || !targetEl) return null
 
-  const rect = targetEl.getBoundingClientRect()
-  const relX = clientX - rect.left
+  // Определяем позицию вставки по центрам устройств в DOM, а не по MODULE_WIDTH,
+  // чтобы не расходиться с фактическим рендером (width задан в mm).
+  const deviceEls = Array.from(targetEl.querySelectorAll('[data-device-id]')).filter(
+    (el) => el.getAttribute('data-device-id') !== dragId,
+  ) as HTMLElement[]
   let index = 0
-  let x = 0
-  for (const device of targetRail.devices) {
-    const w = device.width * MODULE_WIDTH + (device.width - 1) * MODULE_GAP
-    if (relX < x + w / 2) break
-    x += w + MODULE_GAP
+  for (const deviceEl of deviceEls) {
+    const rect = deviceEl.getBoundingClientRect()
+    if (clientX < rect.left + rect.width / 2) break
     index++
   }
 
