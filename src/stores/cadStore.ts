@@ -168,7 +168,7 @@ interface CadStoreState {
 }
 
 export const useCadStore = create<CadStoreState>((set) => ({
-  currentTool: 'wall',
+  currentTool: 'select',
   selectedWallId: null,
   selectedOpeningId: null,
   selectedDeviceId: null,
