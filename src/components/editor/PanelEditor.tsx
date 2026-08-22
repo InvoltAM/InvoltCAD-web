@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/immutability -- редактор работает через мутации плана по дизайну */
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useEditor } from './EditorContext'
 import { useCadStore } from '@/stores/cadStore'
 import { Plan } from '@core/model/Plan'
@@ -139,6 +139,7 @@ export default function PanelEditor() {
     sectionOrders: string[][][]
   } | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<{ rowId: string; index: number } | null>(null)
   const [menuRowId, setMenuRowId] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
   const [dialogSize, setDialogSize] = useState<{ width: number; height: number } | null>(null)
@@ -523,9 +524,19 @@ export default function PanelEditor() {
     const section = parseSectionFromRowId(rowId)
     const rowIndex = parseRowIndexFromRowId(rowId, rowGroups)
 
+    const optionWidth = board ? getWidthForBoard(option, board.phases) : option.baseWidth
+    const targetRail = rowGroups[section]?.[rowIndex]
+    if (targetRail) {
+      const currentWidth = targetRail.devices.reduce((sum, d) => sum + d.width, 0)
+      if (currentWidth + optionWidth > RAIL_MODULES) {
+        alert('Недостаточно места на рейке')
+        return
+      }
+    }
+
     const id = `device-${crypto.randomUUID()}`
     if (board) {
-      const width = getWidthForBoard(option, board.phases)
+      const width = optionWidth
       const comp: BoardComponent = {
         id,
         type: option.type as BoardComponent['type'],
@@ -594,16 +605,44 @@ export default function PanelEditor() {
     if (!dragId || !canDrag) return
     const handleMove = (e: PointerEvent) => {
       const target = getDropTargetSection(e.clientX, e.clientY, displayRowGroups, rowRefs.current, dragId)
-      if (!target) return
+      if (!target) {
+        setDropTarget(null)
+        return
+      }
+      const targetRail = displayRowGroups[target.rowIndex]?.[target.sectionIndex]
+      if (targetRail) {
+        setDropTarget({ rowId: targetRail.id, index: target.index })
+      }
       if (board) {
-        setSectionOrders((prev) => moveIdInSection(prev, dragId, target.sectionIndex, target.rowIndex, target.index))
+        setSectionOrders((prev) => {
+          const next = moveIdInSection(prev, dragId, target.sectionIndex, target.rowIndex, target.index)
+          const widthMap = new Map(board.components.map((c) => [c.id, c.widthModules]))
+          for (let s = 0; s < next.length; s++) {
+            for (let r = 0; r < next[s].length; r++) {
+              const rowWidth = next[s][r].reduce((sum, id) => sum + (widthMap.get(id) ?? 0), 0)
+              if (rowWidth > RAIL_MODULES) return prev
+            }
+          }
+          return next
+        })
       } else {
         setFallbackEdits((prev) => {
           if (!prev) return null
-          return {
+          const next = {
             ...prev,
             sectionOrders: moveIdInSection(prev.sectionOrders, dragId, target.sectionIndex, target.rowIndex, target.index),
           }
+          for (let s = 0; s < next.sectionOrders.length; s++) {
+            for (let r = 0; r < next.sectionOrders[s].length; r++) {
+              const rowWidth = next.sectionOrders[s][r].reduce((sum, id) => {
+                if (prev.hidden.has(id)) return sum
+                const d = fallbackDeviceMap.get(id)
+                return sum + (d?.width ?? 0)
+              }, 0)
+              if (rowWidth > RAIL_MODULES) return prev
+            }
+          }
+          return next
         })
       }
     }
@@ -617,6 +656,7 @@ export default function PanelEditor() {
       }
       dragElRef.current = null
       setDragId(null)
+      setDropTarget(null)
     }
     window.addEventListener('pointermove', handleMove)
     window.addEventListener('pointerup', handleUp, { once: true })
@@ -773,34 +813,45 @@ export default function PanelEditor() {
                                 style={{ width: `${RAIL_MODULES * MODULE_WIDTH}mm`, height: `${RAIL_HEIGHT_MM}mm` }}
                                 data-row-id={rail.id}
                               >
-                                {rail.devices.map((device) => (
-                                  <div
-                                    key={device.id}
-                                    data-device-id={device.id}
-                                    onPointerDown={handlePointerDown(device.id)}
-                                    className={`group relative flex h-full cursor-grab flex-col items-center justify-center rounded border px-0.5 py-1 text-center touch-none select-none ${device.color} ${dragId === device.id ? 'opacity-60 pointer-events-none' : ''}`}
-                                    style={{ width: `${device.width * MODULE_WIDTH + (device.width - 1) * MODULE_GAP}mm` }}
-                                    title={`${device.name} (${device.rating}А)`}
-                                  >
-                                    <button
-                                      onPointerDown={(e) => e.stopPropagation()}
-                                      onClick={() => handleDeleteDevice(device.id)}
-                                      className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] leading-none text-white opacity-0 hover:bg-red-600 group-hover:opacity-100"
-                                      title="Удалить"
+                                {rail.devices.map((device, deviceIndex) => (
+                                  <Fragment key={device.id}>
+                                    {dropTarget?.rowId === rail.id && dropTarget.index === deviceIndex && (
+                                      <div className="pointer-events-none h-full w-1 shrink-0 self-stretch rounded bg-blue-500 opacity-80" />
+                                    )}
+                                    <div
+                                      data-device-id={device.id}
+                                      onPointerDown={handlePointerDown(device.id)}
+                                      className={`group relative flex h-full cursor-grab flex-col items-center justify-center rounded border px-0.5 py-1 text-center touch-none select-none ${device.color} ${
+                                        dragId === device.id
+                                          ? 'pointer-events-none z-10 scale-105 shadow-[0_8px_24px_rgba(59,130,246,0.45)] ring-2 ring-blue-400 brightness-110 -translate-y-0.5 opacity-90'
+                                          : ''
+                                      }`}
+                                      style={{ width: `${device.width * MODULE_WIDTH + (device.width - 1) * MODULE_GAP}mm` }}
+                                      title={`${device.name} (${device.rating}А)`}
                                     >
-                                      ×
-                                    </button>
-                                    <div className="flex h-6 items-center justify-center text-gray-900 dark:text-white">
-                                      <DeviceIcon type={device.type} />
+                                      <button
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        onClick={() => handleDeleteDevice(device.id)}
+                                        className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] leading-none text-white opacity-0 hover:bg-red-600 group-hover:opacity-100"
+                                        title="Удалить"
+                                      >
+                                        ×
+                                      </button>
+                                      <div className="flex h-6 items-center justify-center text-gray-900 dark:text-white">
+                                        <DeviceIcon type={device.type} />
+                                      </div>
+                                      <div className="text-[10px] text-gray-600 dark:text-gray-400">
+                                        {device.rating > 0 ? `${device.rating}A` : ''}
+                                      </div>
+                                      <div className="mt-1 max-w-full truncate text-[9px] text-gray-500 dark:text-gray-400">
+                                        {device.name}
+                                      </div>
                                     </div>
-                                    <div className="text-[10px] text-gray-600 dark:text-gray-400">
-                                      {device.rating > 0 ? `${device.rating}A` : ''}
-                                    </div>
-                                    <div className="mt-1 max-w-full truncate text-[9px] text-gray-500 dark:text-gray-400">
-                                      {device.name}
-                                    </div>
-                                  </div>
+                                  </Fragment>
                                 ))}
+                                {dropTarget?.rowId === rail.id && dropTarget.index === rail.devices.length && (
+                                  <div className="pointer-events-none h-full w-1 shrink-0 self-stretch rounded bg-blue-500 opacity-80" />
+                                )}
 
                                 <div className="relative ml-1 self-stretch">
                                   <button
