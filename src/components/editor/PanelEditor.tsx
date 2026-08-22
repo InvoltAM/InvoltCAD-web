@@ -12,7 +12,7 @@ import { icon } from './icons'
 const MODULE_WIDTH = 18 // ширина одного модуля, мм
 const MODULE_GAP = 0 // зазор между модулями, мм
 const RAIL_MODULES = 12
-const RAIL_HEIGHT_MM = 40 // высота рейки, мм
+const RAIL_HEIGHT_MM = 80 // высота рейки/устройств, мм
 const RAIL_CENTER_SPACING_MM = 125 // расстояние между центральными осями реек, мм
 
 interface PanelDevice {
