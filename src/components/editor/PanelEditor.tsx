@@ -313,7 +313,7 @@ export default function PanelEditor() {
         ),
       ) ?? [[]]
       const visibleIds = new Set(visibleRows.flat())
-      const newIds = baseIds.filter((id) => !visibleIds.has(id))
+      const newIds = baseIds.filter((id) => !visibleIds.has(id) && !hidden.has(id))
       // Новые устройства добавляем в первую рейку первого отсека.
       return {
         sectionOrders: [[[...visibleRows[0]!, ...newIds], ...visibleRows.slice(1)]],
@@ -383,6 +383,7 @@ export default function PanelEditor() {
         index: rowIndex,
         section: s,
         devices: rowIds
+          .filter((id) => !fallbackEdits.hidden.has(id))
           .map((id) => fallbackDeviceMap.get(id))
           .filter((d): d is PanelDevice => !!d),
       })),
@@ -445,6 +446,7 @@ export default function PanelEditor() {
       nextHidden.add(deviceId)
       return {
         ...prev,
+        sectionOrders: prev.sectionOrders.map((sec) => sec.map((row) => row.filter((id) => id !== deviceId))),
         hidden: nextHidden,
         custom: prev.custom.filter((c) => c.id !== deviceId),
       }
