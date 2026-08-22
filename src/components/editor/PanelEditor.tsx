@@ -703,7 +703,7 @@ export default function PanelEditor() {
 
         <div className="flex flex-1 overflow-hidden">
           {/* Левая панель с кнопками */}
-          <div className="flex w-16 flex-col items-center gap-2 border-r border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">
+          <div className="flex w-16 flex-col items-center gap-2 overflow-y-auto border-r border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">
             <button
               onClick={() => { setActiveTab('editor'); setCatalogCategory(null) }}
               className={`project-sidebar-btn ${activeTab === 'editor' ? 'active' : ''}`}
@@ -713,14 +713,6 @@ export default function PanelEditor() {
               <span className="project-sidebar-label">Щит</span>
             </button>
             <button
-              onClick={() => { setActiveTab('devices'); setCatalogCategory(null) }}
-              className={`project-sidebar-btn ${activeTab === 'devices' ? 'active' : ''}`}
-              title="Устройства"
-            >
-              <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('device') }} />
-              <span className="project-sidebar-label">Устройства</span>
-            </button>
-            <button
               onClick={() => { setActiveTab('basket'); setCatalogCategory(null) }}
               className={`project-sidebar-btn ${activeTab === 'basket' ? 'active' : ''}`}
               title="Набор из проекта"
@@ -728,6 +720,20 @@ export default function PanelEditor() {
               <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('basket') }} />
               <span className="project-sidebar-label">Набор из проекта</span>
             </button>
+
+            <div className="my-1 h-px w-full bg-gray-200 dark:bg-gray-600" />
+
+            {PANEL_CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => { setActiveTab('devices'); setCatalogCategory(cat.id) }}
+                className={`project-sidebar-btn ${activeTab === 'devices' && catalogCategory === cat.id ? 'active' : ''}`}
+                title={cat.label}
+              >
+                <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon(cat.icon) }} />
+                <span className="project-sidebar-label">{cat.label}</span>
+              </button>
+            ))}
           </div>
 
           {/* Основная область */}
@@ -969,34 +975,13 @@ export default function PanelEditor() {
               {activeTab === 'devices' && (
                 <div className="space-y-3">
                   {catalogCategory === null ? (
-                    <>
-                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Категории устройств</div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {PANEL_CATEGORIES.map((cat) => (
-                          <button
-                            key={cat.id}
-                            onClick={() => setCatalogCategory(cat.id)}
-                            className="flex flex-col items-center gap-1 rounded border border-gray-200 bg-white p-3 text-xs text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                            title={cat.label}
-                          >
-                            <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon(cat.icon) }} />
-                            <span>{cat.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      Выберите категорию устройств на левой панели.
+                    </div>
                   ) : (
                     <>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setCatalogCategory(null)}
-                          className="rounded border border-gray-200 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-                        >
-                          ← Назад
-                        </button>
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {PANEL_CATEGORIES.find((c) => c.id === catalogCategory)?.label}
-                        </span>
+                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {PANEL_CATEGORIES.find((c) => c.id === catalogCategory)?.label}
                       </div>
                       <div className="space-y-2">
                         {DEVICE_CATALOG.filter((d) => d.category === catalogCategory).length === 0 ? (
@@ -1010,7 +995,6 @@ export default function PanelEditor() {
                               onClick={() => {
                                 setCatalogDevice(option)
                                 setActiveTab('editor')
-                                setCatalogCategory(null)
                               }}
                               className={`w-full rounded border p-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
                                 catalogDevice?.name === option.name
