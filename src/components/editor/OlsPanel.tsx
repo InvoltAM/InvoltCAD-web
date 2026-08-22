@@ -18,6 +18,16 @@ export default function OlsPanel() {
   const theme = useCadStore((s) => s.theme)
   const [, forceUpdate] = useState(0)
   const [leftTab, setLeftTab] = useState<'scheme' | 'table' | 'spec'>('scheme')
+  const [selectedElement, setSelectedElement] = useState<string | null>(null)
+
+  const OLS_ELEMENTS = [
+    { id: 'breaker', label: 'Автоматы', icon: 'automation' as const },
+    { id: 'contactor', label: 'Контакторы', icon: 'contactor' as const },
+    { id: 'rcd', label: 'УЗО', icon: 'automation' as const },
+    { id: 'dif', label: 'Дифы', icon: 'automation' as const },
+    { id: 'relay', label: 'Реле', icon: 'relay' as const },
+    { id: 'smartHome', label: 'УД', icon: 'smartHome' as const },
+  ]
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -163,6 +173,24 @@ export default function OlsPanel() {
               <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('spec') }} />
               <span>Спецификация щита</span>
             </button>
+
+            <div className="my-1 h-px w-full bg-gray-200 dark:bg-gray-600" />
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Элементы</div>
+            {OLS_ELEMENTS.map((el) => (
+              <button
+                key={el.id}
+                onClick={() => setSelectedElement((prev) => (prev === el.id ? null : el.id))}
+                className={`flex items-center gap-2 rounded border p-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                  selectedElement === el.id
+                    ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20'
+                    : 'border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800'
+                }`}
+                title={el.label}
+              >
+                <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon(el.icon) }} />
+                <span>{el.label}</span>
+              </button>
+            ))}
           </div>
 
           {/* Основная область */}
