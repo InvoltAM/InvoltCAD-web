@@ -1201,28 +1201,31 @@ function getDropTargetSection(
   excludeId?: string,
 ): { sectionIndex: number; rowIndex: number; index: number } | null {
   const HIT_MARGIN_X = 40
-  const HIT_MARGIN_Y = 8
-  let targetRail: PanelRow | null = null
-  let targetEl: HTMLDivElement | null = null
+  const HIT_MARGIN_Y = 40
+  const MAX_SNAP_DISTANCE = 120
+
+  // Собираем все рейки и выбираем ближайшую к курсору,
+  // чтобы можно было бросить блок на любую рейку, даже если курсор
+  // немного смещён от её границ.
+  type Candidate = { rail: PanelRow; el: HTMLDivElement; distance: number }
+  const candidates: Candidate[] = []
   for (const group of displayRowGroups) {
     for (const rail of group) {
       const el = rowRefs[rail.id]
       if (!el) continue
       const rect = el.getBoundingClientRect()
-      if (
-        clientX >= rect.left - HIT_MARGIN_X &&
-        clientX <= rect.right + HIT_MARGIN_X &&
-        clientY >= rect.top - HIT_MARGIN_Y &&
-        clientY <= rect.bottom + HIT_MARGIN_Y
-      ) {
-        targetRail = rail
-        targetEl = el
-        break
+      const clampedX = Math.max(rect.left - HIT_MARGIN_X, Math.min(clientX, rect.right + HIT_MARGIN_X))
+      const clampedY = Math.max(rect.top - HIT_MARGIN_Y, Math.min(clientY, rect.bottom + HIT_MARGIN_Y))
+      const distance = Math.hypot(clientX - clampedX, clientY - clampedY)
+      if (distance <= MAX_SNAP_DISTANCE) {
+        candidates.push({ rail, el, distance })
       }
     }
-    if (targetRail) break
   }
-  if (!targetRail || !targetEl) return null
+  if (candidates.length === 0) return null
+  candidates.sort((a, b) => a.distance - b.distance)
+  const targetRail = candidates[0]!.rail
+  const targetEl = candidates[0]!.el
 
   // Определяем позицию вставки по центрам устройств в DOM.
   // Когда центральная ось перетаскиваемого устройства пересекает
