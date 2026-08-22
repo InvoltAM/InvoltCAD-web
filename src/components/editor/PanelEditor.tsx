@@ -1300,11 +1300,8 @@ function moveIdInSection(
   const next = orders.map((sec) => sec.map((row) => [...row]))
   next[sourceSection][sourceRow].splice(sourceIndex, 1)
 
-  let insertRow = targetRow
+  const insertRow = targetRow
   let insertIndex = targetIndex
-  if (sourceSection === targetSection && sourceRow === targetRow && targetIndex > sourceIndex) {
-    insertIndex = targetIndex - 1
-  }
   while (!next[targetSection]) next.push([[]])
   while (next[targetSection].length <= insertRow) next[targetSection].push([])
   insertIndex = Math.max(0, Math.min(insertIndex, next[targetSection][insertRow].length))
