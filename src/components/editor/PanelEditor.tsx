@@ -654,10 +654,10 @@ export default function PanelEditor() {
             <button
               onClick={() => setActiveTab('basket')}
               className={`project-sidebar-btn ${activeTab === 'basket' ? 'active' : ''}`}
-              title="Корзина"
+              title="Набор"
             >
               <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('basket') }} />
-              <span className="project-sidebar-label">Корзина</span>
+              <span className="project-sidebar-label">Набор</span>
             </button>
           </div>
 
