@@ -17,7 +17,7 @@ export default function OlsPanel() {
   const setOpen = useCadStore((s) => s.setOlsOpen)
   const theme = useCadStore((s) => s.theme)
   const [, forceUpdate] = useState(0)
-  const [leftTab, setLeftTab] = useState<'scheme' | 'table'>('scheme')
+  const [leftTab, setLeftTab] = useState<'scheme' | 'table' | 'spec'>('scheme')
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -72,6 +72,21 @@ export default function OlsPanel() {
       rating: c.ratingA ?? 0,
       width: c.widthModules,
     }))
+  }, [board])
+
+  const specItems = useMemo(() => {
+    if (!board) return []
+    const map = new Map<string, { name: string; type: string; rating: number; width: number; count: number }>()
+    for (const c of board.components) {
+      const key = `${c.type}|${c.name}|${c.ratingA ?? 0}|${c.widthModules}`
+      const existing = map.get(key)
+      if (existing) {
+        existing.count++
+      } else {
+        map.set(key, { name: c.name, type: c.type, rating: c.ratingA ?? 0, width: c.widthModules, count: 1 })
+      }
+    }
+    return Array.from(map.values()).map((item, i) => ({ id: `${item.type}-${item.name}-${i}`, ...item }))
   }, [board])
 
   if (!open) return null
@@ -136,11 +151,23 @@ export default function OlsPanel() {
               <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('table') }} />
               <span>Таблица щита</span>
             </button>
+            <button
+              onClick={() => setLeftTab('spec')}
+              className={`flex items-center gap-2 rounded border p-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                leftTab === 'spec'
+                  ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20'
+                  : 'border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800'
+              }`}
+              title="Спецификация щита"
+            >
+              <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('spec') }} />
+              <span>Спецификация щита</span>
+            </button>
           </div>
 
           {/* Основная область */}
           <div className="flex-1 overflow-auto p-4">
-            {leftTab === 'scheme' ? (
+            {leftTab === 'scheme' && (
               svg ? (
                 <div className="min-h-full min-w-full" dangerouslySetInnerHTML={{ __html: svg }} />
               ) : (
@@ -149,7 +176,9 @@ export default function OlsPanel() {
                   <p className="text-sm">Сначала сгруппируйте потребителей в линии, затем нажмите «Автособрать щит».</p>
                 </div>
               )
-            ) : (
+            )}
+
+            {leftTab === 'table' && (
               <div className="space-y-3">
                 <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Таблица щита</div>
                 {tableItems.length === 0 ? (
@@ -175,6 +204,42 @@ export default function OlsPanel() {
                           <td className="py-1 pr-4">{d.type}</td>
                           <td className="py-1 pr-4">{d.rating > 0 ? d.rating : '—'}</td>
                           <td className="py-1 pr-4">{d.width}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+
+            {leftTab === 'spec' && (
+              <div className="space-y-3">
+                <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Спецификация щита</div>
+                {specItems.length === 0 ? (
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    Нет данных. Соберите щит через «Автособрать щит».
+                  </div>
+                ) : (
+                  <table className="w-full border-collapse text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-gray-600">
+                        <th className="py-1 pr-4">№</th>
+                        <th className="py-1 pr-4">Наименование</th>
+                        <th className="py-1 pr-4">Тип</th>
+                        <th className="py-1 pr-4">Iном, А</th>
+                        <th className="py-1 pr-4">Модули</th>
+                        <th className="py-1 pr-4">Кол-во</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {specItems.map((d, i) => (
+                        <tr key={d.id} className="border-b border-gray-100 dark:border-gray-700">
+                          <td className="py-1 pr-4">{i + 1}</td>
+                          <td className="py-1 pr-4">{d.name}</td>
+                          <td className="py-1 pr-4">{d.type}</td>
+                          <td className="py-1 pr-4">{d.rating > 0 ? d.rating : '—'}</td>
+                          <td className="py-1 pr-4">{d.width}</td>
+                          <td className="py-1 pr-4">{d.count}</td>
                         </tr>
                       ))}
                     </tbody>
