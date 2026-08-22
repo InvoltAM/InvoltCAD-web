@@ -736,13 +736,57 @@ export default function PanelEditor() {
             ))}
           </div>
 
+          {/* Узкая панель выбора устройств по категории */}
+          {activeTab === 'devices' && (
+            <div className="w-56 overflow-y-auto border-r border-gray-200 bg-white p-3 dark:border-gray-600 dark:bg-gray-800">
+              {catalogCategory === null ? (
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  Выберите категорию устройств на левой панели.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {PANEL_CATEGORIES.find((c) => c.id === catalogCategory)?.label}
+                  </div>
+                  <div className="space-y-2">
+                    {DEVICE_CATALOG.filter((d) => d.category === catalogCategory).length === 0 ? (
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        В этой категории пока нет устройств.
+                      </div>
+                    ) : (
+                      DEVICE_CATALOG.filter((d) => d.category === catalogCategory).map((option) => (
+                        <button
+                          key={option.name}
+                          onClick={() => {
+                            setCatalogDevice(option)
+                            setActiveTab('editor')
+                          }}
+                          className={`w-full rounded border p-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                            catalogDevice?.name === option.name
+                              ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20'
+                              : 'border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800'
+                          }`}
+                        >
+                          <div className="font-medium text-gray-900 dark:text-white">{option.name}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {option.baseWidth} модуль
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Основная область */}
           <div
             className="flex-1 overflow-auto rounded-bl-lg bg-gray-50 p-4 dark:bg-gray-900"
             style={{ position: 'relative' }}
           >
             <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
-              {activeTab === 'editor' && (
+              {(activeTab === 'editor' || activeTab === 'devices') && (
                 displayRowGroups.length > 0 ? (
                   <div className="space-y-4">
                     {catalogDevice && (
@@ -972,48 +1016,7 @@ export default function PanelEditor() {
                 </div>
               )}
 
-              {activeTab === 'devices' && (
-                <div className="space-y-3">
-                  {catalogCategory === null ? (
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      Выберите категорию устройств на левой панели.
-                    </div>
-                  ) : (
-                    <>
-                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {PANEL_CATEGORIES.find((c) => c.id === catalogCategory)?.label}
-                      </div>
-                      <div className="space-y-2">
-                        {DEVICE_CATALOG.filter((d) => d.category === catalogCategory).length === 0 ? (
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                            В этой категории пока нет устройств.
-                          </div>
-                        ) : (
-                          DEVICE_CATALOG.filter((d) => d.category === catalogCategory).map((option) => (
-                            <button
-                              key={option.name}
-                              onClick={() => {
-                                setCatalogDevice(option)
-                                setActiveTab('editor')
-                              }}
-                              className={`w-full rounded border p-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                                catalogDevice?.name === option.name
-                                  ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20'
-                                  : 'border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800'
-                              }`}
-                            >
-                              <div className="font-medium text-gray-900 dark:text-white">{option.name}</div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400">
-                                {option.baseWidth} модуль
-                              </div>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
+
             </div>
 
             <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1 shadow-sm dark:border-gray-600 dark:bg-gray-800">
