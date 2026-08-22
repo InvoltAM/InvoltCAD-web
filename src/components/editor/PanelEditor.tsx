@@ -121,9 +121,50 @@ export default function PanelEditor() {
   const [dragId, setDragId] = useState<string | null>(null)
   const [menuRowId, setMenuRowId] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
+  const [dialogSize, setDialogSize] = useState<{ width: number; height: number } | null>(null)
+  const [resizing, setResizing] = useState(false)
+  const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0 })
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const open = useCadStore((s) => s.panelEditorOpen)
   const setOpen = useCadStore((s) => s.setPanelEditorOpen)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    setDialogSize({
+      width: Math.min(window.innerWidth * 0.9, 1024),
+      height: window.innerHeight * 0.8,
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!resizing) return
+    const handleMove = (e: PointerEvent) => {
+      const { x, y, width, height } = resizeStartRef.current
+      const newWidth = Math.max(640, Math.min(window.innerWidth * 0.95, width + (e.clientX - x)))
+      const newHeight = Math.max(400, Math.min(window.innerHeight * 0.95, height + (e.clientY - y)))
+      setDialogSize({ width: newWidth, height: newHeight })
+    }
+    const handleUp = () => setResizing(false)
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp, { once: true })
+    return () => {
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', handleUp)
+    }
+  }, [resizing])
+
+  const handleResizeStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!dialogSize) return
+    setResizing(true)
+    resizeStartRef.current = { x: e.clientX, y: e.clientY, width: dialogSize.width, height: dialogSize.height }
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {
+      // ignore
+    }
+  }
 
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     if (!e.ctrlKey) return
@@ -507,7 +548,15 @@ export default function PanelEditor() {
   return (
     <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/35">
       <div
-        className="flex h-[80vh] w-[90vw] max-w-5xl flex-col rounded-lg bg-white dark:bg-gray-800"
+        className="relative flex flex-col overflow-hidden rounded-lg bg-white dark:bg-gray-800"
+        style={{
+          width: dialogSize?.width,
+          height: dialogSize?.height,
+          minWidth: 640,
+          minHeight: 400,
+          maxWidth: '95vw',
+          maxHeight: '95vh',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-600">
@@ -758,6 +807,17 @@ export default function PanelEditor() {
               </button>
             </div>
           </div>
+        </div>
+
+        <div
+          onPointerDown={handleResizeStart}
+          className="absolute bottom-1 right-1 z-20 cursor-nwse-resize text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          title="Изменить размер"
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M20 4 L20 20 L4 20" />
+            <path d="M20 10 L10 20" />
+          </svg>
         </div>
       </div>
     </div>
