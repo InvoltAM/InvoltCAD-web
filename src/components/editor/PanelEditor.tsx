@@ -9,9 +9,11 @@ import { generatePanelDevices, layoutPanel } from '@core/panels/panelModel'
 import { DistributionBoardData, BoardComponent } from '@core/electrical/BoardEngine'
 import { icon } from './icons'
 
-const MODULE_WIDTH = 40
-const MODULE_GAP = 4
+const MODULE_WIDTH = 18 // ширина одного модуля, мм
+const MODULE_GAP = 0 // зазор между модулями, мм
 const RAIL_MODULES = 12
+const RAIL_HEIGHT_MM = 40 // высота рейки, мм
+const RAIL_CENTER_SPACING_MM = 125 // расстояние между центральными осями реек, мм
 
 interface PanelDevice {
   id: string
@@ -710,7 +712,15 @@ export default function PanelEditor() {
                     )}
 
                     {displayRowGroups.map((rowGroup, rgIdx) => (
-                      <div key={rgIdx} className="space-y-2">
+                      <div
+                        key={rgIdx}
+                        style={{
+                          marginBottom:
+                            rgIdx === displayRowGroups.length - 1
+                              ? undefined
+                              : `${RAIL_CENTER_SPACING_MM - RAIL_HEIGHT_MM}mm`,
+                        }}
+                      >
                         <div className="flex items-center gap-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
                           <span>Рейка {rgIdx + 1}</span>
                           <button
@@ -728,7 +738,8 @@ export default function PanelEditor() {
                                 ref={(el) => {
                                   rowRefs.current[rail.id] = el
                                 }}
-                                className="flex min-h-[60px] gap-1 rounded border border-dashed border-transparent p-1 hover:border-gray-200 dark:hover:border-gray-600"
+                                className="flex items-center gap-0 rounded border border-dashed border-transparent p-1 hover:border-gray-200 dark:hover:border-gray-600"
+                                style={{ width: `${RAIL_MODULES * MODULE_WIDTH}mm`, height: `${RAIL_HEIGHT_MM}mm` }}
                                 data-row-id={rail.id}
                               >
                                 {rail.devices.map((device) => (
@@ -736,8 +747,8 @@ export default function PanelEditor() {
                                     key={device.id}
                                     data-device-id={device.id}
                                     onPointerDown={handlePointerDown(device.id)}
-                                    className={`group relative flex cursor-grab flex-col items-center justify-center rounded border p-2 text-center touch-none select-none ${device.color} ${dragId === device.id ? 'opacity-60' : ''}`}
-                                    style={{ width: `${device.width * MODULE_WIDTH + (device.width - 1) * MODULE_GAP}px` }}
+                                    className={`group relative flex h-full cursor-grab flex-col items-center justify-center rounded border px-0.5 py-1 text-center touch-none select-none ${device.color} ${dragId === device.id ? 'opacity-60' : ''}`}
+                                    style={{ width: `${device.width * MODULE_WIDTH + (device.width - 1) * MODULE_GAP}mm` }}
                                     title={`${device.name} (${device.rating}А)`}
                                   >
                                     <button
