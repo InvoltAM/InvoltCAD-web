@@ -111,15 +111,13 @@ export default function PanelEditor() {
   const [plan, setPlan] = useState<Plan | null>(null)
   const [activeTab, setActiveTab] = useState<'editor' | 'basket'>('editor')
   const [sections, setSections] = useState(1)
-  const [sectionOrders, setSectionOrders] = useState<string[][]>([])
+  const [sectionOrders, setSectionOrders] = useState<string[][][]>([])
   const [fallbackEdits, setFallbackEdits] = useState<{
     hidden: Set<string>
     custom: PanelDevice[]
     sections: number
-    sectionOrders: string[][]
+    sectionOrders: string[][][]
   } | null>(null)
-  const [extraRowIds, setExtraRowIds] = useState<string[]>([])
-  const nextExtraIdRef = useRef(0)
   const [dragId, setDragId] = useState<string | null>(null)
   const [menuRowId, setMenuRowId] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
@@ -268,23 +266,33 @@ export default function PanelEditor() {
   // Синхронизируем порядок компонентов с доской или fallback-генерацией.
   useEffect(() => {
     if (board) {
-      setSectionOrders([board.components.map((c) => c.id)])
+      setSectionOrders([
+        splitIntoRows(
+          board.components.map((c) => c.id),
+          board.components,
+          RAIL_MODULES,
+        ).map((row) => row.devices.map((d) => d.id)),
+      ])
       setFallbackEdits(null)
       return
     }
     if (!fallbackPanel) return
-    const baseIds = fallbackPanel.rows.flatMap((r) => r.devices.map((d) => d.id))
+    const baseRows = fallbackPanel.rows.map((r) => r.devices.map((d) => d.id))
     setFallbackEdits((prev) => {
-      const sectionOrders = prev?.sectionOrders ?? [baseIds]
+      const sectionOrders = prev?.sectionOrders ?? [baseRows]
       const hidden = prev?.hidden ?? new Set<string>()
       const custom = prev?.custom ?? []
-      const visibleOrder =
-        sectionOrders[0]?.filter(
+      const baseIds = baseRows.flat()
+      const visibleRows = sectionOrders[0]?.map((row) =>
+        row.filter(
           (id) => (baseIds.includes(id) || custom.some((d) => d.id === id)) && !hidden.has(id),
-        ) ?? []
-      const newIds = baseIds.filter((id) => !sectionOrders[0]?.includes(id))
+        ),
+      ) ?? [[]]
+      const visibleIds = new Set(visibleRows.flat())
+      const newIds = baseIds.filter((id) => !visibleIds.has(id))
+      // Новые устройства добавляем в первую рейку первого отсека.
       return {
-        sectionOrders: [[...visibleOrder, ...newIds]],
+        sectionOrders: [[[...visibleRows[0]!, ...newIds], ...visibleRows.slice(1)]],
         hidden,
         custom,
         sections: 1,
@@ -295,8 +303,6 @@ export default function PanelEditor() {
 
   // Сбрасываем добавленные пустые рейки и отсеки при смене источника данных.
   useEffect(() => {
-    setExtraRowIds([])
-    nextExtraIdRef.current = 0
     setSections(1)
   }, [board ? 'board' : 'fallback'])
 
@@ -326,45 +332,38 @@ export default function PanelEditor() {
 
   const rowGroups = useMemo<PanelRow[][]>(() => {
     if (board) {
-      return sectionOrders.map((order, s) =>
-        splitIntoRows(order, board.components, RAIL_MODULES).map((row, rowIndex) => ({
-          ...row,
+      const map = new Map(board.components.map((c) => [c.id, c]))
+      return sectionOrders.map((sectionRows, s) =>
+        sectionRows.map((rowIds, rowIndex) => ({
           id: `section-${s}-row-${rowIndex}`,
-          section: s,
           index: rowIndex,
+          section: s,
+          devices: rowIds
+            .map((id) => map.get(id))
+            .filter((comp): comp is BoardComponent => !!comp)
+            .map((comp) => ({
+              id: comp.id,
+              type: comp.type,
+              name: comp.name,
+              width: comp.widthModules,
+              rating: comp.ratingA ?? 0,
+              color: deviceColor(comp.type),
+            })),
         })),
       )
     }
-    if (!fallbackPanel || !fallbackEdits) return []
-    const visibleOrders = fallbackEdits.sectionOrders.map((order) =>
-      order.filter((id) => !fallbackEdits.hidden.has(id)),
-    )
-    const components = visibleOrders
-      .flat()
-      .map((id) => {
-        const d = fallbackDeviceMap.get(id)
-        if (!d) return null
-        const comp: BoardComponent = {
-          id: d.id,
-          type: d.type as BoardComponent['type'],
-          name: d.name,
-          widthModules: d.width,
-          ratingA: d.rating,
-          phase: 'L1',
-          circuitIds: [],
-        }
-        return comp
-      })
-      .filter((c): c is BoardComponent => !!c)
-    return visibleOrders.map((order, s) =>
-      splitIntoRows(order, components, RAIL_MODULES).map((row, rowIndex) => ({
-        ...row,
+    if (!fallbackEdits) return []
+    return fallbackEdits.sectionOrders.map((sectionRows, s) =>
+      sectionRows.map((rowIds, rowIndex) => ({
         id: `section-${s}-row-${rowIndex}`,
-        section: s,
         index: rowIndex,
+        section: s,
+        devices: rowIds
+          .map((id) => fallbackDeviceMap.get(id))
+          .filter((d): d is PanelDevice => !!d),
       })),
     )
-  }, [board, sectionOrders, fallbackPanel, fallbackEdits, fallbackDeviceMap])
+  }, [board, sectionOrders, fallbackEdits, fallbackDeviceMap])
 
   const displayRowGroups = useMemo<PanelRow[][]>(() => {
     const maxRows = Math.max(...rowGroups.map((g) => g.length), 0)
@@ -372,25 +371,12 @@ export default function PanelEditor() {
     for (let i = 0; i < maxRows; i++) {
       const group: PanelRow[] = []
       for (let s = 0; s < sections; s++) {
-        const row = rowGroups[s]?.[i]
-        if (row) {
-          group.push(row)
-        } else {
-          group.push({ id: `section-${s}-row-${i}`, index: i, section: s, devices: [] })
-        }
+        group.push(rowGroups[s]?.[i] ?? { id: `section-${s}-row-${i}`, index: i, section: s, devices: [] })
       }
       groups.push(group)
     }
-    extraRowIds.forEach((extraId, i) => {
-      const rowIndex = maxRows + i
-      const group: PanelRow[] = []
-      for (let s = 0; s < sections; s++) {
-        group.push({ id: `extra-${extraId}-section-${s}`, index: rowIndex, section: s, devices: [] })
-      }
-      groups.push(group)
-    })
     return groups
-  }, [rowGroups, sections, extraRowIds])
+  }, [rowGroups, sections])
 
   const displayRows = useMemo<PanelRow[]>(() => displayRowGroups.flat(), [displayRowGroups])
 
@@ -403,7 +389,7 @@ export default function PanelEditor() {
   // Синхронизируем порядок компонентов доски с sectionOrders.
   useEffect(() => {
     if (!board) return
-    const flatOrder = sectionOrders.flat()
+    const flatOrder = sectionOrders.flat(2)
     const map = new Map(board.components.map((c) => [c.id, c]))
     const next = flatOrder.map((id) => map.get(id)).filter((c): c is BoardComponent => !!c)
     board.components = next
@@ -417,7 +403,7 @@ export default function PanelEditor() {
       const comp = board.components.find((c) => c.id === deviceId)
       if (!comp) return
       if (!confirm(`Удалить «${comp.name}»?`)) return
-      setSectionOrders((prev) => prev.map((sec) => sec.filter((id) => id !== deviceId)))
+      setSectionOrders((prev) => prev.map((sec) => sec.map((row) => row.filter((id) => id !== deviceId))))
       board.components = board.components.filter((c) => c.id !== deviceId)
       engineRef.current?.notifyChanged()
       return
@@ -438,22 +424,26 @@ export default function PanelEditor() {
   }
 
   const handleDeleteRow = (rowGroupIndex: number, rowGroup: PanelRow[]) => {
-    const isExtra = rowGroup[0]?.id.startsWith('extra-') ?? false
-    if (isExtra) {
-      const match = rowGroup[0]!.id.match(/^extra-(.+?)-section-\d+$/)
-      const extraId = match?.[1]
-      if (extraId) {
-        setExtraRowIds((prev) => prev.filter((id) => id !== extraId))
+    const rowIndex = rowGroup[0]?.index ?? 0
+    const idsToRemove = new Set(rowGroup.flatMap((rail) => rail.devices.map((d) => d.id)))
+
+    if (idsToRemove.size === 0) {
+      // Удаляем пустую рейку из каждого отсека.
+      if (board) {
+        setSectionOrders((prev) => prev.map((sec) => sec.filter((_, idx) => idx !== rowIndex)))
+      } else if (fallbackEdits) {
+        setFallbackEdits((prev) => {
+          if (!prev) return null
+          return { ...prev, sectionOrders: prev.sectionOrders.map((sec) => sec.filter((_, idx) => idx !== rowIndex)) }
+        })
       }
       return
     }
 
-    const idsToRemove = new Set(rowGroup.flatMap((rail) => rail.devices.map((d) => d.id)))
-    if (idsToRemove.size === 0) return
     if (!confirm('Удалить все аппараты на этой рейке?')) return
 
     if (board) {
-      setSectionOrders((prev) => prev.map((sec) => sec.filter((id) => !idsToRemove.has(id))))
+      setSectionOrders((prev) => prev.map((sec) => sec.filter((_, idx) => idx !== rowIndex)))
       board.components = board.components.filter((c) => !idsToRemove.has(c.id))
       engineRef.current?.notifyChanged()
       return
@@ -465,7 +455,7 @@ export default function PanelEditor() {
       idsToRemove.forEach((id) => nextHidden.add(id))
       return {
         ...prev,
-        sectionOrders: prev.sectionOrders.map((sec) => sec.filter((id) => !idsToRemove.has(id))),
+        sectionOrders: prev.sectionOrders.map((sec) => sec.filter((_, idx) => idx !== rowIndex)),
         hidden: nextHidden,
         custom: prev.custom.filter((c) => !idsToRemove.has(c.id)),
       }
@@ -476,9 +466,9 @@ export default function PanelEditor() {
     if (sections <= 1) return
     let idsToRemove: string[] = []
     if (board) {
-      idsToRemove = sectionOrders[sectionIndex] ?? []
+      idsToRemove = sectionOrders[sectionIndex]?.flat(2) ?? []
     } else if (fallbackEdits) {
-      idsToRemove = fallbackEdits.sectionOrders[sectionIndex] ?? []
+      idsToRemove = fallbackEdits.sectionOrders[sectionIndex]?.flat(2) ?? []
     }
     if (idsToRemove.length > 0 && !confirm('Удалить все аппараты в отсеке?')) return
     const idsSet = new Set(idsToRemove)
@@ -512,15 +502,6 @@ export default function PanelEditor() {
   const handleAddDevice = (rowId: string, option: DeviceOption) => {
     const section = parseSectionFromRowId(rowId)
     const rowIndex = parseRowIndexFromRowId(rowId, rowGroups)
-    const sectionRows = rowGroups[section] ?? []
-    let insertIndex = 0
-    for (const row of sectionRows) {
-      if (row.index < rowIndex) {
-        insertIndex += row.devices.length
-      } else {
-        break
-      }
-    }
 
     const id = `device-${crypto.randomUUID()}`
     if (board) {
@@ -537,14 +518,21 @@ export default function PanelEditor() {
         phase: 'L1',
         circuitIds: [],
       }
-      const globalPos = sectionOrders.slice(0, section).reduce((sum, sec) => sum + sec.length, 0) + insertIndex
-      const next = [...board.components]
-      next.splice(globalPos, 0, comp)
-      board.components = next
       setSectionOrders((prev) => {
-        const nextOrders = prev.map((sec) => [...sec])
-        nextOrders[section]!.splice(insertIndex, 0, id)
-        return nextOrders
+        const next = prev.map((sec) => sec.map((row) => [...row]))
+        while (!next[section]) next.push([[]])
+        while (next[section].length <= rowIndex) next[section].push([])
+        next[section][rowIndex] = [...next[section][rowIndex]!, id]
+        // Пересчитываем глобальную позицию в board.components.
+        const globalPos =
+          next.slice(0, section).flat(2).length +
+          next[section].slice(0, rowIndex).flat().length +
+          next[section][rowIndex].length -
+          1
+        const nextComponents = [...board.components]
+        nextComponents.splice(globalPos, 0, comp)
+        board.components = nextComponents
+        return next
       })
       engineRef.current?.notifyChanged()
     } else if (fallbackEdits) {
@@ -559,9 +547,11 @@ export default function PanelEditor() {
       }
       setFallbackEdits((prev) => {
         if (!prev) return null
-        const nextOrders = prev.sectionOrders.map((sec) => [...sec])
-        nextOrders[section]!.splice(insertIndex, 0, id)
-        return { ...prev, sectionOrders: nextOrders, custom: [...prev.custom, customDevice] }
+        const next = prev.sectionOrders.map((sec) => sec.map((row) => [...row]))
+        while (!next[section]) next.push([[]])
+        while (next[section].length <= rowIndex) next[section].push([])
+        next[section][rowIndex] = [...next[section][rowIndex]!, id]
+        return { ...prev, sectionOrders: next, custom: [...prev.custom, customDevice] }
       })
     }
     setMenuRowId(null)
@@ -586,13 +576,13 @@ export default function PanelEditor() {
       const target = getDropTargetSection(e.clientX, e.clientY, displayRowGroups, rowRefs.current, dragId)
       if (!target) return
       if (board) {
-        setSectionOrders((prev) => moveIdInSection(prev, dragId, target.sectionIndex, target.index))
+        setSectionOrders((prev) => moveIdInSection(prev, dragId, target.sectionIndex, target.rowIndex, target.index))
       } else {
         setFallbackEdits((prev) => {
           if (!prev) return null
           return {
             ...prev,
-            sectionOrders: moveIdInSection(prev.sectionOrders, dragId, target.sectionIndex, target.index),
+            sectionOrders: moveIdInSection(prev.sectionOrders, dragId, target.sectionIndex, target.rowIndex, target.index),
           }
         })
       }
@@ -808,9 +798,16 @@ export default function PanelEditor() {
 
                     <div className="flex gap-2">
                       <button
-                        onClick={() =>
-                          setExtraRowIds((prev) => [...prev, String(nextExtraIdRef.current++)])
-                        }
+                        onClick={() => {
+                          if (board) {
+                            setSectionOrders((prev) => prev.map((sec) => [...sec, []]))
+                          } else if (fallbackEdits) {
+                            setFallbackEdits((prev) => {
+                              if (!prev) return null
+                              return { ...prev, sectionOrders: prev.sectionOrders.map((sec) => [...sec, []]) }
+                            })
+                          }
+                        }}
                         className="flex-1 rounded border border-dashed border-gray-300 py-2 text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700"
                       >
                         + Добавить рейку
@@ -959,7 +956,7 @@ function getDropTargetSection(
   displayRowGroups: PanelRow[][],
   rowRefs: Record<string, HTMLDivElement | null>,
   _dragId: string,
-): { sectionIndex: number; index: number } | null {
+): { sectionIndex: number; rowIndex: number; index: number } | null {
   let targetRail: PanelRow | null = null
   let targetEl: HTMLDivElement | null = null
   for (const group of displayRowGroups) {
@@ -988,54 +985,59 @@ function getDropTargetSection(
     index++
   }
 
-  let sectionOrderIndex = 0
-  const section = targetRail.section ?? 0
-  for (const group of displayRowGroups) {
-    const rail = group[section]
-    if (!rail) continue
-    if (rail.index < targetRail.index) {
-      sectionOrderIndex += rail.devices.length
-    } else if (rail.index === targetRail.index) {
-      sectionOrderIndex += index
-      break
-    }
-  }
-  return { sectionIndex: section, index: sectionOrderIndex }
+  return { sectionIndex: targetRail.section ?? 0, rowIndex: targetRail.index, index }
 }
 
 function moveIdInSection(
-  orders: string[][],
+  orders: string[][][],
   dragId: string,
   targetSection: number,
+  targetRow: number,
   targetIndex: number,
-): string[][] {
-  const sourceSection = orders.findIndex((sec) => sec.includes(dragId))
+): string[][][] {
+  let sourceSection = -1
+  let sourceRow = -1
+  let sourceIndex = -1
+  for (let s = 0; s < orders.length; s++) {
+    for (let r = 0; r < orders[s].length; r++) {
+      const idx = orders[s][r].indexOf(dragId)
+      if (idx !== -1) {
+        sourceSection = s
+        sourceRow = r
+        sourceIndex = idx
+        break
+      }
+    }
+    if (sourceSection !== -1) break
+  }
   if (sourceSection === -1) return orders
-  if (sourceSection === targetSection) {
-    const currentIndex = orders[sourceSection]!.indexOf(dragId)
-    if (targetIndex === currentIndex) return orders
+
+  const next = orders.map((sec) => sec.map((row) => [...row]))
+  next[sourceSection][sourceRow].splice(sourceIndex, 1)
+
+  let insertRow = targetRow
+  let insertIndex = targetIndex
+  if (sourceSection === targetSection && sourceRow === targetRow && targetIndex > sourceIndex) {
+    insertIndex = targetIndex - 1
   }
-  const next = orders.map((sec) => [...sec])
-  next[sourceSection] = next[sourceSection]!.filter((id) => id !== dragId)
-  let insertAt = targetIndex
-  if (sourceSection === targetSection) {
-    const currentIndex = orders[sourceSection]!.indexOf(dragId)
-    if (targetIndex > currentIndex) insertAt = targetIndex - 1
-  }
-  insertAt = Math.max(0, Math.min(insertAt, next[targetSection]!.length))
-  next[targetSection]!.splice(insertAt, 0, dragId)
+  while (!next[targetSection]) next.push([[]])
+  while (next[targetSection].length <= insertRow) next[targetSection].push([])
+  insertIndex = Math.max(0, Math.min(insertIndex, next[targetSection][insertRow].length))
+  next[targetSection][insertRow].splice(insertIndex, 0, dragId)
   return next
 }
 
-function adjustSectionOrders(orders: string[][], sections: number): string[][] {
+function adjustSectionOrders(orders: string[][][], sections: number): string[][][] {
   const current = orders.length
   if (sections > current) {
-    return [...orders, ...Array.from({ length: sections - current }, () => [])]
+    return [...orders, ...Array.from({ length: sections - current }, () => [[]])]
   }
   if (sections < current) {
-    const removed = orders.slice(sections).flat()
+    const removed = orders.slice(sections).flat(1)
     const next = orders.slice(0, sections)
-    next[0] = [...(next[0] ?? []), ...removed]
+    if (removed.length > 0) {
+      next[0] = [...next[0]!, ...removed]
+    }
     return next
   }
   return orders
@@ -1046,14 +1048,9 @@ function parseSectionFromRowId(rowId: string): number {
   return match ? parseInt(match[1]!, 10) : 0
 }
 
-function parseRowIndexFromRowId(rowId: string, rowGroups: PanelRow[][]): number {
+function parseRowIndexFromRowId(rowId: string, _rowGroups: PanelRow[][]): number {
   const rowMatch = rowId.match(/row-(\d+)/)
   if (rowMatch) return parseInt(rowMatch[1]!, 10)
-  const extraMatch = rowId.match(/extra-(\d+)/)
-  if (extraMatch) {
-    const maxRows = Math.max(...rowGroups.map((g) => g.length), 0)
-    return maxRows + parseInt(extraMatch[1]!, 10)
-  }
   return 0
 }
 
