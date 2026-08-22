@@ -616,8 +616,7 @@ export default function PanelEditor() {
   useEffect(() => {
     if (!dragId || !canDrag) return
     const handleMove = (e: PointerEvent) => {
-      const dropX = e.clientX - dragOffsetXRef.current + dragElWidthRef.current / 2
-      const target = getDropTargetSection(e.clientX, e.clientY, displayRowGroups, rowRefs.current, dropX, dragId)
+      const target = getDropTargetSection(e.clientX, e.clientY, displayRowGroups, rowRefs.current, e.clientX, dragId)
       if (!target) {
         setDropTarget(null)
         return
@@ -1223,21 +1222,27 @@ function getDropTargetSection(
   const deviceEls = Array.from(targetEl.querySelectorAll('[data-device-id]')).filter(
     (el) => el.getAttribute('data-device-id') !== excludeId,
   ) as HTMLElement[]
+  if (deviceEls.length === 0) {
+    return { sectionIndex: targetRail.section ?? 0, rowIndex: targetRail.index, index: 0 }
+  }
   const centers = deviceEls.map((el) => {
     const rect = el.getBoundingClientRect()
     return rect.left + rect.width / 2
+  })
+  const rights = deviceEls.map((el) => {
+    const rect = el.getBoundingClientRect()
+    return rect.right
   })
   const railRect = targetEl.getBoundingClientRect()
   const boundaries: number[] = []
   for (let i = 0; i < centers.length - 1; i++) {
     boundaries.push((centers[i] + centers[i + 1]) / 2)
   }
-  // Последний слот заканчивается правее самой рейки, чтобы было удобно
-  // бросать устройство в конец, даже если курсор немного за пределами рейки.
-  // Последний слот начинается у правого края рейки и простирается дальше
-  // (с учётом HIT_MARGIN_X в условии попадания), чтобы перетаскивание
-  // устройства за пределы последнего блока работало чувствительно.
-  boundaries.push(railRect.right)
+  // Последний слот начинается у правого края последнего устройства,
+  // чтобы перетаскивание за пределы последнего блока работало чувствительно,
+  // и продолжается за пределы рейки (с учётом HIT_MARGIN_X в условии попадания).
+  const lastRight = rights[rights.length - 1] ?? railRect.right
+  boundaries.push(lastRight)
 
   let index = boundaries.length
   for (let i = 0; i < boundaries.length; i++) {
