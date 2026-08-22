@@ -140,6 +140,7 @@ export default function PanelEditor() {
   } | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<{ rowId: string; index: number } | null>(null)
+  const [dragGhost, setDragGhost] = useState<{ device: PanelDevice; x: number; y: number } | null>(null)
   const [catalogDragOption, setCatalogDragOption] = useState<DeviceOption | null>(null)
   const [catalogDragPos, setCatalogDragPos] = useState<{ x: number; y: number } | null>(null)
   const [menuRowId, setMenuRowId] = useState<string | null>(null)
@@ -610,6 +611,8 @@ export default function PanelEditor() {
     } catch {
       // ignore
     }
+    const device = displayRows.flatMap((r) => r.devices).find((d) => d.id === deviceId)
+    setDragGhost(device ? { device, x: e.clientX, y: e.clientY } : null)
     setDragId(deviceId)
   }
 
@@ -617,6 +620,7 @@ export default function PanelEditor() {
     if (!dragId || !canDrag) return
     let lastTarget: { sectionIndex: number; rowIndex: number; index: number } | null = null
     const handleMove = (e: PointerEvent) => {
+      setDragGhost((prev) => (prev ? { ...prev, x: e.clientX, y: e.clientY } : null))
       const dropX = e.clientX - dragOffsetXRef.current + dragElWidthRef.current / 2
       const target = getDropTargetSection(e.clientX, e.clientY, displayRowGroups, rowRefs.current, dropX, dragId)
       if (!target) {
@@ -638,6 +642,7 @@ export default function PanelEditor() {
           // ignore
         }
       }
+      setDragGhost(null)
       if (lastTarget) {
         const { sectionIndex: targetSection, rowIndex: targetRow, index: targetIndex } = lastTarget
         if (board) {
@@ -956,8 +961,10 @@ export default function PanelEditor() {
                                       title={`${device.name} (${device.rating}А)`}
                                     >
                                       <button
-                                        onPointerDown={(e) => e.stopPropagation()}
-                                        onClick={() => handleDeleteDevice(device.id)}
+                                        onPointerDown={(e) => {
+                                          e.stopPropagation()
+                                          handleDeleteDevice(device.id)
+                                        }}
                                         className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] leading-none text-white opacity-0 hover:bg-red-600 group-hover:opacity-100"
                                         title="Удалить"
                                       >
@@ -1106,6 +1113,27 @@ export default function PanelEditor() {
               >
                 <span className="font-medium">{catalogDragOption.name}</span>
                 <span className="text-[10px] text-blue-700 dark:text-blue-200">{catalogDragOption.baseWidth} модуль</span>
+              </div>
+            )}
+
+            {dragGhost && (
+              <div
+                className={`pointer-events-none fixed z-[500] flex h-[80px] flex-col items-center justify-center rounded border px-0.5 py-1 text-center shadow-lg ${dragGhost.device.color}`}
+                style={{
+                  left: dragGhost.x - dragElWidthRef.current / 2,
+                  top: dragGhost.y - 40,
+                  width: `${dragGhost.device.width * MODULE_WIDTH + (dragGhost.device.width - 1) * MODULE_GAP}mm`,
+                }}
+              >
+                <div className="flex h-6 items-center justify-center text-gray-900 dark:text-white">
+                  <DeviceIcon type={dragGhost.device.type} />
+                </div>
+                <div className="text-[10px] text-gray-600 dark:text-gray-400">
+                  {dragGhost.device.rating > 0 ? `${dragGhost.device.rating}A` : ''}
+                </div>
+                <div className="mt-1 max-w-full truncate text-[9px] text-gray-500 dark:text-gray-400">
+                  {dragGhost.device.name}
+                </div>
               </div>
             )}
 
