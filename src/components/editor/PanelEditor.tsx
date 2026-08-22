@@ -124,6 +124,7 @@ export default function PanelEditor() {
   const [dialogSize, setDialogSize] = useState<{ width: number; height: number } | null>(null)
   const [dialogPos, setDialogPos] = useState<{ left: number; top: number } | null>(null)
   const [resizing, setResizing] = useState(false)
+  const [dragging, setDragging] = useState(false)
   const resizeStartRef = useRef({
     x: 0,
     y: 0,
@@ -133,6 +134,7 @@ export default function PanelEditor() {
     top: 0,
     corner: 'se' as 'se' | 'nw',
   })
+  const dragStartRef = useRef({ x: 0, y: 0, left: 0, top: 0 })
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const open = useCadStore((s) => s.panelEditorOpen)
   const setOpen = useCadStore((s) => s.setPanelEditorOpen)
@@ -177,6 +179,24 @@ export default function PanelEditor() {
     }
   }, [resizing])
 
+  useEffect(() => {
+    if (!dragging) return
+    const handleMove = (e: PointerEvent) => {
+      const { x, y, left, top } = dragStartRef.current
+      setDialogPos({
+        left: left + (e.clientX - x),
+        top: top + (e.clientY - y),
+      })
+    }
+    const handleUp = () => setDragging(false)
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp, { once: true })
+    return () => {
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', handleUp)
+    }
+  }, [dragging])
+
   const handleResizeStart = (corner: 'se' | 'nw') => (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
@@ -191,6 +211,19 @@ export default function PanelEditor() {
       top: dialogPos.top,
       corner,
     }
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {
+      // ignore
+    }
+  }
+
+  const handleDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('button')) return
+    e.preventDefault()
+    if (!dialogPos) return
+    setDragging(true)
+    dragStartRef.current = { x: e.clientX, y: e.clientY, left: dialogPos.left, top: dialogPos.top }
     try {
       e.currentTarget.setPointerCapture(e.pointerId)
     } catch {
@@ -593,10 +626,14 @@ export default function PanelEditor() {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-600">
+        <div
+          onPointerDown={handleDragStart}
+          className="flex cursor-move items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-600"
+        >
           <span className="text-lg font-semibold text-gray-900 dark:text-white">Визуализация щита</span>
           <button
             onClick={() => setOpen(false)}
+            onPointerDown={(e) => e.stopPropagation()}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
             ×
