@@ -120,9 +120,17 @@ export default function PanelEditor() {
   const nextExtraIdRef = useRef(0)
   const [dragId, setDragId] = useState<string | null>(null)
   const [menuRowId, setMenuRowId] = useState<string | null>(null)
+  const [zoom, setZoom] = useState(1)
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const open = useCadStore((s) => s.panelEditorOpen)
   const setOpen = useCadStore((s) => s.setPanelEditorOpen)
+
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (!e.ctrlKey) return
+    e.preventDefault()
+    const delta = e.deltaY > 0 ? -0.1 : 0.1
+    setZoom((z) => Math.min(3, Math.max(0.5, Number((z + delta).toFixed(2)))))
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -534,188 +542,221 @@ export default function PanelEditor() {
           </div>
 
           {/* Основная область */}
-          <div className="flex-1 overflow-auto rounded-bl-lg bg-gray-50 p-4 dark:bg-gray-900">
-            {activeTab === 'editor' ? (
-              displayRowGroups.length > 0 ? (
-                <div className="space-y-4">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Использовано модулей: {totalUsed} / {totalModules}
-                    {board && (
-                      <span className="ml-2">
-                        · {board.phases === 'three' ? '3-ф' : '1-ф'} · {board.voltage}В · {board.totalPowerW.toFixed(0)}Вт
-                      </span>
-                    )}
-                  </div>
+          <div
+            className="flex-1 overflow-auto rounded-bl-lg bg-gray-50 p-4 dark:bg-gray-900"
+            onWheel={handleWheel}
+            style={{ position: 'relative' }}
+          >
+            <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
+              {activeTab === 'editor' ? (
+                displayRowGroups.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Использовано модулей: {totalUsed} / {totalModules}
+                      {board && (
+                        <span className="ml-2">
+                          · {board.phases === 'three' ? '3-ф' : '1-ф'} · {board.voltage}В · {board.totalPowerW.toFixed(0)}Вт
+                        </span>
+                      )}
+                    </div>
 
-                  {sections > 1 && (
-                    <div className="flex gap-4">
-                      {Array.from({ length: sections }, (_, s) => (
-                        <div
-                          key={s}
-                          className="flex min-w-0 flex-1 items-center justify-center gap-1 text-center text-xs font-semibold text-gray-700 dark:text-gray-300"
-                        >
-                          <span>Отсек {s + 1}</span>
+                    {sections > 1 && (
+                      <div className="flex gap-4">
+                        {Array.from({ length: sections }, (_, s) => (
+                          <div
+                            key={s}
+                            className="flex min-w-0 flex-1 items-center justify-center gap-1 text-center text-xs font-semibold text-gray-700 dark:text-gray-300"
+                          >
+                            <span>Отсек {s + 1}</span>
+                            <button
+                              onClick={() => handleDeleteSection(s)}
+                              disabled={sections <= 1}
+                              className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] leading-none text-red-500 hover:bg-red-50 hover:text-red-600 disabled:text-gray-300 dark:hover:bg-red-900/20 dark:disabled:text-gray-600"
+                              title="Удалить отсек"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {displayRowGroups.map((rowGroup, rgIdx) => (
+                      <div key={rgIdx} className="space-y-2">
+                        <div className="flex items-center gap-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
+                          <span>Рейка {rgIdx + 1}</span>
                           <button
-                            onClick={() => handleDeleteSection(s)}
-                            disabled={sections <= 1}
-                            className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] leading-none text-red-500 hover:bg-red-50 hover:text-red-600 disabled:text-gray-300 dark:hover:bg-red-900/20 dark:disabled:text-gray-600"
-                            title="Удалить отсек"
+                            onClick={() => handleDeleteRow(rgIdx, rowGroup)}
+                            className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] leading-none text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+                            title="Удалить рейку"
                           >
                             ×
                           </button>
                         </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {displayRowGroups.map((rowGroup, rgIdx) => (
-                    <div key={rgIdx} className="space-y-2">
-                      <div className="flex items-center gap-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
-                        <span>Рейка {rgIdx + 1}</span>
-                        <button
-                          onClick={() => handleDeleteRow(rgIdx, rowGroup)}
-                          className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] leading-none text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
-                          title="Удалить рейку"
-                        >
-                          ×
-                        </button>
-                      </div>
-                      <div className="flex gap-4">
-                        {rowGroup.map((rail) => (
-                          <div key={rail.id} className="min-w-0 flex-1">
-                            <div
-                              ref={(el) => {
-                                rowRefs.current[rail.id] = el
-                              }}
-                              className="flex min-h-[60px] gap-1 rounded border border-dashed border-transparent p-1 hover:border-gray-200 dark:hover:border-gray-600"
-                              data-row-id={rail.id}
-                            >
-                              {rail.devices.map((device) => (
-                                <div
-                                  key={device.id}
-                                  data-device-id={device.id}
-                                  onPointerDown={handlePointerDown(device.id)}
-                                  className={`group relative flex cursor-grab flex-col items-center justify-center rounded border p-2 text-center touch-none select-none ${device.color} ${dragId === device.id ? 'opacity-60' : ''}`}
-                                  style={{ width: `${device.width * MODULE_WIDTH + (device.width - 1) * MODULE_GAP}px` }}
-                                  title={`${device.name} (${device.rating}А)`}
-                                >
-                                  <button
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                    onClick={() => handleDeleteDevice(device.id)}
-                                    className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] leading-none text-white opacity-0 hover:bg-red-600 group-hover:opacity-100"
-                                    title="Удалить"
+                        <div className="flex gap-4">
+                          {rowGroup.map((rail) => (
+                            <div key={rail.id} className="min-w-0 flex-1">
+                              <div
+                                ref={(el) => {
+                                  rowRefs.current[rail.id] = el
+                                }}
+                                className="flex min-h-[60px] gap-1 rounded border border-dashed border-transparent p-1 hover:border-gray-200 dark:hover:border-gray-600"
+                                data-row-id={rail.id}
+                              >
+                                {rail.devices.map((device) => (
+                                  <div
+                                    key={device.id}
+                                    data-device-id={device.id}
+                                    onPointerDown={handlePointerDown(device.id)}
+                                    className={`group relative flex cursor-grab flex-col items-center justify-center rounded border p-2 text-center touch-none select-none ${device.color} ${dragId === device.id ? 'opacity-60' : ''}`}
+                                    style={{ width: `${device.width * MODULE_WIDTH + (device.width - 1) * MODULE_GAP}px` }}
+                                    title={`${device.name} (${device.rating}А)`}
                                   >
-                                    ×
-                                  </button>
-                                  <div className="flex h-6 items-center justify-center text-gray-900 dark:text-white">
-                                    <DeviceIcon type={device.type} />
-                                  </div>
-                                  <div className="text-[10px] text-gray-600 dark:text-gray-400">
-                                    {device.rating > 0 ? `${device.rating}A` : ''}
-                                  </div>
-                                  <div className="mt-1 max-w-full truncate text-[9px] text-gray-500 dark:text-gray-400">
-                                    {device.name}
-                                  </div>
-                                </div>
-                              ))}
-
-                              <div className="relative ml-1 self-stretch">
-                                <button
-                                  onClick={() => setMenuRowId(rail.id)}
-                                  className="flex h-full w-8 flex-none items-center justify-center rounded border border-dashed border-gray-300 text-sm text-gray-500 hover:border-gray-400 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:bg-gray-700"
-                                  title="Добавить аппарат"
-                                >
-                                  +
-                                </button>
-                                {menuRowId === rail.id && (
-                                  <>
-                                    <div
-                                      className="fixed inset-0 z-[410]"
-                                      onClick={() => setMenuRowId(null)}
-                                    />
-                                    <div className="absolute left-0 top-full z-[420] mt-1 w-56 rounded border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-600 dark:bg-gray-800">
-                                      {DEVICE_CATALOG.map((option) => (
-                                        <button
-                                          key={option.name}
-                                          onClick={() => handleAddDevice(rail.id, option)}
-                                          className="w-full rounded px-2 py-1 text-left text-xs text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                                        >
-                                          {option.name}
-                                        </button>
-                                      ))}
+                                    <button
+                                      onPointerDown={(e) => e.stopPropagation()}
+                                      onClick={() => handleDeleteDevice(device.id)}
+                                      className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] leading-none text-white opacity-0 hover:bg-red-600 group-hover:opacity-100"
+                                      title="Удалить"
+                                    >
+                                      ×
+                                    </button>
+                                    <div className="flex h-6 items-center justify-center text-gray-900 dark:text-white">
+                                      <DeviceIcon type={device.type} />
                                     </div>
-                                  </>
-                                )}
+                                    <div className="text-[10px] text-gray-600 dark:text-gray-400">
+                                      {device.rating > 0 ? `${device.rating}A` : ''}
+                                    </div>
+                                    <div className="mt-1 max-w-full truncate text-[9px] text-gray-500 dark:text-gray-400">
+                                      {device.name}
+                                    </div>
+                                  </div>
+                                ))}
+
+                                <div className="relative ml-1 self-stretch">
+                                  <button
+                                    onClick={() => setMenuRowId(rail.id)}
+                                    className="flex h-full w-8 flex-none items-center justify-center rounded border border-dashed border-gray-300 text-sm text-gray-500 hover:border-gray-400 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:bg-gray-700"
+                                    title="Добавить аппарат"
+                                  >
+                                    +
+                                  </button>
+                                  {menuRowId === rail.id && (
+                                    <>
+                                      <div
+                                        className="fixed inset-0 z-[410]"
+                                        onClick={() => setMenuRowId(null)}
+                                      />
+                                      <div className="absolute left-0 top-full z-[420] mt-1 w-56 rounded border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-600 dark:bg-gray-800">
+                                        {DEVICE_CATALOG.map((option) => (
+                                          <button
+                                            key={option.name}
+                                            onClick={() => handleAddDevice(rail.id, option)}
+                                            className="w-full rounded px-2 py-1 text-left text-xs text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                          >
+                                            {option.name}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
                               </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() =>
+                          setExtraRowIds((prev) => [...prev, String(nextExtraIdRef.current++)])
+                        }
+                        className="flex-1 rounded border border-dashed border-gray-300 py-2 text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700"
+                      >
+                        + Добавить рейку
+                      </button>
+                      <button
+                        onClick={() => setSections((n) => n + 1)}
+                        className="flex-1 rounded border border-dashed border-gray-300 py-2 text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700"
+                      >
+                        + Добавить отсек
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
+                    Нет данных для визуализации щита
+                  </div>
+                )
+              ) : (
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Элементы щита из однолинейной схемы
+                  </div>
+                  {components.length === 0 ? (
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      Нет элементов. Соберите щит из однолинейной схемы (ОЛС → Автособрать щит).
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        {components.map((comp) => (
+                          <div
+                            key={comp.id}
+                            className="rounded border border-gray-200 bg-white p-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                          >
+                            <div className="font-medium text-gray-900 dark:text-white">{comp.name}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {comp.type === 'input-breaker'
+                                ? 'Вводной автомат'
+                                : comp.type === 'breaker'
+                                  ? 'Автомат'
+                                  : comp.type === 'rcd'
+                                    ? 'УЗО'
+                                    : comp.type === 'bus'
+                                      ? 'Шина'
+                                      : comp.type}{' '}
+                              · {comp.widthModules} модуля
                             </div>
                           </div>
                         ))}
                       </div>
-                    </div>
-                  ))}
+                      <div className="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-gray-600 dark:text-gray-400">
+                        Всего: {components.reduce((s, c) => s + c.widthModules, 0)} модулей
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
 
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() =>
-                        setExtraRowIds((prev) => [...prev, String(nextExtraIdRef.current++)])
-                      }
-                      className="flex-1 rounded border border-dashed border-gray-300 py-2 text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700"
-                    >
-                      + Добавить рейку
-                    </button>
-                    <button
-                      onClick={() => setSections((n) => n + 1)}
-                      className="flex-1 rounded border border-dashed border-gray-300 py-2 text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700"
-                    >
-                      + Добавить отсек
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
-                  Нет данных для визуализации щита
-                </div>
-              )
-            ) : (
-              <div className="space-y-3">
-                <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Элементы щита из однолинейной схемы
-                </div>
-                {components.length === 0 ? (
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    Нет элементов. Соберите щит из однолинейной схемы (ОЛС → Автособрать щит).
-                  </div>
-                ) : (
-                  <>
-                    <div className="space-y-2">
-                      {components.map((comp) => (
-                        <div
-                          key={comp.id}
-                          className="rounded border border-gray-200 bg-white p-2 text-sm dark:border-gray-600 dark:bg-gray-800"
-                        >
-                          <div className="font-medium text-gray-900 dark:text-white">{comp.name}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {comp.type === 'input-breaker'
-                              ? 'Вводной автомат'
-                              : comp.type === 'breaker'
-                                ? 'Автомат'
-                                : comp.type === 'rcd'
-                                  ? 'УЗО'
-                                  : comp.type === 'bus'
-                                    ? 'Шина'
-                                    : comp.type}{' '}
-                            · {comp.widthModules} модуля
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-gray-600 dark:text-gray-400">
-                      Всего: {components.reduce((s, c) => s + c.widthModules, 0)} модулей
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
+            <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1 shadow-sm dark:border-gray-600 dark:bg-gray-800">
+              <button
+                onClick={() => setZoom((z) => Math.max(0.5, Number((z - 0.1).toFixed(2))))}
+                className="flex h-7 w-7 items-center justify-center rounded text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                title="Уменьшить"
+              >
+                −
+              </button>
+              <span className="min-w-[3rem] text-center text-xs text-gray-700 dark:text-gray-300">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                onClick={() => setZoom((z) => Math.min(3, Number((z + 0.1).toFixed(2))))}
+                className="flex h-7 w-7 items-center justify-center rounded text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                title="Увеличить"
+              >
+                +
+              </button>
+              <button
+                onClick={() => setZoom(1)}
+                className="flex h-7 w-7 items-center justify-center rounded text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                title="Сбросить масштаб"
+              >
+                ↺
+              </button>
+            </div>
           </div>
         </div>
       </div>
