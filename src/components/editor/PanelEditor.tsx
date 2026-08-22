@@ -140,6 +140,8 @@ export default function PanelEditor() {
   } | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<{ rowId: string; index: number } | null>(null)
+  const [catalogDragOption, setCatalogDragOption] = useState<DeviceOption | null>(null)
+  const [catalogDragPos, setCatalogDragPos] = useState<{ x: number; y: number } | null>(null)
   const [menuRowId, setMenuRowId] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
   const [dialogSize, setDialogSize] = useState<{ width: number; height: number } | null>(null)
@@ -418,6 +420,10 @@ export default function PanelEditor() {
   }, [sectionOrders, board, engineRef])
 
   const dragElRef = useRef<HTMLElement | null>(null)
+  const dragOffsetXRef = useRef(0)
+  const dragElWidthRef = useRef(0)
+  const catalogDragStartRef = useRef<{ x: number; y: number; option: DeviceOption } | null>(null)
+  const catalogDragMovedRef = useRef(false)
 
   const handleDeleteDevice = (deviceId: string) => {
     if (board) {
@@ -520,7 +526,7 @@ export default function PanelEditor() {
 
   const canDrag = board || fallbackEdits !== null
 
-  const handleAddDevice = (rowId: string, option: DeviceOption) => {
+  const handleAddDevice = (rowId: string, option: DeviceOption, insertIndex?: number) => {
     const section = parseSectionFromRowId(rowId)
     const rowIndex = parseRowIndexFromRowId(rowId, rowGroups)
 
@@ -553,13 +559,14 @@ export default function PanelEditor() {
         const next = prev.map((sec) => sec.map((row) => [...row]))
         while (!next[section]) next.push([[]])
         while (next[section].length <= rowIndex) next[section].push([])
-        next[section][rowIndex] = [...next[section][rowIndex]!, id]
+        const row = next[section][rowIndex]!
+        const idx = insertIndex != null && insertIndex >= 0 && insertIndex <= row.length ? insertIndex : row.length
+        row.splice(idx, 0, id)
         // Пересчитываем глобальную позицию в board.components.
         const globalPos =
           next.slice(0, section).flat(2).length +
           next[section].slice(0, rowIndex).flat().length +
-          next[section][rowIndex].length -
-          1
+          idx
         const nextComponents = [...board.components]
         nextComponents.splice(globalPos, 0, comp)
         board.components = nextComponents
@@ -581,7 +588,9 @@ export default function PanelEditor() {
         const next = prev.sectionOrders.map((sec) => sec.map((row) => [...row]))
         while (!next[section]) next.push([[]])
         while (next[section].length <= rowIndex) next[section].push([])
-        next[section][rowIndex] = [...next[section][rowIndex]!, id]
+        const row = next[section][rowIndex]!
+        const idx = insertIndex != null && insertIndex >= 0 && insertIndex <= row.length ? insertIndex : row.length
+        row.splice(idx, 0, id)
         return { ...prev, sectionOrders: next, custom: [...prev.custom, customDevice] }
       })
     }
@@ -593,6 +602,9 @@ export default function PanelEditor() {
     e.preventDefault()
     const el = e.currentTarget as HTMLElement
     dragElRef.current = el
+    const rect = el.getBoundingClientRect()
+    dragOffsetXRef.current = e.clientX - rect.left
+    dragElWidthRef.current = rect.width
     try {
       el.setPointerCapture(e.pointerId)
     } catch {
@@ -604,7 +616,8 @@ export default function PanelEditor() {
   useEffect(() => {
     if (!dragId || !canDrag) return
     const handleMove = (e: PointerEvent) => {
-      const target = getDropTargetSection(e.clientX, e.clientY, displayRowGroups, rowRefs.current, dragId)
+      const dropX = e.clientX - dragOffsetXRef.current + dragElWidthRef.current / 2
+      const target = getDropTargetSection(e.clientX, e.clientY, displayRowGroups, rowRefs.current, dropX, dragId)
       if (!target) {
         setDropTarget(null)
         return
@@ -665,6 +678,54 @@ export default function PanelEditor() {
       window.removeEventListener('pointerup', handleUp)
     }
   }, [dragId, canDrag, board, displayRowGroups])
+
+  useEffect(() => {
+    if (!catalogDragOption || !catalogDragStartRef.current) return
+    const start = catalogDragStartRef.current
+    const handleMove = (e: PointerEvent) => {
+      setCatalogDragPos({ x: e.clientX, y: e.clientY })
+      const dx = e.clientX - start.x
+      const dy = e.clientY - start.y
+      if (Math.hypot(dx, dy) > 5) {
+        catalogDragMovedRef.current = true
+      }
+      if (!catalogDragMovedRef.current) return
+      const target = getDropTargetSection(e.clientX, e.clientY, displayRowGroups, rowRefs.current, e.clientX)
+      if (!target) {
+        setDropTarget(null)
+        return
+      }
+      const targetRail = displayRowGroups[target.rowIndex]?.[target.sectionIndex]
+      if (targetRail) {
+        setDropTarget({ rowId: targetRail.id, index: target.index })
+      }
+    }
+    const handleUp = (e: PointerEvent) => {
+      setCatalogDragPos(null)
+      setDropTarget(null)
+      if (catalogDragMovedRef.current) {
+        const target = getDropTargetSection(e.clientX, e.clientY, displayRowGroups, rowRefs.current, e.clientX)
+        if (target) {
+          const targetRail = displayRowGroups[target.rowIndex]?.[target.sectionIndex]
+          if (targetRail) {
+            handleAddDevice(targetRail.id, catalogDragOption, target.index)
+          }
+        }
+      } else {
+        setCatalogDevice(catalogDragOption)
+        setActiveTab('editor')
+      }
+      setCatalogDragOption(null)
+      catalogDragMovedRef.current = false
+      catalogDragStartRef.current = null
+    }
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp, { once: true })
+    return () => {
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', handleUp)
+    }
+  }, [catalogDragOption, displayRowGroups, board])
 
   if (!open) return null
 
@@ -757,15 +818,23 @@ export default function PanelEditor() {
                       DEVICE_CATALOG.filter((d) => d.category === catalogCategory).map((option) => (
                         <button
                           key={option.name}
-                          onClick={() => {
-                            setCatalogDevice(option)
-                            setActiveTab('editor')
+                          onPointerDown={(e) => {
+                            e.preventDefault()
+                            try {
+                              e.currentTarget.setPointerCapture(e.pointerId)
+                            } catch {
+                              // ignore
+                            }
+                            catalogDragStartRef.current = { x: e.clientX, y: e.clientY, option }
+                            setCatalogDragOption(option)
+                            setCatalogDragPos({ x: e.clientX, y: e.clientY })
                           }}
-                          className={`w-full rounded border p-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                          className={`w-full rounded border p-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 cursor-grab ${
                             catalogDevice?.name === option.name
                               ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20'
                               : 'border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800'
                           }`}
+                          title="Перетащите на рейку или кликните для выбора"
                         >
                           <div className="font-medium text-gray-900 dark:text-white">{option.name}</div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -1019,6 +1088,20 @@ export default function PanelEditor() {
 
             </div>
 
+            {catalogDragOption && catalogDragPos && (
+              <div
+                className="pointer-events-none fixed z-[500] flex flex-col items-center justify-center rounded border border-blue-400 bg-blue-50 px-2 py-1 text-xs text-blue-900 shadow-lg dark:border-blue-500 dark:bg-blue-900/40 dark:text-blue-100"
+                style={{
+                  left: catalogDragPos.x + 12,
+                  top: catalogDragPos.y - 12,
+                  minWidth: `${catalogDragOption.baseWidth * MODULE_WIDTH}mm`,
+                }}
+              >
+                <span className="font-medium">{catalogDragOption.name}</span>
+                <span className="text-[10px] text-blue-700 dark:text-blue-200">{catalogDragOption.baseWidth} модуль</span>
+              </div>
+            )}
+
             <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1 shadow-sm dark:border-gray-600 dark:bg-gray-800">
               <button
                 onClick={() => setZoom((z) => Math.max(0.5, Number((z - 0.1).toFixed(2))))}
@@ -1107,7 +1190,8 @@ function getDropTargetSection(
   clientY: number,
   displayRowGroups: PanelRow[][],
   rowRefs: Record<string, HTMLDivElement | null>,
-  dragId: string,
+  dropX: number,
+  excludeId?: string,
 ): { sectionIndex: number; rowIndex: number; index: number } | null {
   let targetRail: PanelRow | null = null
   let targetEl: HTMLDivElement | null = null
@@ -1129,12 +1213,12 @@ function getDropTargetSection(
   // Определяем позицию вставки по центрам устройств в DOM, а не по MODULE_WIDTH,
   // чтобы не расходиться с фактическим рендером (width задан в mm).
   const deviceEls = Array.from(targetEl.querySelectorAll('[data-device-id]')).filter(
-    (el) => el.getAttribute('data-device-id') !== dragId,
+    (el) => el.getAttribute('data-device-id') !== excludeId,
   ) as HTMLElement[]
   let index = 0
   for (const deviceEl of deviceEls) {
     const rect = deviceEl.getBoundingClientRect()
-    if (clientX < rect.left + rect.width / 2) break
+    if (dropX < rect.left + rect.width / 2) break
     index++
   }
 
