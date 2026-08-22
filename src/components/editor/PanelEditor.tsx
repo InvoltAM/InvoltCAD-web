@@ -615,47 +615,19 @@ export default function PanelEditor() {
 
   useEffect(() => {
     if (!dragId || !canDrag) return
+    let lastTarget: { sectionIndex: number; rowIndex: number; index: number } | null = null
     const handleMove = (e: PointerEvent) => {
-      const target = getDropTargetSection(e.clientX, e.clientY, displayRowGroups, rowRefs.current, e.clientX, dragId)
+      const dropX = e.clientX - dragOffsetXRef.current + dragElWidthRef.current / 2
+      const target = getDropTargetSection(e.clientX, e.clientY, displayRowGroups, rowRefs.current, dropX, dragId)
       if (!target) {
         setDropTarget(null)
+        lastTarget = null
         return
       }
+      lastTarget = target
       const targetRail = displayRowGroups[target.rowIndex]?.[target.sectionIndex]
       if (targetRail) {
         setDropTarget({ rowId: targetRail.id, index: target.index })
-      }
-      if (board) {
-        setSectionOrders((prev) => {
-          const next = moveIdInSection(prev, dragId, target.sectionIndex, target.rowIndex, target.index)
-          const widthMap = new Map(board.components.map((c) => [c.id, c.widthModules]))
-          for (let s = 0; s < next.length; s++) {
-            for (let r = 0; r < next[s].length; r++) {
-              const rowWidth = next[s][r].reduce((sum, id) => sum + (widthMap.get(id) ?? 0), 0)
-              if (rowWidth > RAIL_MODULES) return prev
-            }
-          }
-          return next
-        })
-      } else {
-        setFallbackEdits((prev) => {
-          if (!prev) return null
-          const next = {
-            ...prev,
-            sectionOrders: moveIdInSection(prev.sectionOrders, dragId, target.sectionIndex, target.rowIndex, target.index),
-          }
-          for (let s = 0; s < next.sectionOrders.length; s++) {
-            for (let r = 0; r < next.sectionOrders[s].length; r++) {
-              const rowWidth = next.sectionOrders[s][r].reduce((sum, id) => {
-                if (prev.hidden.has(id)) return sum
-                const d = fallbackDeviceMap.get(id)
-                return sum + (d?.width ?? 0)
-              }, 0)
-              if (rowWidth > RAIL_MODULES) return prev
-            }
-          }
-          return next
-        })
       }
     }
     const handleUp = (e: PointerEvent) => {
@@ -666,9 +638,45 @@ export default function PanelEditor() {
           // ignore
         }
       }
+      if (lastTarget) {
+        const { sectionIndex: targetSection, rowIndex: targetRow, index: targetIndex } = lastTarget
+        if (board) {
+          setSectionOrders((prev) => {
+            const next = moveIdInSection(prev, dragId, targetSection, targetRow, targetIndex)
+            const widthMap = new Map(board.components.map((c) => [c.id, c.widthModules]))
+            for (let s = 0; s < next.length; s++) {
+              for (let r = 0; r < next[s].length; r++) {
+                const rowWidth = next[s][r].reduce((sum, id) => sum + (widthMap.get(id) ?? 0), 0)
+                if (rowWidth > RAIL_MODULES) return prev
+              }
+            }
+            return next
+          })
+        } else {
+          setFallbackEdits((prev) => {
+            if (!prev) return null
+            const next = {
+              ...prev,
+              sectionOrders: moveIdInSection(prev.sectionOrders, dragId, targetSection, targetRow, targetIndex),
+            }
+            for (let s = 0; s < next.sectionOrders.length; s++) {
+              for (let r = 0; r < next.sectionOrders[s].length; r++) {
+                const rowWidth = next.sectionOrders[s][r].reduce((sum, id) => {
+                  if (prev.hidden.has(id)) return sum
+                  const d = fallbackDeviceMap.get(id)
+                  return sum + (d?.width ?? 0)
+                }, 0)
+                if (rowWidth > RAIL_MODULES) return prev
+              }
+            }
+            return next
+          })
+        }
+      }
       dragElRef.current = null
       setDragId(null)
       setDropTarget(null)
+      lastTarget = null
     }
     window.addEventListener('pointermove', handleMove)
     window.addEventListener('pointerup', handleUp, { once: true })
@@ -1216,40 +1224,17 @@ function getDropTargetSection(
   }
   if (!targetRail || !targetEl) return null
 
-  // Определяем позицию вставки по слотам между устройствами.
-  // Каждый слот шире, чем просто центр устройства, что упрощает
-  // перетаскивание блока за пределы последнего устройства и между соседними.
+  // Определяем позицию вставки по центрам устройств в DOM.
+  // Когда центральная ось перетаскиваемого устройства пересекает
+  // центральную ось другого устройства, блок перемещается на соответствующую сторону.
   const deviceEls = Array.from(targetEl.querySelectorAll('[data-device-id]')).filter(
     (el) => el.getAttribute('data-device-id') !== excludeId,
   ) as HTMLElement[]
-  if (deviceEls.length === 0) {
-    return { sectionIndex: targetRail.section ?? 0, rowIndex: targetRail.index, index: 0 }
-  }
-  const centers = deviceEls.map((el) => {
-    const rect = el.getBoundingClientRect()
-    return rect.left + rect.width / 2
-  })
-  const rights = deviceEls.map((el) => {
-    const rect = el.getBoundingClientRect()
-    return rect.right
-  })
-  const railRect = targetEl.getBoundingClientRect()
-  const boundaries: number[] = []
-  for (let i = 0; i < centers.length - 1; i++) {
-    boundaries.push((centers[i] + centers[i + 1]) / 2)
-  }
-  // Последний слот начинается у правого края последнего устройства,
-  // чтобы перетаскивание за пределы последнего блока работало чувствительно,
-  // и продолжается за пределы рейки (с учётом HIT_MARGIN_X в условии попадания).
-  const lastRight = rights[rights.length - 1] ?? railRect.right
-  boundaries.push(lastRight)
-
-  let index = boundaries.length
-  for (let i = 0; i < boundaries.length; i++) {
-    if (dropX < boundaries[i]) {
-      index = i
-      break
-    }
+  let index = 0
+  for (const deviceEl of deviceEls) {
+    const rect = deviceEl.getBoundingClientRect()
+    if (dropX < rect.left + rect.width / 2) break
+    index++
   }
 
   return { sectionIndex: targetRail.section ?? 0, rowIndex: targetRail.index, index }
