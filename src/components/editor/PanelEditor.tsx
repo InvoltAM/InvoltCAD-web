@@ -1193,6 +1193,8 @@ function getDropTargetSection(
   dropX: number,
   excludeId?: string,
 ): { sectionIndex: number; rowIndex: number; index: number } | null {
+  const HIT_MARGIN_X = 40
+  const HIT_MARGIN_Y = 8
   let targetRail: PanelRow | null = null
   let targetEl: HTMLDivElement | null = null
   for (const group of displayRowGroups) {
@@ -1200,7 +1202,12 @@ function getDropTargetSection(
       const el = rowRefs[rail.id]
       if (!el) continue
       const rect = el.getBoundingClientRect()
-      if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+      if (
+        clientX >= rect.left - HIT_MARGIN_X &&
+        clientX <= rect.right + HIT_MARGIN_X &&
+        clientY >= rect.top - HIT_MARGIN_Y &&
+        clientY <= rect.bottom + HIT_MARGIN_Y
+      ) {
         targetRail = rail
         targetEl = el
         break
@@ -1210,16 +1217,34 @@ function getDropTargetSection(
   }
   if (!targetRail || !targetEl) return null
 
-  // Определяем позицию вставки по центрам устройств в DOM, а не по MODULE_WIDTH,
-  // чтобы не расходиться с фактическим рендером (width задан в mm).
+  // Определяем позицию вставки по слотам между устройствами.
+  // Каждый слот шире, чем просто центр устройства, что упрощает
+  // перетаскивание блока за пределы последнего устройства и между соседними.
   const deviceEls = Array.from(targetEl.querySelectorAll('[data-device-id]')).filter(
     (el) => el.getAttribute('data-device-id') !== excludeId,
   ) as HTMLElement[]
-  let index = 0
-  for (const deviceEl of deviceEls) {
-    const rect = deviceEl.getBoundingClientRect()
-    if (dropX < rect.left + rect.width / 2) break
-    index++
+  const centers = deviceEls.map((el) => {
+    const rect = el.getBoundingClientRect()
+    return rect.left + rect.width / 2
+  })
+  const railRect = targetEl.getBoundingClientRect()
+  const boundaries: number[] = []
+  for (let i = 0; i < centers.length - 1; i++) {
+    boundaries.push((centers[i] + centers[i + 1]) / 2)
+  }
+  // Последний слот заканчивается правее самой рейки, чтобы было удобно
+  // бросать устройство в конец, даже если курсор немного за пределами рейки.
+  // Последний слот начинается у правого края рейки и простирается дальше
+  // (с учётом HIT_MARGIN_X в условии попадания), чтобы перетаскивание
+  // устройства за пределы последнего блока работало чувствительно.
+  boundaries.push(railRect.right)
+
+  let index = boundaries.length
+  for (let i = 0; i < boundaries.length; i++) {
+    if (dropX < boundaries[i]) {
+      index = i
+      break
+    }
   }
 
   return { sectionIndex: targetRail.section ?? 0, rowIndex: targetRail.index, index }
