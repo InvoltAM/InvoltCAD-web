@@ -122,27 +122,51 @@ export default function PanelEditor() {
   const [menuRowId, setMenuRowId] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
   const [dialogSize, setDialogSize] = useState<{ width: number; height: number } | null>(null)
+  const [dialogPos, setDialogPos] = useState<{ left: number; top: number } | null>(null)
   const [resizing, setResizing] = useState(false)
-  const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0 })
+  const resizeStartRef = useRef({
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    left: 0,
+    top: 0,
+    corner: 'se' as 'se' | 'nw',
+  })
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const open = useCadStore((s) => s.panelEditorOpen)
   const setOpen = useCadStore((s) => s.setPanelEditorOpen)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    setDialogSize({
-      width: Math.min(window.innerWidth * 0.9, 1024),
-      height: window.innerHeight * 0.8,
+    const width = Math.min(window.innerWidth * 0.9, 1024)
+    const height = window.innerHeight * 0.8
+    setDialogSize({ width, height })
+    setDialogPos({
+      left: (window.innerWidth - width) / 2,
+      top: (window.innerHeight - height) / 2,
     })
   }, [])
 
   useEffect(() => {
     if (!resizing) return
     const handleMove = (e: PointerEvent) => {
-      const { x, y, width, height } = resizeStartRef.current
-      const newWidth = Math.max(640, Math.min(window.innerWidth * 0.95, width + (e.clientX - x)))
-      const newHeight = Math.max(400, Math.min(window.innerHeight * 0.95, height + (e.clientY - y)))
-      setDialogSize({ width: newWidth, height: newHeight })
+      const { x, y, width, height, left, top, corner } = resizeStartRef.current
+      const maxWidth = window.innerWidth * 0.95
+      const maxHeight = window.innerHeight * 0.95
+      if (corner === 'se') {
+        const newWidth = Math.max(640, Math.min(maxWidth, width + (e.clientX - x)))
+        const newHeight = Math.max(400, Math.min(maxHeight, height + (e.clientY - y)))
+        setDialogSize({ width: newWidth, height: newHeight })
+      } else {
+        const newWidth = Math.max(640, Math.min(maxWidth, width - (e.clientX - x)))
+        const newHeight = Math.max(400, Math.min(maxHeight, height - (e.clientY - y)))
+        setDialogSize({ width: newWidth, height: newHeight })
+        setDialogPos({
+          left: left + (width - newWidth),
+          top: top + (height - newHeight),
+        })
+      }
     }
     const handleUp = () => setResizing(false)
     window.addEventListener('pointermove', handleMove)
@@ -153,12 +177,20 @@ export default function PanelEditor() {
     }
   }, [resizing])
 
-  const handleResizeStart = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handleResizeStart = (corner: 'se' | 'nw') => (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
-    if (!dialogSize) return
+    if (!dialogSize || !dialogPos) return
     setResizing(true)
-    resizeStartRef.current = { x: e.clientX, y: e.clientY, width: dialogSize.width, height: dialogSize.height }
+    resizeStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      width: dialogSize.width,
+      height: dialogSize.height,
+      left: dialogPos.left,
+      top: dialogPos.top,
+      corner,
+    }
     try {
       e.currentTarget.setPointerCapture(e.pointerId)
     } catch {
@@ -546,10 +578,12 @@ export default function PanelEditor() {
   const components = board?.components ?? []
 
   return (
-    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/35">
+    <div className="fixed inset-0 z-[400] bg-black/35">
       <div
-        className="relative flex flex-col overflow-hidden rounded-lg bg-white dark:bg-gray-800"
+        className="absolute flex flex-col overflow-hidden rounded-lg bg-white dark:bg-gray-800"
         style={{
+          left: dialogPos?.left,
+          top: dialogPos?.top,
           width: dialogSize?.width,
           height: dialogSize?.height,
           minWidth: 640,
@@ -810,7 +844,17 @@ export default function PanelEditor() {
         </div>
 
         <div
-          onPointerDown={handleResizeStart}
+          onPointerDown={handleResizeStart('nw')}
+          className="absolute left-1 top-1 z-20 cursor-nwse-resize text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          title="Изменить размер"
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5 rotate-180" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M20 4 L20 20 L4 20" />
+            <path d="M20 10 L10 20" />
+          </svg>
+        </div>
+        <div
+          onPointerDown={handleResizeStart('se')}
           className="absolute bottom-1 right-1 z-20 cursor-nwse-resize text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
           title="Изменить размер"
         >
