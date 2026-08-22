@@ -8,6 +8,7 @@ import { Plan } from '@core/model/Plan'
 import { buildDistributionBoard, DistributionBoardData } from '@core/electrical/BoardEngine'
 import { generateBoardSvg, generateOlsFromCircuits } from '@core/electrical/BoardSvgScheme'
 import { CircuitData } from '@core/electrical/RoomConsumerEngine'
+import { icon } from './icons'
 
 export default function OlsPanel() {
   const { engineRef } = useEditor()
@@ -16,6 +17,7 @@ export default function OlsPanel() {
   const setOpen = useCadStore((s) => s.setOlsOpen)
   const theme = useCadStore((s) => s.theme)
   const [, forceUpdate] = useState(0)
+  const [leftTab, setLeftTab] = useState<'scheme' | 'table'>('scheme')
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -61,6 +63,17 @@ export default function OlsPanel() {
     URL.revokeObjectURL(url)
   }
 
+  const tableItems = useMemo(() => {
+    if (!board) return []
+    return board.components.map((c) => ({
+      id: c.id,
+      name: c.name,
+      type: c.type,
+      rating: c.ratingA ?? 0,
+      width: c.widthModules,
+    }))
+  }, [board])
+
   if (!open) return null
 
   return (
@@ -95,15 +108,81 @@ export default function OlsPanel() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-auto rounded border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-900">
-          {svg ? (
-            <div className="min-h-full min-w-full" dangerouslySetInnerHTML={{ __html: svg }} />
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-3 text-gray-500 dark:text-gray-400">
-              <p>Нет данных для схемы.</p>
-              <p className="text-sm">Сначала сгруппируйте потребителей в линии, затем нажмите «Автособрать щит».</p>
-            </div>
-          )}
+        <div className="flex flex-1 overflow-hidden rounded border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-900">
+          {/* Левая панель ОЛС */}
+          <div className="flex w-56 flex-col gap-2 overflow-y-auto border-r border-gray-200 bg-white p-3 dark:border-gray-600 dark:bg-gray-800">
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Однолинейная схема</div>
+            <button
+              onClick={() => setLeftTab('scheme')}
+              className={`flex items-center gap-2 rounded border p-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                leftTab === 'scheme'
+                  ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20'
+                  : 'border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800'
+              }`}
+              title="Схема"
+            >
+              <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('ols') }} />
+              <span>Схема</span>
+            </button>
+            <button
+              onClick={() => setLeftTab('table')}
+              className={`flex items-center gap-2 rounded border p-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                leftTab === 'table'
+                  ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20'
+                  : 'border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800'
+              }`}
+              title="Таблица щита"
+            >
+              <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('table') }} />
+              <span>Таблица щита</span>
+            </button>
+          </div>
+
+          {/* Основная область */}
+          <div className="flex-1 overflow-auto p-4">
+            {leftTab === 'scheme' ? (
+              svg ? (
+                <div className="min-h-full min-w-full" dangerouslySetInnerHTML={{ __html: svg }} />
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center gap-3 text-gray-500 dark:text-gray-400">
+                  <p>Нет данных для схемы.</p>
+                  <p className="text-sm">Сначала сгруппируйте потребителей в линии, затем нажмите «Автособрать щит».</p>
+                </div>
+              )
+            ) : (
+              <div className="space-y-3">
+                <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Таблица щита</div>
+                {tableItems.length === 0 ? (
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    Нет данных. Соберите щит через «Автособрать щит».
+                  </div>
+                ) : (
+                  <table className="w-full border-collapse text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-gray-600">
+                        <th className="py-1 pr-4">№</th>
+                        <th className="py-1 pr-4">Наименование</th>
+                        <th className="py-1 pr-4">Тип</th>
+                        <th className="py-1 pr-4">Iном, А</th>
+                        <th className="py-1 pr-4">Модули</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tableItems.map((d, i) => (
+                        <tr key={d.id} className="border-b border-gray-100 dark:border-gray-700">
+                          <td className="py-1 pr-4">{i + 1}</td>
+                          <td className="py-1 pr-4">{d.name}</td>
+                          <td className="py-1 pr-4">{d.type}</td>
+                          <td className="py-1 pr-4">{d.rating > 0 ? d.rating : '—'}</td>
+                          <td className="py-1 pr-4">{d.width}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
