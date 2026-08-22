@@ -135,6 +135,7 @@ export default function PanelEditor() {
     corner: 'se' as 'se' | 'nw',
   })
   const dragStartRef = useRef({ x: 0, y: 0, left: 0, top: 0 })
+  const dialogRef = useRef<HTMLDivElement | null>(null)
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const open = useCadStore((s) => s.panelEditorOpen)
   const setOpen = useCadStore((s) => s.setPanelEditorOpen)
@@ -231,12 +232,19 @@ export default function PanelEditor() {
     }
   }
 
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (!e.ctrlKey) return
-    e.preventDefault()
-    const delta = e.deltaY > 0 ? -0.1 : 0.1
-    setZoom((z) => Math.min(3, Math.max(0.5, Number((z + delta).toFixed(2)))))
-  }
+  useEffect(() => {
+    if (!open) return
+    const el = dialogRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return
+      e.preventDefault()
+      const delta = e.deltaY > 0 ? -0.1 : 0.1
+      setZoom((z) => Math.min(3, Math.max(0.5, Number((z + delta).toFixed(2)))))
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [open])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -613,6 +621,7 @@ export default function PanelEditor() {
   return (
     <div className="fixed inset-0 z-[400] bg-black/35">
       <div
+        ref={dialogRef}
         className="absolute flex flex-col overflow-hidden rounded-lg bg-white dark:bg-gray-800"
         style={{
           left: dialogPos?.left,
@@ -664,7 +673,6 @@ export default function PanelEditor() {
           {/* Основная область */}
           <div
             className="flex-1 overflow-auto rounded-bl-lg bg-gray-50 p-4 dark:bg-gray-900"
-            onWheel={handleWheel}
             style={{ position: 'relative' }}
           >
             <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
