@@ -114,4 +114,76 @@ describe('SelectTool cable editing — Visio-like orthogonal', () => {
     // Маршрут не должен пересекать перегородку вне проёма.
     expect(cable.route.some((p) => Math.abs(p.x - 300) < 50 && Math.abs(p.y) < 950)).toBe(false);
   });
+
+  it('не позволяет переместить вершину так, чтобы кабель пересёк стену', () => {
+    // Комната 2000×2000 с вертикальной перегородкой x=300 без проёма.
+    plan.addWall(new Vector2(-1000, -1000), new Vector2(-1000, 1000));
+    plan.addWall(new Vector2(-1000, 1000), new Vector2(1000, 1000));
+    plan.addWall(new Vector2(1000, 1000), new Vector2(1000, -1000));
+    plan.addWall(new Vector2(1000, -1000), new Vector2(-1000, -1000));
+    plan.addWall(new Vector2(300, -1000), new Vector2(300, 1000));
+
+    const fromPos = new Vector2(-500, 0);
+    const toPos = new Vector2(500, 0);
+    plan.addCable(null, null, 'power', 2.5, {
+      fromPoint: fromPos,
+      toPoint: toPos,
+      route: [fromPos, new Vector2(0, 0), toPos],
+    });
+    const cable = plan.cables[0];
+    cable.routing = 'manual';
+    const originalRoute = cable.route.map((p) => p.clone());
+
+    // Тянем внутреннюю вершину через перегородку.
+    const p1 = engine.camera.worldToScreen(new Vector2(0, 0));
+    const p2 = engine.camera.worldToScreen(new Vector2(500, 0));
+    engine.input.dispatchPointerDown({ screenPoint: p1, button: 0, shiftKey: false, ctrlKey: false });
+    engine.input.dispatchPointerMove({ screenPoint: p2, button: 0, shiftKey: false, ctrlKey: false });
+    engine.input.dispatchPointerUp({ screenPoint: p2, button: 0, shiftKey: false, ctrlKey: false });
+
+    // Без проёма обход невозможен — маршрут должен остаться исходным.
+    expect(cable.route.length).toBe(originalRoute.length);
+    for (let i = 0; i < originalRoute.length; i++) {
+      expect(cable.route[i]).toEqual(originalRoute[i]);
+    }
+  });
+
+  it('автоматически обходит стену при перемещении вершины, если есть проём', () => {
+    // Комната 2000×2000 с вертикальной перегородкой x=300 и дверью в центре.
+    plan.addWall(new Vector2(-1000, -1000), new Vector2(-1000, 1000));
+    plan.addWall(new Vector2(-1000, 1000), new Vector2(1000, 1000));
+    plan.addWall(new Vector2(1000, 1000), new Vector2(1000, -1000));
+    plan.addWall(new Vector2(1000, -1000), new Vector2(-1000, -1000));
+    const partition = plan.addWall(new Vector2(300, -1000), new Vector2(300, 1000));
+    plan.addOpening(partition.id, 'door', 0.5, 600);
+
+    const fromPos = new Vector2(-500, 0);
+    const toPos = new Vector2(500, 0);
+    plan.addCable(null, null, 'power', 2.5, {
+      fromPoint: fromPos,
+      toPoint: toPos,
+      route: [fromPos, new Vector2(0, 0), toPos],
+    });
+    const cable = plan.cables[0];
+    cable.routing = 'manual';
+
+    // Тянем внутреннюю вершину через перегородку — должен появиться обход.
+    const p1 = engine.camera.worldToScreen(new Vector2(0, 0));
+    const p2 = engine.camera.worldToScreen(new Vector2(500, 0));
+    engine.input.dispatchPointerDown({ screenPoint: p1, button: 0, shiftKey: false, ctrlKey: false });
+    engine.input.dispatchPointerMove({ screenPoint: p2, button: 0, shiftKey: false, ctrlKey: false });
+    engine.input.dispatchPointerUp({ screenPoint: p2, button: 0, shiftKey: false, ctrlKey: false });
+
+    // Маршрут не должен пересекать перегородку вне проёма.
+    for (let i = 0; i < cable.route.length - 1; i++) {
+      const a = cable.route[i];
+      const b = cable.route[i + 1];
+      // Проверяем пересечение с перегородкой: пересекает x=300 вне y ∈ [-300, 300].
+      if ((a.x < 300 && b.x > 300) || (a.x > 300 && b.x < 300)) {
+        const t = (300 - a.x) / (b.x - a.x);
+        const y = a.y + (b.y - a.y) * t;
+        expect(Math.abs(y)).toBeLessThanOrEqual(300);
+      }
+    }
+  });
 });

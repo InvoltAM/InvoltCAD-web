@@ -172,6 +172,59 @@ export function rerouteCableEdgeAroundObstacles(
 }
 
 /**
+ * Проверяет, есть ли в маршруте отрезки, пересекающие стены вне дверных проёмов.
+ */
+export function cableRouteHasWallCrossing(plan: Plan, route: Vector2[]): boolean {
+  for (let i = 0; i < route.length - 1; i++) {
+    if (segmentCrossesWallOutsideOpening(route[i], route[i + 1], plan)) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
+ * Чинит маршрут, заменяя все отрезки, пересекающие стены вне дверных проёмов,
+ * на автотрассированные обходы.
+ * Возвращает `{ route, repaired }`; если какой-то участок починить не удалось,
+ * `repaired === false`.
+ */
+export function repairCableRoute(
+  plan: Plan,
+  route: Vector2[],
+  cellSize = 50,
+): { route: Vector2[]; repaired: boolean } {
+  if (route.length < 2) {
+    return { route: route.map((p) => p.clone()), repaired: true }
+  }
+
+  const result: Vector2[] = [route[0].clone()]
+  let repaired = true
+
+  for (let i = 0; i < route.length - 1; i++) {
+    const a = result[result.length - 1]
+    const b = route[i + 1].clone()
+
+    if (segmentCrossesWallOutsideOpening(a, b, plan)) {
+      const detour = routeCableWithVia(plan, [a.clone(), b.clone()], cellSize)
+      if (detour && detour.length >= 2) {
+        // detour[0] совпадает с a, последняя точка — с b
+        for (let j = 1; j < detour.length; j++) {
+          result.push(detour[j].clone())
+        }
+      } else {
+        result.push(b)
+        repaired = false
+      }
+    } else {
+      result.push(b)
+    }
+  }
+
+  return { route: deduplicateRoute(result), repaired }
+}
+
+/**
  * Обрезает маршрут, удаляя подряд идущие дублирующиеся точки.
  */
 export function deduplicateRoute(route: Vector2[], eps = 1): Vector2[] {

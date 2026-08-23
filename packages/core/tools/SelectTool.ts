@@ -41,7 +41,7 @@ import { SheetFrameRenderer } from '../render/SheetFrameRenderer';
 import {
   moveCableEdgeOrthogonal,
   moveCableVertexOrthogonal,
-  rerouteCableEdgeAroundObstacles,
+  repairCableRoute,
 } from './CableEditHelper';
 
 const ROOM_VERTEX_SCREEN_THRESHOLD = 8; // px
@@ -670,12 +670,18 @@ export class SelectTool implements Tool {
     } else if (this.dragCableVertex) {
       const world = this.canvas.camera.screenToWorld(e.screenPoint);
       const cable = this.dragCableVertex.cable;
-      cable.route = moveCableVertexOrthogonal(
+      const moved = moveCableVertexOrthogonal(
         this.dragCableVertex.originalRoute,
         this.dragCableVertex.index,
         this.dragCableVertex.startWorld,
         world,
       );
+      // После перемещения вершины проверяем весь маршрут на пересечения со стенами.
+      // Если починить не удалось — откатываемся к исходному маршруту.
+      const repair = repairCableRoute(this.plan, moved);
+      cable.route = repair.repaired
+        ? repair.route
+        : this.dragCableVertex.originalRoute.map((p) => p.clone());
       cable.routing = 'manual';
       this.dragCableVertex.moved = true;
       updateCableLength(cable);
@@ -691,8 +697,12 @@ export class SelectTool implements Tool {
         this.dragCableEdge.startWorld,
         world,
       );
-      // Если грань уперлась в стену, автоматически добавляем вершины обхода.
-      cable.route = rerouteCableEdgeAroundObstacles(this.plan, moved, i);
+      // После перемещения грани проверяем весь маршрут на пересечения со стенами.
+      // Если починить не удалось — откатываемся к исходному маршруту.
+      const repair = repairCableRoute(this.plan, moved);
+      cable.route = repair.repaired
+        ? repair.route
+        : this.dragCableEdge.originalRoute.map((p) => p.clone());
       cable.routing = 'manual';
       this.dragCableEdge.moved = true;
       updateCableLength(cable);
