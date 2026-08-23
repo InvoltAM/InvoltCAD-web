@@ -99,4 +99,21 @@ describe('CableTool', () => {
     expect(cable.viaPoints?.length).toBe(1);
     expect(cable.route.length).toBeGreaterThanOrEqual(3);
   });
+
+  it('использует snap-привязки при отрисовке', () => {
+    const wall = plan.addWall(new Vector2(-1000, 0), new Vector2(1000, 0));
+    const from = plan.addDevice(wall.id, 'socket', 0.25, 0, 1)!;
+
+    engine.setTool('cable');
+    const p1 = engine.camera.worldToScreen(plan.deviceWorldPosition(from));
+    engine.input.dispatchPointerDown({ screenPoint: p1, button: 0, shiftKey: false, ctrlKey: false });
+    engine.input.dispatchPointerUp({ screenPoint: p1, button: 0, shiftKey: false, ctrlKey: false });
+
+    // Двигаем курсор — должен обновиться snap.
+    const pMove = engine.camera.worldToScreen(new Vector2(0, 500));
+    engine.input.dispatchPointerMove({ screenPoint: pMove, button: 0, shiftKey: false, ctrlKey: false });
+
+    expect(engine.snap).toBeTruthy();
+    expect(engine.snap!.point).toBeTruthy();
+  });
 });

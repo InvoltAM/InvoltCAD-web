@@ -3,6 +3,7 @@ import { Plan } from '../model/Plan';
 import { Device, findDeviceCatalogItem, getDeviceIconScale } from '../model/Device';
 import { Wall, wallDirection } from '../model/Wall';
 import { Vector2 } from '../geometry/Vector2';
+import { SnapEngine } from '../snap/SnapEngine';
 import { CanvasEngine } from '../engine/CanvasEngine';
 import { Tool } from './ToolManager';
 import { AddCableCommand } from '../editor/CommandManager';
@@ -37,6 +38,7 @@ export class CableTool implements Tool {
   private viaPoints: Vector2[] = [];
   private pending: PendingPoint | null = null;
   private hoveredDevice: Device | null = null;
+  private currentSnap: ReturnType<SnapEngine['snap']> | null = null;
 
   constructor(
     private canvas: CanvasEngine,
@@ -52,10 +54,15 @@ export class CableTool implements Tool {
     this.canvas.setGhost(null);
     this.canvas.canvas.style.cursor = '';
     this.canvas.setSelectedDevice(null);
+    this.canvas.setSnap(null);
+    this.currentSnap = null;
+    this.canvas.snapEngine.clearTracking();
     this.canvas.requestRender();
   }
 
   onPointerMove(e: InputEvent): void {
+    this.currentSnap = this.canvas.snapEngine.snap(e.screenPoint);
+    this.canvas.setSnap(this.currentSnap);
     this.updateHover(e);
     this.updateGhost(e);
   }
@@ -141,8 +148,11 @@ export class CableTool implements Tool {
     this.viaPoints = [];
     this.pending = null;
     this.hoveredDevice = null;
+    this.currentSnap = null;
     this.canvas.setSelectedDevice(null);
     this.canvas.setGhost(null);
+    this.canvas.setSnap(null);
+    this.canvas.snapEngine.clearTracking();
     this.canvas.requestRender();
   }
 
@@ -207,8 +217,43 @@ export class CableTool implements Tool {
         ctx.arc(this.from.point.x, this.from.point.y, 8 / this.canvas.camera.scale, 0, Math.PI * 2);
         ctx.stroke();
       }
+
+      // Snap-маркер и направляющие лучи, как у инструмента «Полилиния».
+      if (this.currentSnap) {
+        this.canvas.ghostRenderer.drawSnapMarker(ctx, this.currentSnap);
+      }
+      this.drawGuideRays(ctx);
     });
     this.canvas.requestRender();
+  }
+
+  private drawGuideRays(ctx: CanvasRenderingContext2D): void {
+    if (!this.currentSnap) return;
+    const guides = this.currentSnap.guides ?? [
+      { point: this.currentSnap.point, type: this.currentSnap.type, wall: this.currentSnap.wall, wall2: this.currentSnap.wall2 },
+    ];
+    for (const guide of guides) {
+      const dirs: Vector2[] = [
+        new Vector2(1, 0),
+        new Vector2(-1, 0),
+        new Vector2(0, 1),
+        new Vector2(0, -1),
+      ];
+      if (guide.type !== 'grid') {
+        for (const w of [guide.wall, guide.wall2]) {
+          if (!w) continue;
+          const d = w.b.sub(w.a);
+          const n = d.perpendicular();
+          dirs.push(d, d.scale(-1), n, n.scale(-1));
+        }
+      }
+      this.canvas.ghostRenderer.drawGuideRays(
+        ctx,
+        guide.point,
+        dirs,
+        { color: this.canvas.themeManager.getColor('accent') },
+      );
+    }
   }
 
   private buildGhostRoute(): Vector2[] | null {

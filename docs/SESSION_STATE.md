@@ -2354,3 +2354,14 @@ Dev-сервер Next.js работает на `http://localhost:3002`.
 
 - `npx tsc --noEmit` — успешно.
 - `npm test` — 88/88 тестов проходят.
+## 2026-08-23 (продолжение) — Кабель: snap-привязки при отрисовке
+
+### Изменённые файлы
+
+- `packages/core/tools/CableTool.ts`  - Добавлено поле `currentSnap` — текущий результат `SnapEngine.snap`.  - `onPointerMove` обновляет `currentSnap`, устанавливает snap-индикатор через `canvas.setSnap`.  - `onDeactivate` и `reset` сбрасывают snap и очищают tracking-точки.  - `updateGhost` рисует snap-маркер и направляющие лучи аналогично инструменту «Полилиния».  - Добавлен приватный метод `drawGuideRays` — повторяет логику `DrawingTool`.
+- `packages/core/tools/CableTool.test.ts`  - Дополнен тест: проверяет, что инструмент кабеля вызывает `snapEngine.snap` и устанавливает `canvas.snap`.
+
+### Проверки
+
+- `npx tsc --noEmit` — успешно.
+- `npm test` — 89/89 тестов проходят.
