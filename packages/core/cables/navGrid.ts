@@ -232,8 +232,10 @@ export class NavGrid {
         }
       }
 
-      // Отмечаем проёмы как проходимые прямоугольником вдоль стены.
+      // Отмечаем дверные проёмы как проходимые прямоугольником вдоль стены.
+      // Оконные проёмы остаются непроходимыми.
       for (const opening of wall.openings) {
+        if (opening.type !== 'door') continue
         const wallLen = wall.a.distanceTo(wall.b)
         const dir = wall.b.sub(wall.a).normalized()
         const n = dir.perpendicular()

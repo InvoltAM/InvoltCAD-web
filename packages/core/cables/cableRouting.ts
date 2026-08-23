@@ -426,6 +426,8 @@ function insertOpeningWaypoints(route: Vector2[], plan: NavigablePlan): Vector2[
     if (wallDir.length() < 1e-9) continue
 
     for (const opening of wall.openings) {
+      // Проходить разрешаем только через дверные проёмы, окна — как стена.
+      if (opening.type !== 'door') continue
       const center = openingCenterOnWall(wall, opening)
       const t = paramAlongRoute(center, start, end)
       // Не добавляем точки за пределами маршрута — они нарушат порядок
@@ -499,6 +501,8 @@ function findWallOpeningCrossing(
     const along = t * Math.sqrt(lenSq)
 
     for (const opening of wall.openings) {
+      // Только дверные проёмы считаются проходимыми.
+      if (opening.type !== 'door') continue
       const centerDist = opening.t * wallLen
       const half = opening.width / 2
       if (along >= centerDist - half - 1e-3 && along <= centerDist + half + 1e-3) {

@@ -79,6 +79,22 @@ describe('cableRouting', () => {
     expect(crossesOpening).toBe(true)
   })
 
+  it('не проходит через оконный проём', () => {
+    const plan = new Plan()
+    plan.addWall(new Vector2(-1000, -1000), new Vector2(-1000, 1000))
+    plan.addWall(new Vector2(-1000, 1000), new Vector2(1000, 1000))
+    plan.addWall(new Vector2(1000, 1000), new Vector2(1000, -1000))
+    plan.addWall(new Vector2(1000, -1000), new Vector2(-1000, -1000))
+    const wall = plan.addWall(new Vector2(0, -1000), new Vector2(0, 1000))
+    plan.addOpening(wall.id, 'window', 0.5, 600)
+    const from = new Vector2(-500, 0)
+    const to = new Vector2(500, 0)
+    const route = routeCable(plan, from, to, 50)
+    // Оконный проём не проходим, перегородка полностью разделяет комнату,
+    // поэтому маршрута быть не должно.
+    expect(route).toBeFalsy()
+  })
+
   it('обходит вертикальную перегородку между устройствами на одной стене', () => {
     const plan = new Plan()
     plan.addWall(new Vector2(1000, 1000), new Vector2(7000, 1000))
