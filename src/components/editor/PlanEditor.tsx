@@ -104,6 +104,9 @@ export default function PlanEditor() {
     engine.editorState.set('snap', initial.snap)
     engine.editorState.set('customDevices', initial.customDevices)
 
+    // Синхронизируем масштаб иконок с планом (влияет на точки входа кабелей)
+    plan.deviceIconScale = initial.deviceIconScale
+
     // Подписка на изменения cadStore, чтобы инструменты всегда видели актуальные значения
     const syncKeys: Array<keyof typeof initial & string> = [
       'orthoMode',
@@ -119,6 +122,7 @@ export default function PlanEditor() {
       'snap',
       'customDevices',
       'selectedTextMode',
+      'defaultCircuitId',
     ]
     const unsubscribe = useCadStore.subscribe((state, prevState) => {
       for (const key of syncKeys) {
@@ -127,6 +131,11 @@ export default function PlanEditor() {
             key as Parameters<typeof engine.editorState.set>[0],
             state[key as keyof typeof state] as never
           )
+          if (key === 'deviceIconScale') {
+            plan.deviceIconScale = state.deviceIconScale
+            plan.recalcCableRoutes()
+            engine.notifyChanged()
+          }
         }
       }
     })
@@ -320,6 +329,8 @@ export default function PlanEditor() {
         const engine = engineRef.current
         if (!engine) return
         engine.plan = plan
+        engine.plan.deviceIconScale = useCadStore.getState().deviceIconScale
+        engine.plan.recalcCableRoutes()
         engine.notifyChanged()
         engine.requestRender()
       },

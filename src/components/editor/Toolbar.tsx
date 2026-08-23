@@ -460,7 +460,10 @@ export default function Toolbar() {
             body: JSON.stringify({ plan: data }),
           })
           await projectSync.loadProject(project.id)
-          engine.plan = (await projectSync.loadProject(project.id)).plan
+          const loaded = await projectSync.loadProject(project.id)
+          engine.plan = loaded.plan
+          engine.plan.deviceIconScale = useCadStore.getState().deviceIconScale
+          engine.plan.recalcCableRoutes()
           engine.notifyChanged()
           engine.requestRender()
           alert('Проект импортирован')

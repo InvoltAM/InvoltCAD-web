@@ -212,6 +212,7 @@ model Cable {
   waypoints     Json   @default("[]")
   sourceDeviceId String?
   targetDeviceId String?
+  properties    Json   @default("{}") // fromPoint, toPoint, viaPoints, circuitId, brand, marking, laid, visible
 
   project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }

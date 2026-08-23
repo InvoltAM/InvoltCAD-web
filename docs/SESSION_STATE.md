@@ -1,3 +1,55 @@
+# Сессия разработки — 2026-08-23 (кабель: автотрассировка и редактирование маршрута)
+
+## Текущий контекст
+
+Работа ведётся в репозитории **InvoltCAD-web**, ветка `main`.
+Dev-сервер Next.js работает на `http://localhost:3002/editor`.
+
+## Что сделано в текущей сессии
+
+### Автотрассировка кабеля с обходом стен
+
+- `packages/core/model/Cable.ts` — добавлено поле `routing?: 'auto' | 'manual'`.
+- `packages/core/model/Plan.ts`:
+  - `addCable` устанавливает `routing='auto'`, если передан готовый `route`, иначе `'manual'`.
+  - `recalcCableRoutes` для `'auto'`-кабелей пересчитывает путь через `routeCableWithVia` (A* с обходом стен), для `'manual'` сохраняет существующий маршрут.
+- `packages/core/cables/navGrid.ts` — `markWall` теперь отмечает область с учётом половины толщины стены, чтобы маршрут не проходил внутри стены.
+- `packages/core/cables/cableRouting.ts` и `navGrid.ts` — разорвана циклическая зависимость `Plan <-> cableRouting` через введение интерфейса `NavigablePlan`.
+- `packages/core/tools/CableTool.ts` — убраны временные `console.log` и expose `__routeCableWithVia`.
+
+### Редактирование отрисованного кабеля
+
+- `packages/core/editor/CommandManager.ts` — добавлены команды:
+  - `UpdateCableRouteCommand` — drag вершин/граней с undo/redo.
+  - `AddCableVertexCommand` — добавление промежуточной вершины.
+  - `RemoveCableVertexCommand` — удаление промежуточной вершины.
+- `packages/core/render/CableRenderer.ts` — для выделенного кабеля рисуются:
+  - anchor-точки (кружки на концах),
+  - редактируемые вершины (белые квадраты с обводкой).
+- `packages/core/tools/SelectTool.ts`:
+  - hit-test вершин и граней кабеля,
+  - drag вершины,
+  - drag грани (перемещает обе смежные редактируемые вершины),
+  - двойной клик на грани — добавляет вершину,
+  - двойной клик на промежуточной вершине — удаляет её,
+  - `Delete` при наведении на промежуточную вершину — удаляет её,
+  - hover-подсветка вершин и граней.
+- При ручном редактировании кабель автоматически переходит в режим `routing='manual'`, чтобы A* не пересчитывал маршрут.
+
+### Тесты и проверки
+
+- Добавлен `packages/core/model/Plan.cables.test.ts` — покрыты автотрассировка, `recalcCableRoutes`, команды редактирования.
+- `packages/core/cables/cableRouting.test.ts` — добавлен тест на обход перегородки внутри комнаты.
+- `npx tsc --noEmit` — чисто.
+- `npm test` — 16 файлов, **79 тестов** пройдены.
+- `npx madge --circular` — новых циклических зависимостей не появилось.
+
+## Следующие шаги
+
+- Продолжить доработку редактора кабелей (при необходимости — растягивание двухточечных кабелей, snap-редактирование, отображение длины при drag).
+
+---
+
 # Сессия разработки — 2026-08-22 (zoom в визуализации щита)
 
 ## Текущий контекст
@@ -2159,3 +2211,72 @@ Dev-сервер Next.js работает на `http://localhost:3002`.
 - `npm test -- --run` — 63/63 тестов успешно.
 - В браузере проверены: панель ОЛС, кнопки элементов, активный инструмент «Выбор».
 - Все изменения запушены в `origin/main`.
+
+## 2026-08-23 — Кабель: точки входа, упрощение маршрута, приоритет вдоль стен
+
+### Изменённые файлы
+
+- `packages/core/model/Plan.ts`
+  - Исправлена формула `deviceCableEntryPoint`: вход кабеля — в центр верхней (внешней) грани блока + отступ `> sizeWorld`.
+  - Добавлено поле `deviceIconScale`, используемое при расчёте точки входа; масштаб синхронизируется с `cadStore`.
+  - `addCable` / `cableEndpointPosition` / `recalcCableRoutes` используют `deviceCableEntryPoint`.
+- `packages/core/render/CableRenderer.ts` — концы кабеля рисуются в точках входа устройств (`deviceCableEntryPoint`).
+- `packages/core/tools/CableTool.ts`
+  - `resolveEndpoint` возвращает точку входа устройства.
+  - `hitTestDevice` теперь попадает по видимой иконке устройства (как в `SelectTool`), а не по точке входа.
+  - Подсветка ближайшего устройства в призрачном маршруте использует точку входа.
+- `packages/core/cables/cableRouting.ts`
+  - `simplifyRoute` теперь применяет Douglas-Peucker (`tolerance = 25 мм`) после удаления коллинеарных точек.
+- `packages/core/cables/navGrid.ts`
+  - Добавлен `markWallPreference`: проходимые ячейки в радиусе 1–2 клеток от стены получают пониженную стоимость (5 / 7), чтобы A* предпочитал трассу вдоль стен.
+- `packages/core/tools/SelectTool.ts` — увеличены зоны hit-test для кабеля/вершин/граней, чтобы кабель было удобнее выделять.
+- `src/components/editor/PlanEditor.tsx`, `Toolbar.tsx`, `ProjectsPanel.tsx` — синхронизация `plan.deviceIconScale` с `cadStore` и пересчёт маршрутов при загрузке/изменении масштаба.
+
+### Проверки
+
+- `npx tsc --noEmit` — успешно.
+- `npm test` — 79/79 тестов проходят.
+- Редактирование кабеля в `SelectTool` (drag вершин/граней, двойной клик для добавления/удаления вершин, клавиша Delete) оставлено без изменений — оно уже реализовано.
+
+## 2026-08-23 (продолжение) — Кабель: центр блока, проёмы, прямые углы
+
+### Изменённые файлы
+
+- `packages/core/model/Plan.ts` — `deviceCableEntryPoint` теперь возвращает центр блока (центр верхней грани), без дополнительного отступа за блок.
+- `packages/core/cables/astar.ts` — оставлены только 4 направления (без диагоналей), кабель теперь прокладывается под прямыми углами.
+- `packages/core/cables/navGrid.ts`
+  - Проёмы очищаются от стены прямоугольником `markOpeningRect`, точно по ширине проёма и толщине стены, с минимальной стоимостью ячейки (`cost = 1`), чтобы кабель проходил через дверные/оконные проёмы.  - Устаревший `markOpeningSegment` оставлен для совместимости.
+- `packages/core/cables/cableRouting.ts`
+  - `simplifyRoute` научилась сохранять промежуточные узлы (`preservePoints`), чтобы `via`-точки не исчезали после Douglas-Peucker.  - `routeCableWithVia` не применяет повторное упрощение, чтобы внешние вызовы могли передать `via` в `simplifyRoute`.- `packages/core/tools/CableTool.ts` — при финальном упрощении маршрута передаются `viaPoints`.- `packages/core/model/Plan.ts` — `recalcCableRoutes` передаёт `viaPoints` в `simplifyRoute`.
+- `packages/core/cables/cableRouting.test.ts` — добавлен тест `проходит через дверной проём`.
+
+### Проверки
+
+- `npx tsc --noEmit` — успешно.
+- `npm test` — 80/80 тестов проходят.
+## 2026-08-23 — Кабель: исправление зависаний, manual-маршрут, A* безопасность
+
+### Изменённые файлы
+
+- `packages/core/model/Plan.ts`
+  - `recalcCableRoutes`: для `manual`-кабелей больше не пересоздаёт маршрут из `viaPoints`, а обновляет только конечные точки подключения к устройствам. Это устраняет сброс ручного редактирования при каждом `notifyChanged`.
+  - `deviceCableEntryPoint`: отступ точки входа увеличен до `sizeWorld * 1.5`, чтобы расстояние от стены было больше размера блока розеток.
+- `packages/core/editor/CommandManager.ts`
+  - `UpdateCableRouteCommand` теперь синхронизирует `cable.viaPoints` с новым маршрутом, иначе `recalcCableRoutes` затирал бы ручные правки.
+- `packages/core/tools/SelectTool.ts`
+  - В режиме drag вершины/грани кабеля `onPointerMove` вызывает `requestRender()` вместо `notifyChanged()`. Это убирает пересчёт всех кабелей через A* на каждое движение мыши и устраняет зависание при редактировании.
+  - `drawCableVertexHover` защищён от `undefined`, что устраняло поток ошибок `Cannot read properties of undefined (reading 'x')` в консоли.
+- `packages/core/cables/astar.ts`
+  - Добавлен защитный лимит итераций (`grid.width * grid.height * 8`) — A* теперь не может зависнуть на сложных сетках.
+  - Убрана сортировка `openSet` каждую итерацию; заменена на поиск минимума за O(n), что снижает накладные расходы.
+- `packages/core/cables/navGrid.ts`
+  - Базовая стоимость ячейки увеличена до 50, стоимость вдоль стен понижена до 1 (ring=1) / 4 (ring=2), чтобы A* сильнее предпочитал трассировку вдоль стен.
+  - Штраф за пересечение с другими кабелями уменьшен с 15 до 4.
+- `packages/core/cables/cableRouting.test.ts`
+  - Добавлен тест производительности `не зависает на большом плане с перегородкой и проёмом` (< 1000 мс).
+
+### Проверки
+
+- `npx tsc --noEmit` — успешно.
+- `npm test` — 81/81 тест проходят.
+- В браузере (Playwright) проверено:  - Кабель прокладывается автоматически между двумя розетками под прямыми углами.  - Drag вершины `SelectTool` изменяет маршрут и не приводит к зависанию.  - `manual`-маршрут сохраняется после `notifyChanged`.

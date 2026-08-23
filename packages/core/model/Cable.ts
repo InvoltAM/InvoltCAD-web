@@ -4,14 +4,18 @@ export type CableType = 'power' | 'lighting' | 'low-current';
 
 export interface Cable {
   id: string;
-  fromDeviceId: string;
-  toDeviceId: string;
+  fromDeviceId: string | null; // null если начало — точка на стене/в пространстве
+  toDeviceId: string | null;   // null если конец — точка на стене/в пространстве
+  fromPoint?: { x: number; y: number }; // мировые координаты начала, когда нет устройства
+  toPoint?: { x: number; y: number };   // мировые координаты конца, когда нет устройства
   type: CableType;
   crossSection: number; // сечение, мм²
   length: number;       // длина в мм (геометрическая длина маршрута)
   spareLength?: number; // длина запаса, мм
   totalLength?: number; // длина с запасом, мм
   route: Vector2[];     // точки маршрута кабеля
+  viaPoints?: Vector2[]; // промежуточные узлы маршрута
+  routing?: 'auto' | 'manual'; // auto = пересчитывать A*-обходом стен при recalc
   circuitId?: string;   // привязка к линии/цепи щита
   visible?: boolean;    // видимость на чертеже
   brand?: string;       // марка кабеля

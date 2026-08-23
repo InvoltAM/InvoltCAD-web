@@ -46,38 +46,40 @@ export function buildCableRuns(
     }
   }
 
-  return cables.map((cable) => {
-    const circuit = consumerToCircuit.get(cable.toDeviceId);
-    const routeM = cable.length / 1000;
-    const spareM = (cable.spareLength ?? computeCableSpareM(routeM) * 1000) / 1000;
-    const totalM = cable.totalLength ?? routeM + spareM;
+  return cables
+    .filter((cable) => cable.fromDeviceId && cable.toDeviceId)
+    .map((cable) => {
+      const circuit = consumerToCircuit.get(cable.toDeviceId!);
+      const routeM = cable.length / 1000;
+      const spareM = (cable.spareLength ?? computeCableSpareM(routeM) * 1000) / 1000;
+      const totalM = cable.totalLength ?? routeM + spareM;
 
-    const segments: CableRunSegment[] = [];
-    for (let i = 1; i < cable.route.length; i++) {
-      const a = cable.route[i - 1];
-      const b = cable.route[i];
-      segments.push({
-        from: { x: a.x, y: a.y },
-        to: { x: b.x, y: b.y },
-        lengthMm: a.distanceTo(b),
-      });
-    }
+      const segments: CableRunSegment[] = [];
+      for (let i = 1; i < cable.route.length; i++) {
+        const a = cable.route[i - 1];
+        const b = cable.route[i];
+        segments.push({
+          from: { x: a.x, y: a.y },
+          to: { x: b.x, y: b.y },
+          lengthMm: a.distanceTo(b),
+        });
+      }
 
-    return {
-      id: `run-${cable.id}`,
-      circuitId: circuit?.id ?? cable.circuitId,
-      cableId: cable.id,
-      fromDeviceId: cable.fromDeviceId,
-      toDeviceId: cable.toDeviceId,
-      cableType: cable.type,
-      crossSectionMm2: cable.crossSection,
-      routeM,
-      spareM,
-      totalM,
-      segments,
-      description: circuit ? `Линия ${circuit.name}` : undefined,
-    };
-  });
+      return {
+        id: `run-${cable.id}`,
+        circuitId: circuit?.id ?? cable.circuitId,
+        cableId: cable.id,
+        fromDeviceId: cable.fromDeviceId!,
+        toDeviceId: cable.toDeviceId!,
+        cableType: cable.type,
+        crossSectionMm2: cable.crossSection,
+        routeM,
+        spareM,
+        totalM,
+        segments,
+        description: circuit ? `Линия ${circuit.name}` : undefined,
+      };
+    });
 }
 
 export interface CableSpecificationItem {

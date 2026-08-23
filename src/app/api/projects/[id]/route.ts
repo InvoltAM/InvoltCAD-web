@@ -87,16 +87,39 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
               : undefined,
         }
       }),
-      cables: fullProject.cables.map((c) => ({
-        id: c.id,
-        cableType: c.cableType,
-        crossSection: c.crossSection,
-        length: c.length ?? 0,
-        totalLength: c.totalLength ?? undefined,
-        route: (c.waypoints as Array<{ x: number; y: number }>) ?? [],
-        fromDeviceId: c.sourceDeviceId ?? '',
-        toDeviceId: c.targetDeviceId ?? '',
-      })),
+      cables: fullProject.cables.map((c) => {
+        const props = (c.properties as Record<string, unknown>) || {}
+        const fromPoint = props.fromPoint && typeof props.fromPoint === 'object'
+          ? { x: Number((props.fromPoint as { x?: unknown }).x ?? 0), y: Number((props.fromPoint as { y?: unknown }).y ?? 0) }
+          : undefined
+        const toPoint = props.toPoint && typeof props.toPoint === 'object'
+          ? { x: Number((props.toPoint as { x?: unknown }).x ?? 0), y: Number((props.toPoint as { y?: unknown }).y ?? 0) }
+          : undefined
+        const viaPoints = Array.isArray(props.viaPoints)
+          ? props.viaPoints.map((p) => {
+              const pt = p && typeof p === 'object' ? (p as Record<string, unknown>) : null
+              return { x: Number(pt?.x ?? 0), y: Number(pt?.y ?? 0) }
+            })
+          : undefined
+        return {
+          id: c.id,
+          cableType: c.cableType,
+          crossSection: c.crossSection,
+          length: c.length ?? 0,
+          totalLength: c.totalLength ?? undefined,
+          route: (c.waypoints as Array<{ x: number; y: number }>) ?? [],
+          fromDeviceId: c.sourceDeviceId || null,
+          toDeviceId: c.targetDeviceId || null,
+          fromPoint,
+          toPoint,
+          viaPoints,
+          circuitId: typeof props.circuitId === 'string' ? props.circuitId : undefined,
+          brand: typeof props.brand === 'string' ? props.brand : undefined,
+          marking: typeof props.marking === 'string' ? props.marking : undefined,
+          laid: typeof props.laid === 'boolean' ? props.laid : undefined,
+          visible: typeof props.visible === 'boolean' ? props.visible : undefined,
+        }
+      }),
       dimensions: fullProject.dimensions.map((d) => ({
         id: d.id,
         startX: d.startX,
@@ -242,6 +265,16 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
           waypoints: c.route,
           sourceDeviceId: c.fromDeviceId || null,
           targetDeviceId: c.toDeviceId || null,
+          properties: {
+            fromPoint: c.fromPoint,
+            toPoint: c.toPoint,
+            viaPoints: c.viaPoints,
+            circuitId: c.circuitId,
+            brand: c.brand,
+            marking: c.marking,
+            laid: c.laid,
+            visible: c.visible,
+          },
         },
       })
     }

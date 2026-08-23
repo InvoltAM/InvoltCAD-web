@@ -52,8 +52,16 @@ export interface SerializedCable {
   length: number
   totalLength?: number
   route: Array<{ x: number; y: number }>
-  fromDeviceId: string
-  toDeviceId: string
+  fromDeviceId: string | null
+  toDeviceId: string | null
+  fromPoint?: { x: number; y: number }
+  toPoint?: { x: number; y: number }
+  viaPoints?: Array<{ x: number; y: number }>
+  circuitId?: string
+  brand?: string
+  marking?: string
+  laid?: boolean
+  visible?: boolean
 }
 
 export interface SerializedDimension {
@@ -225,6 +233,14 @@ export function serializePlan(plan: Plan): SerializedPlan {
     route: cable.route.map((p) => ({ x: p.x, y: p.y })),
     fromDeviceId: cable.fromDeviceId,
     toDeviceId: cable.toDeviceId,
+    fromPoint: cable.fromPoint,
+    toPoint: cable.toPoint,
+    viaPoints: cable.viaPoints?.map((p) => ({ x: p.x, y: p.y })),
+    circuitId: cable.circuitId,
+    brand: cable.brand,
+    marking: cable.marking,
+    laid: cable.laid,
+    visible: cable.visible,
   }))
 
   const dimensions: SerializedDimension[] = plan.dimensions.map((dim) => ({
@@ -384,15 +400,45 @@ export function deserializePlan(data: SerializedPlan): Plan {
 
   // Создаём кабели
   for (const c of data.cables) {
+    const fromDeviceId = c.fromDeviceId ?? null
+    const toDeviceId = c.toDeviceId ?? null
+    const fromPoint = c.fromPoint
+    const toPoint = c.toPoint
+    const fromDevice = fromDeviceId ? plan.findDevice(fromDeviceId) : undefined
+    const toDevice = toDeviceId ? plan.findDevice(toDeviceId) : undefined
+    const fromPos = fromDevice
+      ? plan.deviceWorldPosition(fromDevice)
+      : fromPoint
+        ? new Vector2(fromPoint.x, fromPoint.y)
+        : new Vector2(0, 0)
+    const toPos = toDevice
+      ? plan.deviceWorldPosition(toDevice)
+      : toPoint
+        ? new Vector2(toPoint.x, toPoint.y)
+        : new Vector2(0, 0)
+    const viaPoints = c.viaPoints?.map((p) => new Vector2(p.x, p.y)) ?? []
+    const route = c.route?.length > 0
+      ? c.route.map((p) => new Vector2(p.x, p.y))
+      : viaPoints.length > 0
+        ? [fromPos, ...viaPoints, toPos]
+        : Plan.computeManhattanRoute(fromPos, toPos)
     const cable: Cable = {
       id: c.id,
-      fromDeviceId: c.fromDeviceId,
-      toDeviceId: c.toDeviceId,
+      fromDeviceId,
+      toDeviceId,
+      fromPoint,
+      toPoint,
       type: c.cableType as CableType,
       crossSection: c.crossSection,
-      length: c.length,
+      length: c.length ?? Plan.routeLength(route),
       totalLength: c.totalLength,
-      route: c.route.map((p) => new Vector2(p.x, p.y)),
+      route,
+      viaPoints,
+      circuitId: c.circuitId,
+      brand: c.brand,
+      marking: c.marking,
+      laid: c.laid,
+      visible: c.visible,
     }
     plan.cables.push(cable)
   }

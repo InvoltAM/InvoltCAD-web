@@ -94,7 +94,7 @@ export default function PropertyPanel() {
       {walls.length > 0 && <WallProperties walls={walls} plan={plan} />}
       {walls.length === 0 && openings.length > 0 && <OpeningProperties openings={openings} />}
       {walls.length === 0 && openings.length === 0 && devices.length > 0 && <DeviceProperties devices={devices} plan={plan} />}
-      {walls.length === 0 && openings.length === 0 && devices.length === 0 && cables.length > 0 && <CableProperties cables={cables} />}
+      {walls.length === 0 && openings.length === 0 && devices.length === 0 && cables.length > 0 && <CableProperties cables={cables} plan={plan} />}
       {walls.length === 0 && openings.length === 0 && devices.length === 0 && cables.length === 0 && dimensions.length > 0 && <DimensionProperties dimensions={dimensions} />}
       {walls.length === 0 && openings.length === 0 && devices.length === 0 && cables.length === 0 && dimensions.length === 0 && primitives.length > 0 && <PrimitiveProperties primitives={primitives} plan={plan} />}
 
@@ -104,7 +104,7 @@ export default function PropertyPanel() {
       {!hasSelection && currentTool === 'door' && <DoorToolSettings />}
       {!hasSelection && currentTool === 'window' && <WindowToolSettings />}
       {!hasSelection && currentTool === 'device' && <DeviceToolSettings />}
-      {!hasSelection && currentTool === 'cable' && <CableToolSettings />}
+      {!hasSelection && currentTool === 'cable' && <CableToolSettings plan={plan} />}
     </>
   )
 }
@@ -623,13 +623,18 @@ function DeviceProperties({ devices, plan }: { devices: Device[]; plan: Plan }) 
   )
 }
 
-function CableProperties({ cables }: { cables: Cable[] }) {
+function CableProperties({ cables, plan }: { cables: Cable[]; plan: Plan }) {
   const { engineRef } = useEditor()
+  const circuits = plan.electrical.circuits ?? []
   const count = cables.length
-  const cable = cables[0]
   const commonType = commonValue(cables, (c) => c.type)
   const commonSection = commonValue(cables, (c) => c.crossSection)
   const commonLength = commonValue(cables, (c) => c.length)
+  const commonCircuitId = commonValue(cables, (c) => c.circuitId ?? '')
+  const commonBrand = commonValue(cables, (c) => c.brand ?? '')
+  const commonMarking = commonValue(cables, (c) => c.marking ?? '')
+  const commonLaid = commonValue(cables, (c) => c.laid ?? false)
+  const commonVisible = commonValue(cables, (c) => c.visible ?? true)
 
   const handleTypeChange = (type: string) => {
     for (const cable of cables) {
@@ -643,6 +648,42 @@ function CableProperties({ cables }: { cables: Cable[] }) {
       cable.crossSection = crossSection
     }
     engineRef.current?.notifyChanged()
+  }
+
+  const handleCircuitChange = (circuitId: string) => {
+    for (const cable of cables) {
+      cable.circuitId = circuitId || undefined
+    }
+    engineRef.current?.notifyChanged()
+  }
+
+  const handleBrandChange = (brand: string) => {
+    for (const cable of cables) {
+      cable.brand = brand || undefined
+    }
+    engineRef.current?.notifyChanged()
+  }
+
+  const handleMarkingChange = (marking: string) => {
+    for (const cable of cables) {
+      cable.marking = marking || undefined
+    }
+    engineRef.current?.notifyChanged()
+  }
+
+  const handleLaidChange = (laid: boolean) => {
+    for (const cable of cables) {
+      cable.laid = laid
+    }
+    engineRef.current?.notifyChanged()
+  }
+
+  const handleVisibleChange = (visible: boolean) => {
+    for (const cable of cables) {
+      cable.visible = visible
+    }
+    engineRef.current?.notifyChanged()
+    engineRef.current?.requestRender()
   }
 
   return (
@@ -681,10 +722,67 @@ function CableProperties({ cables }: { cables: Cable[] }) {
       </div>
 
       <div>
+        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Цепь</label>
+        <select
+          value={commonCircuitId ?? ''}
+          onChange={(e) => handleCircuitChange(e.target.value)}
+          className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        >
+          {commonCircuitId === undefined && <option value="">разные</option>}
+          <option value="">— не выбрана —</option>
+          {circuits.map((circuit: { id: string; name: string }) => (
+            <option key={circuit.id} value={circuit.id}>
+              {circuit.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Марка кабеля</label>
+        <input
+          type="text"
+          value={commonBrand ?? ''}
+          placeholder={commonBrand === undefined ? 'разные' : ''}
+          onChange={(e) => handleBrandChange(e.target.value)}
+          className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Маркировка линии</label>
+        <input
+          type="text"
+          value={commonMarking ?? ''}
+          placeholder={commonMarking === undefined ? 'разные' : ''}
+          onChange={(e) => handleMarkingChange(e.target.value)}
+          className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        />
+      </div>
+
+      <div>
         <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">
           Длина: {commonLength !== undefined ? (commonLength / 1000).toFixed(2) : 'разная'} м
         </label>
       </div>
+
+      <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+        <input
+          type="checkbox"
+          checked={commonVisible ?? true}
+          onChange={(e) => handleVisibleChange(e.target.checked)}
+        />
+        Видимый на чертеже
+      </label>
+
+      <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+        <input
+          type="checkbox"
+          checked={commonLaid ?? false}
+          onChange={(e) => handleLaidChange(e.target.checked)}
+        />
+        Проложен по факту
+      </label>
     </div>
   )
 }
@@ -1433,14 +1531,26 @@ function TableProperties({ primitives }: { primitives: DrawingPrimitive[] }) {
   )
 }
 
-function CableToolSettings() {
+function CableToolSettings({ plan }: { plan: Plan }) {
   const defaultCableType = useCadStore((s) => s.defaultCableType)
   const setDefaultCableType = useCadStore((s) => s.setDefaultCableType)
   const defaultCableSection = useCadStore((s) => s.defaultCableSection)
   const setDefaultCableSection = useCadStore((s) => s.setDefaultCableSection)
+  const defaultCircuitId = useCadStore((s) => s.defaultCircuitId)
+  const setDefaultCircuitId = useCadStore((s) => s.setDefaultCircuitId)
+  const circuits = plan.electrical.circuits ?? []
 
   return (
     <div className="space-y-3">
+      <div className="rounded bg-[var(--hover-bg)] p-2 text-xs text-[var(--text-secondary)]">
+        <div className="font-medium text-[var(--text)]">Как проложить кабель</div>
+        <ul className="mt-1 list-disc space-y-0.5 pl-4">
+          <li>Клик — начать/закончить на устройстве, стене или в точке.</li>
+          <li><b>Shift + клик</b> — добавить промежуточный узел.</li>
+          <li><b>Esc</b> — отменить.</li>
+        </ul>
+      </div>
+
       <div>
         <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Тип кабеля по умолчанию</label>
         <select
@@ -1466,6 +1576,22 @@ function CableToolSettings() {
           }}
           className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
         />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Цепь по умолчанию</label>
+        <select
+          value={defaultCircuitId ?? ''}
+          onChange={(e) => setDefaultCircuitId(e.target.value || null)}
+          className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        >
+          <option value="">— не выбрана —</option>
+          {circuits.map((circuit: { id: string; name: string }) => (
+            <option key={circuit.id} value={circuit.id}>
+              {circuit.name}
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   )

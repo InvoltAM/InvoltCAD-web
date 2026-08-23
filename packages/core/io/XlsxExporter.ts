@@ -105,10 +105,12 @@ export async function exportToXlsx(plan: Plan, filename = 'involtcad-spec.xlsx')
   ]
 
   plan.cables.forEach((cable, index) => {
+    const fromLabel = cable.fromDeviceId ?? (cable.fromPoint ? `(${cable.fromPoint.x.toFixed(0)};${cable.fromPoint.y.toFixed(0)})` : '—')
+    const toLabel = cable.toDeviceId ?? (cable.toPoint ? `(${cable.toPoint.x.toFixed(0)};${cable.toPoint.y.toFixed(0)})` : '—')
     cableSheet.addRow({
       number: index + 1,
-      from: cable.fromDeviceId,
-      to: cable.toDeviceId,
+      from: fromLabel,
+      to: toLabel,
       type: CABLE_TYPES[cable.type],
       section: cable.crossSection,
       length: (cable.length / 1000).toFixed(2),

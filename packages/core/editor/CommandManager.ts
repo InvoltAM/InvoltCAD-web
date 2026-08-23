@@ -529,19 +529,130 @@ export class AddCableCommand implements Command {
 
   constructor(
     private plan: Plan,
-    private fromDeviceId: string,
-    private toDeviceId: string,
+    private fromDeviceId: string | null,
+    private toDeviceId: string | null,
     private type: CableType = DEFAULT_CABLE.type,
     private crossSection = DEFAULT_CABLE.crossSection,
+    private options?: {
+      fromPoint?: { x: number; y: number };
+      toPoint?: { x: number; y: number };
+      viaPoints?: Vector2[];
+      circuitId?: string;
+      route?: Vector2[];
+    },
   ) {}
 
   execute(): void {
-    const cable = this.plan.addCable(this.fromDeviceId, this.toDeviceId, this.type, this.crossSection);
+    const cable = this.plan.addCable(
+      this.fromDeviceId,
+      this.toDeviceId,
+      this.type,
+      this.crossSection,
+      this.options,
+    );
     if (cable) this.cableId = cable.id;
   }
 
   undo(): void {
     this.plan.removeCable(this.cableId);
+  }
+}
+
+/** Обновляет длину кабеля после изменения маршрута. */
+function updateCableLength(cable: Cable): void {
+  cable.length = Plan.routeLength(cable.route);
+  cable.spareLength = Math.max(cable.length * 0.1, 500);
+  cable.totalLength = cable.length + cable.spareLength;
+}
+
+/** Команда изменения маршрута кабеля (перемещение вершин/граней). */
+export class UpdateCableRouteCommand implements Command {
+  private oldRoute: Vector2[] = [];
+  private oldViaPoints: Vector2[] = [];
+
+  constructor(
+    private plan: Plan,
+    private cableId: string,
+    private newRoute: Vector2[],
+  ) {}
+
+  execute(): void {
+    const cable = this.plan.findCable(this.cableId);
+    if (!cable) return;
+    this.oldRoute = cable.route.map(p => p.clone());
+    this.oldViaPoints = cable.viaPoints?.map(p => p.clone()) ?? [];
+    cable.route = this.newRoute.map(p => p.clone());
+    // Синхронизируем промежуточные точки, чтобы recalcCableRoutes не сбросил маршрут
+    cable.viaPoints = this.newRoute.length > 2
+      ? this.newRoute.slice(1, -1).map(p => p.clone())
+      : undefined;
+    cable.routing = 'manual';
+    updateCableLength(cable);
+  }
+
+  undo(): void {
+    const cable = this.plan.findCable(this.cableId);
+    if (!cable) return;
+    cable.route = this.oldRoute.map(p => p.clone());
+    cable.viaPoints = this.oldViaPoints.length > 0
+      ? this.oldViaPoints.map(p => p.clone())
+      : undefined;
+    updateCableLength(cable);
+  }
+}
+
+/** Команда добавления промежуточной вершины к кабелю. */
+export class AddCableVertexCommand implements Command {
+  private addedIndex = -1;
+
+  constructor(
+    private plan: Plan,
+    private cableId: string,
+    private edgeIndex: number,
+    private point: Vector2,
+  ) {}
+
+  execute(): void {
+    const cable = this.plan.findCable(this.cableId);
+    if (!cable) return;
+    this.addedIndex = this.edgeIndex + 1;
+    cable.route.splice(this.addedIndex, 0, this.point.clone());
+    cable.routing = 'manual';
+    updateCableLength(cable);
+  }
+
+  undo(): void {
+    const cable = this.plan.findCable(this.cableId);
+    if (!cable || this.addedIndex < 0) return;
+    cable.route.splice(this.addedIndex, 1);
+    updateCableLength(cable);
+  }
+}
+
+/** Команда удаления промежуточной вершины кабеля. */
+export class RemoveCableVertexCommand implements Command {
+  private removedPoint: Vector2 | null = null;
+
+  constructor(
+    private plan: Plan,
+    private cableId: string,
+    private vertexIndex: number,
+  ) {}
+
+  execute(): void {
+    const cable = this.plan.findCable(this.cableId);
+    if (!cable || this.vertexIndex <= 0 || this.vertexIndex >= cable.route.length - 1) return;
+    this.removedPoint = cable.route[this.vertexIndex].clone();
+    cable.route.splice(this.vertexIndex, 1);
+    cable.routing = 'manual';
+    updateCableLength(cable);
+  }
+
+  undo(): void {
+    const cable = this.plan.findCable(this.cableId);
+    if (!cable || !this.removedPoint) return;
+    cable.route.splice(this.vertexIndex, 0, this.removedPoint.clone());
+    updateCableLength(cable);
   }
 }
 

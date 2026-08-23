@@ -34,21 +34,33 @@ export function findPath(
 
   openSet.push(startNode)
 
+  // Только горизонтальное/вертикальное движение — кабель рисуется под прямыми углами.
   const directions = [
     { dx: 0, dy: -1, cost: 1 }, // up
     { dx: 1, dy: 0, cost: 1 },  // right
     { dx: 0, dy: 1, cost: 1 },  // down
     { dx: -1, dy: 0, cost: 1 }, // left
-    { dx: 1, dy: -1, cost: 1.414 }, // up-right
-    { dx: 1, dy: 1, cost: 1.414 },  // down-right
-    { dx: -1, dy: 1, cost: 1.414 }, // down-left
-    { dx: -1, dy: -1, cost: 1.414 }, // up-left
   ]
 
+  const maxIterations = grid.width * grid.height * 8
+  let iterations = 0
+
   while (openSet.length > 0) {
-    // Находим узел с минимальным f
-    openSet.sort((a, b) => a.f - b.f)
-    const current = openSet.shift()!
+    if (++iterations > maxIterations) {
+      // Защита от зависания на больших/сложных сетках
+      return null
+    }
+
+    // Находим узел с минимальным f (O(n) быстрее частых sort на небольших наборах)
+    let bestIndex = 0
+    for (let i = 1; i < openSet.length; i++) {
+      if (openSet[i].f < openSet[bestIndex].f) {
+        bestIndex = i
+      }
+    }
+    const current = openSet[bestIndex]
+    openSet[bestIndex] = openSet[openSet.length - 1]
+    openSet.pop()
 
     // Достигли цели
     if (current.x === endX && current.y === endY) {

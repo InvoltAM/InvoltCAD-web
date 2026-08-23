@@ -96,6 +96,8 @@ export default function ProjectsPanel() {
       const { plan } = await projectSync.loadProject(id)
       // Заменяем план в engine
       engineRef.current.plan = plan
+      engineRef.current.plan.deviceIconScale = useCadStore.getState().deviceIconScale
+      engineRef.current.plan.recalcCableRoutes()
       engineRef.current.notifyChanged()
       engineRef.current.requestRender()
       setOpen(false)

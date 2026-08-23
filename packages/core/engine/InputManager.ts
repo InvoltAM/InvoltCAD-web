@@ -277,4 +277,43 @@ export class InputManager {
     }
     return false;
   }
+
+  /** Программная отправка pointerdown (удобна для тестов). */
+  dispatchPointerDown(e: Partial<InputEvent> & { screenPoint: Vector2 }): void {
+    this.onPointerDown?.(this.makeSyntheticEvent(e));
+  }
+
+  /** Программная отправка pointermove (удобна для тестов). */
+  dispatchPointerMove(e: Partial<InputEvent> & { screenPoint: Vector2 }): void {
+    this.onPointerMove?.(this.makeSyntheticEvent(e));
+  }
+
+  /** Программная отправка pointerup (удобна для тестов). */
+  dispatchPointerUp(e: Partial<InputEvent> & { screenPoint: Vector2 }): void {
+    this.onPointerUp?.(this.makeSyntheticEvent(e));
+  }
+
+  /** Программная отправка doubleclick (удобна для тестов). */
+  dispatchDoubleClick(e: Partial<InputEvent> & { screenPoint: Vector2 }): void {
+    this.onDoubleClick?.(this.makeSyntheticEvent(e));
+  }
+
+  /** Программная отправка keydown (удобна для тестов). */
+  dispatchKeyDown(key: string, modifiers?: { shiftKey?: boolean; ctrlKey?: boolean; altKey?: boolean }): void {
+    this.handleKeyDown({ key, shiftKey: modifiers?.shiftKey ?? false, ctrlKey: modifiers?.ctrlKey ?? false, altKey: modifiers?.altKey ?? false } as KeyboardEvent);
+  }
+
+  private makeSyntheticEvent(e: Partial<InputEvent> & { screenPoint: Vector2 }): InputEvent {
+    const screenPoint = e.screenPoint;
+    return {
+      pointerId: e.pointerId ?? 1,
+      screenPoint,
+      worldPoint: e.worldPoint ?? this.camera.screenToWorld(screenPoint),
+      pointerType: e.pointerType ?? 'mouse',
+      button: e.button ?? 0,
+      shiftKey: e.shiftKey ?? false,
+      ctrlKey: e.ctrlKey ?? false,
+      altKey: e.altKey ?? false,
+    };
+  }
 }

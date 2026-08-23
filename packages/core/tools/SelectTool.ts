@@ -5,6 +5,13 @@ import { Opening } from '../model/Opening';
 import { Wall, wallLength, wallDirection } from '../model/Wall';
 import { findDeviceCatalogItem, getDeviceIconScale } from '../model/Device';
 import { projectPointToSegment } from '../geometry/Geometry';
+
+/** Обновляет длину кабеля после изменения маршрута. */
+function updateCableLength(cable: import('../model/Cable.js').Cable): void {
+  cable.length = Plan.routeLength(cable.route);
+  cable.spareLength = Math.max(cable.length * 0.1, 500);
+  cable.totalLength = cable.length + cable.spareLength;
+}
 import { SnapEngine } from '../snap/SnapEngine';
 import { CanvasEngine } from '../engine/CanvasEngine';
 import { Tool } from './ToolManager';
@@ -24,6 +31,9 @@ import {
   MoveSheetTableCommand,
   ResizeSheetTableCommand,
   RemovePrimitiveCommand,
+  UpdateCableRouteCommand,
+  AddCableVertexCommand,
+  RemoveCableVertexCommand,
 } from '../editor/CommandManager';
 import { MoveSelectionCommand, type MoveSelectionState, UpdatePrimitiveCommand } from '../editor/ModifyCommands';
 import { TableResizeCorner } from '../render/TableRenderer';
@@ -107,6 +117,28 @@ interface ResizeLogo {
   moved: boolean;
 }
 
+interface DragCableVertex {
+  cable: import('../model/Cable.js').Cable;
+  index: number;
+  startWorld: Vector2;
+  originalRoute: Vector2[];
+  moved: boolean;
+}
+
+interface DragCableEdge {
+  cable: import('../model/Cable.js').Cable;
+  edgeIndex: number;
+  startWorld: Vector2;
+  originalRoute: Vector2[];
+  moved: boolean;
+}
+
+interface HoveredCableHandle {
+  cableId: string;
+  vertexIndex?: number;
+  edgeIndex?: number;
+}
+
 /**
  * Инструмент "Выбор".
  * Выделение, перемещение проема, удаление через CommandManager,
@@ -127,6 +159,9 @@ export class SelectTool implements Tool {
   private dragCalloutTail: DragCalloutTail | null = null;
   private dragUnderlay: DragUnderlay | null = null;
   private resizeLogo: ResizeLogo | null = null;
+  private dragCableVertex: DragCableVertex | null = null;
+  private dragCableEdge: DragCableEdge | null = null;
+  private hoveredCableHandle: HoveredCableHandle | null = null;
   private selectionBox: {
     startWorld: Vector2;
     currentWorld: Vector2;
@@ -229,6 +264,8 @@ export class SelectTool implements Tool {
 
     const hitDeviceName = this.hitTestDeviceName(e.screenPoint);
     const hitDevice = this.hitTestDevice(e.screenPoint);
+    const hitCableVertex = this.hitTestCableVertex(e.screenPoint);
+    const hitCableEdge = this.hitTestCableEdge(e.screenPoint);
     const hitCable = this.hitTestCable(e.screenPoint);
     const hitDimension = this.hitTestDimension(e.screenPoint);
     const hitPrimitive = this.canvas.primitiveRenderer.hitTest(e.screenPoint);
@@ -266,6 +303,36 @@ export class SelectTool implements Tool {
           startT: hitDevice.t,
           startWorld: this.canvas.camera.screenToWorld(e.screenPoint),
           originalPos: hitDevice.position ? { ...hitDevice.position } : null,
+          moved: false,
+        };
+      }
+      this.dragOpening = null;
+    } else if (hitCableVertex) {
+      if (this.isMultiSelect(e)) {
+        this.toggleCableSelection(hitCableVertex.cable.id);
+      } else {
+        this.clearSelection();
+        this.canvas.setSelectedCable(hitCableVertex.cable.id);
+        this.dragCableVertex = {
+          cable: hitCableVertex.cable,
+          index: hitCableVertex.index,
+          startWorld: this.canvas.camera.screenToWorld(e.screenPoint),
+          originalRoute: hitCableVertex.cable.route.map(p => p.clone()),
+          moved: false,
+        };
+      }
+      this.dragOpening = null;
+    } else if (hitCableEdge) {
+      if (this.isMultiSelect(e)) {
+        this.toggleCableSelection(hitCableEdge.cable.id);
+      } else {
+        this.clearSelection();
+        this.canvas.setSelectedCable(hitCableEdge.cable.id);
+        this.dragCableEdge = {
+          cable: hitCableEdge.cable,
+          edgeIndex: hitCableEdge.edgeIndex,
+          startWorld: this.canvas.camera.screenToWorld(e.screenPoint),
+          originalRoute: hitCableEdge.cable.route.map(p => p.clone()),
           moved: false,
         };
       }
@@ -595,6 +662,38 @@ export class SelectTool implements Tool {
           this.canvas.notifyChanged();
         }
       }
+    } else if (this.dragCableVertex) {
+      const world = this.canvas.camera.screenToWorld(e.screenPoint);
+      const delta = world.sub(this.dragCableVertex.startWorld);
+      const cable = this.dragCableVertex.cable;
+      const index = this.dragCableVertex.index;
+      const original = this.dragCableVertex.originalRoute[index];
+      cable.route[index] = original.add(delta);
+      cable.routing = 'manual';
+      this.dragCableVertex.moved = true;
+      updateCableLength(cable);
+      // Пересчёт всех кабелей при каждом движении мыши не нужен и вызывает зависания
+      this.canvas.requestRender();
+      return;
+    } else if (this.dragCableEdge) {
+      const world = this.canvas.camera.screenToWorld(e.screenPoint);
+      const delta = world.sub(this.dragCableEdge.startWorld);
+      const cable = this.dragCableEdge.cable;
+      const i = this.dragCableEdge.edgeIndex;
+      const original = this.dragCableEdge.originalRoute;
+      // Перемещаем только редактируемые вершины грани (не anchor-концы)
+      if (i > 0) {
+        cable.route[i] = original[i].add(delta);
+      }
+      if (i + 1 < original.length - 1) {
+        cable.route[i + 1] = original[i + 1].add(delta);
+      }
+      cable.routing = 'manual';
+      this.dragCableEdge.moved = true;
+      updateCableLength(cable);
+      // Пересчёт всех кабелей при каждом движении мыши не нужен и вызывает зависания
+      this.canvas.requestRender();
+      return;
     } else if (this.dragDeviceName) {
       const world = this.canvas.camera.screenToWorld(e.screenPoint);
       const delta = world.sub(this.dragDeviceName.startWorld);
@@ -640,6 +739,23 @@ export class SelectTool implements Tool {
       this.plan.invalidateRooms();
       this.canvas.notifyChanged();
     } else {
+      // Hover: ручки кабеля
+      const hitCableVertex = this.hitTestCableVertex(e.screenPoint);
+      if (hitCableVertex) {
+        this.hoveredCableHandle = { cableId: hitCableVertex.cable.id, vertexIndex: hitCableVertex.index };
+        this.canvas.setGhost((ctx) => this.drawCableVertexHover(ctx, hitCableVertex.cable.route[hitCableVertex.index]));
+        this.canvas.requestRender();
+        return;
+      }
+      const hitCableEdge = this.hitTestCableEdge(e.screenPoint);
+      if (hitCableEdge) {
+        this.hoveredCableHandle = { cableId: hitCableEdge.cable.id, edgeIndex: hitCableEdge.edgeIndex };
+        this.canvas.setGhost((ctx) => this.drawCableEdgeHover(ctx, hitCableEdge.cable.route, hitCableEdge.edgeIndex));
+        this.canvas.requestRender();
+        return;
+      }
+      this.hoveredCableHandle = null;
+
       // Hover: показываем ручки логотипа при наведении
       const hitLogoCorner = this.hitTestLogoCorner(e.worldPoint);
       if (hitLogoCorner || this.hitTestLogo(e.worldPoint)) {
@@ -650,6 +766,36 @@ export class SelectTool implements Tool {
   }
 
   onPointerUp(e: InputEvent): void {
+    if (this.dragCableVertex) {
+      const { cable, originalRoute, moved } = this.dragCableVertex;
+      if (moved) {
+        this.canvas.commandManager.execute(
+          new UpdateCableRouteCommand(this.plan, cable.id, cable.route.map(p => p.clone())),
+        );
+      } else {
+        cable.route = originalRoute.map(p => p.clone());
+        updateCableLength(cable);
+      }
+      this.dragCableVertex = null;
+      this.canvas.notifyChanged();
+      return;
+    }
+
+    if (this.dragCableEdge) {
+      const { cable, originalRoute, moved } = this.dragCableEdge;
+      if (moved) {
+        this.canvas.commandManager.execute(
+          new UpdateCableRouteCommand(this.plan, cable.id, cable.route.map(p => p.clone())),
+        );
+      } else {
+        cable.route = originalRoute.map(p => p.clone());
+        updateCableLength(cable);
+      }
+      this.dragCableEdge = null;
+      this.canvas.notifyChanged();
+      return;
+    }
+
     if (this.resizeTable) {
       const { table, startScale, startPos, moved } = this.resizeTable;
       if (moved) {
@@ -836,6 +982,27 @@ export class SelectTool implements Tool {
   }
 
   onDoubleClick(e: InputEvent): void {
+    const hitCableVertex = this.hitTestCableVertex(e.screenPoint);
+    if (hitCableVertex) {
+      this.canvas.commandManager.execute(
+        new RemoveCableVertexCommand(this.plan, hitCableVertex.cable.id, hitCableVertex.index),
+      );
+      this.canvas.setSelectedCable(hitCableVertex.cable.id);
+      this.canvas.notifyChanged();
+      return;
+    }
+
+    const hitCableEdge = this.hitTestCableEdge(e.screenPoint);
+    if (hitCableEdge) {
+      const world = this.canvas.camera.screenToWorld(e.screenPoint);
+      this.canvas.commandManager.execute(
+        new AddCableVertexCommand(this.plan, hitCableEdge.cable.id, hitCableEdge.edgeIndex, world),
+      );
+      this.canvas.setSelectedCable(hitCableEdge.cable.id);
+      this.canvas.notifyChanged();
+      return;
+    }
+
     const selectedRoom = this.canvas.getSelectedRoom();
     if (selectedRoom === null) return;
     const hitWall = this.hitTestWall(e.screenPoint);
@@ -898,6 +1065,17 @@ export class SelectTool implements Tool {
         this.canvas.setSelectedPrimitives([]);
         this.canvas.notifyChanged();
         return true;
+      }
+
+      // Удаление промежуточной вершины кабеля
+      if (this.hoveredCableHandle && this.hoveredCableHandle.vertexIndex !== undefined) {
+        const cable = this.plan.findCable(this.hoveredCableHandle.cableId);
+        const index = this.hoveredCableHandle.vertexIndex;
+        if (cable && index > 0 && index < cable.route.length - 1) {
+          this.canvas.commandManager.execute(new RemoveCableVertexCommand(this.plan, cable.id, index));
+          this.canvas.notifyChanged();
+          return true;
+        }
       }
 
       // Удаление вершины комнаты — объединение двух коллинеарных стен
@@ -1058,7 +1236,8 @@ export class SelectTool implements Tool {
 
   private hitTestCable(screenPoint: Vector2): import('../model/Cable.js').Cable | null {
     const world = this.canvas.camera.screenToWorld(screenPoint);
-    const thresholdMm = 10 / this.canvas.camera.scale;
+    // Увеличенная зона захвата для кабеля, чтобы было проще попасть кликом.
+    const thresholdMm = 16 / this.canvas.camera.scale;
 
     for (const cable of this.plan.cables) {
       const route = cable.route.length >= 2 ? cable.route : [];
@@ -1066,6 +1245,37 @@ export class SelectTool implements Tool {
         const proj = this.projectPointToSegment(world, route[i - 1], route[i]);
         if (proj.dist < thresholdMm) {
           return cable;
+        }
+      }
+    }
+    return null;
+  }
+
+  private hitTestCableVertex(screenPoint: Vector2): { cable: import('../model/Cable.js').Cable; index: number } | null {
+    const world = this.canvas.camera.screenToWorld(screenPoint);
+    const thresholdMm = 10 / this.canvas.camera.scale;
+
+    for (const cable of this.plan.cables) {
+      const route = cable.route;
+      for (let i = 1; i < route.length - 1; i++) {
+        if (route[i].distanceTo(world) <= thresholdMm) {
+          return { cable, index: i };
+        }
+      }
+    }
+    return null;
+  }
+
+  private hitTestCableEdge(screenPoint: Vector2): { cable: import('../model/Cable.js').Cable; edgeIndex: number } | null {
+    const world = this.canvas.camera.screenToWorld(screenPoint);
+    const thresholdMm = 10 / this.canvas.camera.scale;
+
+    for (const cable of this.plan.cables) {
+      const route = cable.route;
+      for (let i = 0; i < route.length - 1; i++) {
+        const proj = this.projectPointToSegment(world, route[i], route[i + 1]);
+        if (proj.dist < thresholdMm && proj.t > 0 && proj.t < 1) {
+          return { cable, edgeIndex: i };
         }
       }
     }
@@ -1790,5 +2000,26 @@ export class SelectTool implements Tool {
       ctx.fillRect(p.x - half, p.y - half, size, size);
       ctx.strokeRect(p.x - half, p.y - half, size, size);
     }
+  }
+
+  private drawCableVertexHover(ctx: CanvasRenderingContext2D, point: Vector2): void {
+    if (!point) return;
+    const size = 7 / this.canvas.camera.scale;
+    const half = size / 2;
+    ctx.strokeStyle = '#ff8800';
+    ctx.lineWidth = 1 / this.canvas.camera.scale;
+    ctx.strokeRect(point.x - half, point.y - half, size, size);
+  }
+
+  private drawCableEdgeHover(ctx: CanvasRenderingContext2D, route: Vector2[], edgeIndex: number): void {
+    const a = route[edgeIndex];
+    const b = route[edgeIndex + 1];
+    if (!a || !b) return;
+    const mid = a.add(b).scale(0.5);
+    const radius = 4 / this.canvas.camera.scale;
+    ctx.fillStyle = '#ff8800';
+    ctx.beginPath();
+    ctx.arc(mid.x, mid.y, radius, 0, Math.PI * 2);
+    ctx.fill();
   }
 }

@@ -1,7 +1,7 @@
 import { Vector2 } from '../geometry/Vector2';
 import { Wall, DEFAULT_WALL_THICKNESS, wallLength, wallDirection } from './Wall';
 import { Opening, OpeningType, DEFAULT_DOOR_WIDTH, DEFAULT_WINDOW_WIDTH } from './Opening';
-import { Device, DeviceType, DEVICE_SIZE, DEFAULT_DEVICE_NAMES } from './Device';
+import { Device, DeviceType, DEVICE_SIZE, DEFAULT_DEVICE_NAMES, findDeviceCatalogItem, getDeviceIconScale } from './Device';
 import { Cable, CableType, DEFAULT_CABLE } from './Cable';
 import { Dimension, createDimension } from './Dimension';
 import { DrawingPrimitive, DrawingPrimitiveType, createDrawingPrimitive } from './DrawingPrimitive';
@@ -13,6 +13,7 @@ import { projectPointToSegment } from '../geometry/Geometry';
 import { Sheet, createDefaultSheets, createEmptyTitleBlock, SheetTitleBlock } from './Sheet';
 import { createSheetTable, SheetTable, SheetTableType } from './SheetTable';
 import { CableRunData } from '../electrical/CableRunEngine';
+import { routeCableWithVia, simplifyRoute } from '../cables/cableRouting';
 
 export interface PlanElectrical {
   consumers: any[];
@@ -59,6 +60,9 @@ export class Plan {
   sheets: Sheet[] = createDefaultSheets();
   activeSheetId: string = '';
   electrical: PlanElectrical = createEmptyElectrical();
+
+  /** Глобальный масштаб иконок устройств, влияющий на точки входа кабелей. */
+  deviceIconScale: number = 1;
 
   private wallQuadtree: Quadtree<Wall> | null = null;
   private cachedQuadtreeHash = '';
@@ -151,11 +155,14 @@ export class Plan {
 
   removeWall(id: string): void {
     this.walls = this.walls.filter(w => w.id !== id);
-    // Удаляем устройства и кабели, связанные со стеной
+    // Удаляем устройства, связанные со стеной
     this.devices = this.devices.filter(d => d.wallId !== id);
-    this.cables = this.cables.filter(
-      c => this.devices.some(d => d.id === c.fromDeviceId || d.id === c.toDeviceId),
-    );
+    // Удаляем кабели, у которых оба конца — удалённые устройства (point-концы остаются)
+    this.cables = this.cables.filter((c) => {
+      const fromOk = !c.fromDeviceId || this.devices.some(d => d.id === c.fromDeviceId);
+      const toOk = !c.toDeviceId || this.devices.some(d => d.id === c.toDeviceId);
+      return fromOk || toOk;
+    });
     this.invalidateRooms();
   }
 
@@ -490,30 +497,78 @@ export class Plan {
     return this.primitives.find(p => p.id === id);
   }
 
+  /** Мировая позиция начала или конца кабеля с учётом точек на стене/в пространстве. */
+  cableEndpointPosition(cable: Cable, endpoint: 'from' | 'to'): Vector2 {
+    if (endpoint === 'from') {
+      if (cable.fromDeviceId) {
+        const device = this.findDevice(cable.fromDeviceId);
+        if (device) return this.deviceCableEntryPoint(device);
+      }
+      if (cable.fromPoint) return new Vector2(cable.fromPoint.x, cable.fromPoint.y);
+    } else {
+      if (cable.toDeviceId) {
+        const device = this.findDevice(cable.toDeviceId);
+        if (device) return this.deviceCableEntryPoint(device);
+      }
+      if (cable.toPoint) return new Vector2(cable.toPoint.x, cable.toPoint.y);
+    }
+    return cable.route[0]?.clone() ?? new Vector2(0, 0);
+  }
+
   addCable(
-    fromDeviceId: string,
-    toDeviceId: string,
+    fromDeviceId: string | null,
+    toDeviceId: string | null,
     type: CableType = DEFAULT_CABLE.type,
     crossSection = DEFAULT_CABLE.crossSection,
+    options?: {
+      fromPoint?: { x: number; y: number };
+      toPoint?: { x: number; y: number };
+      viaPoints?: Vector2[];
+      circuitId?: string;
+      route?: Vector2[];
+    },
   ): Cable | null {
-    if (fromDeviceId === toDeviceId) return null;
-    const from = this.findDevice(fromDeviceId);
-    const to = this.findDevice(toDeviceId);
-    if (!from || !to) return null;
+    const hasFromDevice = !!fromDeviceId;
+    const hasToDevice = !!toDeviceId;
+    if (hasFromDevice && hasToDevice && fromDeviceId === toDeviceId) return null;
 
-    const fromPos = this.deviceWorldPosition(from);
-    const toPos = this.deviceWorldPosition(to);
-    const route = Plan.computeManhattanRoute(fromPos, toPos);
+    const fromPos = hasFromDevice
+      ? this.deviceCableEntryPoint(this.findDevice(fromDeviceId!)!)
+      : options?.fromPoint
+        ? new Vector2(options.fromPoint.x, options.fromPoint.y)
+        : null;
+    const toPos = hasToDevice
+      ? this.deviceCableEntryPoint(this.findDevice(toDeviceId!)!)
+      : options?.toPoint
+        ? new Vector2(options.toPoint.x, options.toPoint.y)
+        : null;
+    if (!fromPos || !toPos) return null;
+
+    const via = options?.viaPoints ?? [];
+    let route: Vector2[];
+    const routing: 'auto' | 'manual' = options?.route && options.route.length >= 2 ? 'auto' : 'manual';
+    if (options?.route && options.route.length >= 2) {
+      route = options.route.map((p) => p.clone());
+    } else if (via.length > 0) {
+      route = [fromPos, ...via.map((p) => p.clone()), toPos];
+    } else {
+      route = Plan.computeManhattanRoute(fromPos, toPos);
+    }
     const length = Plan.routeLength(route);
 
     const cable: Cable = {
       id: crypto.randomUUID(),
       fromDeviceId,
       toDeviceId,
+      fromPoint: options?.fromPoint ? { ...options.fromPoint } : undefined,
+      toPoint: options?.toPoint ? { ...options.toPoint } : undefined,
       type,
       crossSection,
       length,
       route,
+      viaPoints: via.map(p => p.clone()),
+      routing,
+      circuitId: options?.circuitId,
     };
     this.cables.push(cable);
 
@@ -677,17 +732,34 @@ export class Plan {
   /** Пересчитать маршруты и длины всех кабелей после изменения устройств. */
   recalcCableRoutes(): void {
     for (const cable of this.cables) {
-      const from = this.findDevice(cable.fromDeviceId);
-      const to = this.findDevice(cable.toDeviceId);
-      if (!from || !to) continue;
-      const fromPos = this.deviceWorldPosition(from);
-      const toPos = this.deviceWorldPosition(to);
-      cable.route = Plan.computeManhattanRoute(fromPos, toPos);
+      const fromPos = this.cableEndpointPosition(cable, 'from');
+      const toPos = this.cableEndpointPosition(cable, 'to');
+
+      if (cable.routing === 'auto') {
+        const via = cable.viaPoints ?? [];
+        const points = [fromPos, ...via.map(p => p.clone()), toPos];
+        const routed = routeCableWithVia(this, points, 50);
+        cable.route = routed && routed.length >= 2
+          ? simplifyRoute(routed, 1e-3, 25, via)
+          : (via.length > 0
+            ? [fromPos, ...via.map(p => p.clone()), toPos]
+            : Plan.computeManhattanRoute(fromPos, toPos));
+      } else {
+        // Ручной маршрут: сохраняем промежуточные вершины, обновляем только
+        // точки подключения к устройствам, чтобы кабель следовал за ними.
+        const route = cable.route;
+        if (route.length >= 2) {
+          route[0] = fromPos.clone();
+          route[route.length - 1] = toPos.clone();
+        } else {
+          cable.route = Plan.computeManhattanRoute(fromPos, toPos);
+        }
+      }
+
       cable.length = Plan.routeLength(cable.route);
       cable.spareLength = Math.max(cable.length * 0.1, 500);
       cable.totalLength = cable.length + cable.spareLength;
     }
-
   }
 
   /** Возвращает ограничивающий прямоугольник плана с заданным отступом (мм). */
@@ -758,6 +830,35 @@ export class Plan {
     return centerOnWall.add(n.scale(h * device.side));
   }
 
+  /**
+   * Точка входа кабеля в устройство.
+   * Для устройств на стене — центр верхней грани (грани, противоположной стене),
+   * с отступом от стены, большим размера блока.
+   * Для свободно размещённых устройств — позиция устройства.
+   */
+  deviceCableEntryPoint(device: Device): Vector2 {
+    // Свободно размещённое устройство (светильник на потолке)
+    if (device.position) {
+      return new Vector2(device.position.x, device.position.y);
+    }
+
+    const wall = this.findWall(device.wallId);
+    if (!wall) return new Vector2(0, 0);
+    const len = wallLength(wall);
+    const dir = wallDirection(wall);
+    const n = dir.perpendicular();
+    const centerOnWall = wall.a.add(dir.scale(device.t * len));
+    const surfacePos = centerOnWall.add(n.scale((wall.thickness / 2) * device.side));
+
+    const item = findDeviceCatalogItem(device.type);
+    const baseSize = item ? Math.max(item.width, item.height) : 600;
+    const sizeWorld = baseSize * this.deviceIconScale * getDeviceIconScale(device);
+    // Отступ от стены больше размера блока, чтобы кабель проходил за блоком
+    // и входил в центр верхней грани (противоположной стене)
+    const entryOffset = sizeWorld * 1.5;
+    return surfacePos.add(n.scale(entryOffset * device.side));
+  }
+
   toJSON(): object {
     const devicesToJSON = (devices: Device[]) => devices.map(d => ({
       id: d.id,
@@ -776,12 +877,15 @@ export class Plan {
       id: c.id,
       fromDeviceId: c.fromDeviceId,
       toDeviceId: c.toDeviceId,
+      fromPoint: c.fromPoint,
+      toPoint: c.toPoint,
       type: c.type,
       crossSection: c.crossSection,
       length: c.length,
       spareLength: c.spareLength,
       totalLength: c.totalLength,
       route: c.route.map(p => ({ x: p.x, y: p.y })),
+      viaPoints: c.viaPoints?.map(p => ({ x: p.x, y: p.y })),
       circuitId: c.circuitId,
       visible: c.visible ?? true,
       brand: c.brand ?? '',
@@ -886,23 +990,42 @@ export class Plan {
     }));
 
     const cablesFromJSON = (list: any[], devices: Device[]): Cable[] => (list ?? []).map(c => {
-      const from = devices.find(d => d.id === c.fromDeviceId);
-      const to = devices.find(d => d.id === c.toDeviceId);
-      const fromPos = from ? plan.deviceWorldPosition(from) : new Vector2(0, 0);
-      const toPos = to ? plan.deviceWorldPosition(to) : new Vector2(0, 0);
+      const fromDeviceId: string | null = c.fromDeviceId ?? null;
+      const toDeviceId: string | null = c.toDeviceId ?? null;
+      const from = fromDeviceId ? devices.find(d => d.id === fromDeviceId) : undefined;
+      const to = toDeviceId ? devices.find(d => d.id === toDeviceId) : undefined;
+      const fromPoint = c.fromPoint ? { x: c.fromPoint.x ?? 0, y: c.fromPoint.y ?? 0 } : undefined;
+      const toPoint = c.toPoint ? { x: c.toPoint.x ?? 0, y: c.toPoint.y ?? 0 } : undefined;
+      const fromPos = from
+        ? plan.deviceCableEntryPoint(from)
+        : fromPoint
+          ? new Vector2(fromPoint.x, fromPoint.y)
+          : new Vector2(0, 0);
+      const toPos = to
+        ? plan.deviceCableEntryPoint(to)
+        : toPoint
+          ? new Vector2(toPoint.x, toPoint.y)
+          : new Vector2(0, 0);
+      const viaPoints = (c.viaPoints as Array<{x: number; y: number}> | undefined)
+        ?.map(p => new Vector2(p.x, p.y));
       const route = (c.route as Array<{x: number; y: number}> | undefined)?.map(p => new Vector2(p.x, p.y))
-        ?? Plan.computeManhattanRoute(fromPos, toPos);
+        ?? (viaPoints && viaPoints.length > 0
+          ? [fromPos, ...viaPoints, toPos]
+          : Plan.computeManhattanRoute(fromPos, toPos));
       const length = c.length ?? Plan.routeLength(route);
       return {
         id: c.id || crypto.randomUUID(),
-        fromDeviceId: c.fromDeviceId,
-        toDeviceId: c.toDeviceId,
+        fromDeviceId,
+        toDeviceId,
+        fromPoint,
+        toPoint,
         type: c.type || DEFAULT_CABLE.type,
         crossSection: c.crossSection ?? DEFAULT_CABLE.crossSection,
         length,
         spareLength: c.spareLength,
         totalLength: c.totalLength,
         route,
+        viaPoints,
         circuitId: c.circuitId,
         visible: c.visible ?? true,
         brand: c.brand ?? '',
