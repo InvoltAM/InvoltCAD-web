@@ -106,6 +106,41 @@ describe('cableRouting', () => {
     expect(crossesOpening).toBe(true)
   })
 
+  it('typical socket layouts produce compact Visio-like routes', () => {
+    const plan = new Plan()
+    plan.addWall(new Vector2(1000, 1000), new Vector2(7000, 1000))
+    plan.addWall(new Vector2(7000, 1000), new Vector2(7000, 5000))
+    plan.addWall(new Vector2(7000, 5000), new Vector2(1000, 5000))
+    plan.addWall(new Vector2(1000, 5000), new Vector2(1000, 1000))
+    const partition = plan.addWall(new Vector2(4000, 1000), new Vector2(4000, 5000))
+    plan.addOpening(partition.id, 'door', 0.5, 1200)
+    const bottom1 = plan.deviceCableEntryPoint(plan.addDevice(plan.walls[2].id, 'socket', 0.2, 0, 1)!)
+    const bottom2 = plan.deviceCableEntryPoint(plan.addDevice(plan.walls[2].id, 'socket', 0.8, 0, 1)!)
+    const left = plan.deviceCableEntryPoint(plan.addDevice(plan.walls[3].id, 'socket', 0.5, 0, 1)!)
+    const right = plan.deviceCableEntryPoint(plan.addDevice(plan.walls[1].id, 'socket', 0.5, 0, 1)!)
+
+    const r1 = routeCable(plan, bottom1, bottom2, 50)
+    const r5 = routeCable(plan, left, right, 50)
+
+    expect(r1).toBeTruthy()
+    expect(r1!.length).toBeLessThanOrEqual(5)
+    expect(r5).toBeTruthy()
+    expect(r5!.length).toBeLessThanOrEqual(4)
+
+    // Маршрут по одной стене должен пересекать перегородку через проём
+    let crossesOpening = false
+    for (let i = 1; i < r1!.length; i++) {
+      const a = r1![i - 1]
+      const b = r1![i]
+      if ((a.x < 4000 && b.x > 4000) || (a.x > 4000 && b.x < 4000)) {
+        const t = a.x === b.x ? 0 : (4000 - a.x) / (b.x - a.x)
+        const y = a.y + (b.y - a.y) * t
+        if (Math.abs(y - 3000) <= 700) crossesOpening = true
+      }
+    }
+    expect(crossesOpening).toBe(true)
+  })
+
   it('склеивает сегменты через промежуточные точки', () => {
     const plan = new Plan()
     plan.addWall(new Vector2(0, -1000), new Vector2(0, 1000))

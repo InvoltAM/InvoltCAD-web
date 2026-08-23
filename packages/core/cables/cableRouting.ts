@@ -1,10 +1,11 @@
 import { Vector2 } from '../geometry/Vector2'
 import { NavGrid, NavigablePlan } from './navGrid'
 import { findPath } from './astar'
-import { Wall, wallPolyline } from '../model/Wall'
-import { distPointToSegment } from '../geometry/Geometry'
+import { Wall, wallHasArc, wallLength, wallPolyline } from '../model/Wall'
+import { Opening } from '../model/Opening'
+import { distPointToSegment, segmentsIntersection } from '../geometry/Geometry'
 
-const WALL_CLEARANCE = 100 // мм — минимальный зазор от стены
+const WALL_CLEARANCE = 100 // мм — минимальный зазор от осевой линии стены
 const SNAP_TOLERANCE = 75  // мм — допуск привязки к стене
 
 /**
@@ -217,8 +218,10 @@ function pointLineDistance(p: Vector2, a: Vector2, b: Vector2): number {
 /**
  * Постобработка A* маршрута:
  * - выравнивает отрезки под прямые углы,
- * - удаляет избыточные промежуточные вершины,
- * - прижимает маршрут к параллельным стенам, сохраняя зазор.
+ * - удаляет избыточные промежуточные вершины с помощью динамического
+ *   программирования (только горизонтальные/вертикальные сегменты),
+ * - прокладывает пересечения со стенами только через проёмы,
+ * - привязывает точки пересечения к центральной линии проёма.
  */
 export function postprocessRoute(
   route: Vector2[],
@@ -229,13 +232,46 @@ export function postprocessRoute(
 
   const tolerance = cellSize / 2
   let result = straightenRoute(route, tolerance)
-  result = removeRedundantVertices(result, plan)
-  result = snapRouteToWalls(result, plan, WALL_CLEARANCE, cellSize)
+  result = deduplicateRoute(result)
+  result = insertOpeningWaypoints(result, plan)
+  result = orthogonalDPSimplify(result, plan)
+  result = snapCrossingsToOpenings(result, plan)
+  result = mergeCollinearSegments(result, plan)
   result = removeRedundantVertices(result, plan)
   result = straightenRoute(result, tolerance)
+  result = mergeCollinearSegments(result, plan)
+  result = removeRedundantVertices(result, plan)
+  result = deduplicateRoute(result)
 
   // Если постобработка удалила все точки — возвращаем исходный маршрут
   if (result.length < 2) return route.map((p) => p.clone())
+  return result
+}
+
+/**
+ * Объединяет идущие подряд коллинеарные сегменты в один,
+ * если прямой отрезок между их концами допустим (не пересекает стены
+ * вне проёмов и сохраняет зазор).
+ */
+function mergeCollinearSegments(route: Vector2[], plan: NavigablePlan): Vector2[] {
+  if (route.length < 3) return route.map((p) => p.clone())
+  const result: Vector2[] = [route[0].clone()]
+  let i = 1
+  while (i < route.length - 1) {
+    const prev = result[result.length - 1]
+    const curr = route[i]
+    const next = route[i + 1]
+    const sameY = Math.abs(prev.y - curr.y) < 1 && Math.abs(curr.y - next.y) < 1
+    const sameX = Math.abs(prev.x - curr.x) < 1 && Math.abs(curr.x - next.x) < 1
+    if ((sameY || sameX) && straightSegmentIsAllowed(prev, next, plan)) {
+      // curr лишняя, объединяем prev->curr->next в prev->next
+      i++
+      continue
+    }
+    result.push(curr.clone())
+    i++
+  }
+  result.push(route[route.length - 1].clone())
   return result
 }
 
@@ -268,7 +304,7 @@ function straightenRoute(route: Vector2[], tolerance: number): Vector2[] {
 
 /**
  * Удаляет промежуточные вершины, если прямой отрезок между соседними точками
- * не нарушает зазор до стен.
+ * не нарушает зазор до стен и не пересекает их вне проёмов.
  */
 function removeRedundantVertices(route: Vector2[], plan: NavigablePlan): Vector2[] {
   if (route.length <= 2) return route.map((p) => p.clone())
@@ -277,7 +313,7 @@ function removeRedundantVertices(route: Vector2[], plan: NavigablePlan): Vector2
   while (i < route.length - 1) {
     const a = result[result.length - 1]
     const c = route[i + 1]
-    if (segmentRouteClearance(a, c, plan) >= WALL_CLEARANCE) {
+    if (straightSegmentIsAllowed(a, c, plan)) {
       // Точка i лишняя
       i++
     } else {
@@ -290,114 +326,280 @@ function removeRedundantVertices(route: Vector2[], plan: NavigablePlan): Vector2
 }
 
 /**
- * Прижимает горизонтальные отрезки к ближайшим горизонтальным стенам,
- * а вертикальные — к вертикальным, сохраняя WALL_CLEARANCE.
+ * Динамическое программирование для поиска маршрута с минимальным числом
+ * вершин, состоящего только из горизонтальных и вертикальных сегментов.
+ * Между двумя сохранёнными вершинами допускается либо прямой отрезок,
+ * либо L-образный излом (один промежуточный угол).
  */
-function snapRouteToWalls(
-  route: Vector2[],
-  plan: NavigablePlan,
-  clearance: number,
-  tolerance: number
-): Vector2[] {
-  if (route.length < 2) return route.map((p) => p.clone())
+function orthogonalDPSimplify(route: Vector2[], plan: NavigablePlan): Vector2[] {
+  const n = route.length
+  if (n < 2) return route.map((p) => p.clone())
 
-  const snapped = route.map((p) => p.clone())
-  for (let i = 0; i < snapped.length - 1; i++) {
-    const a = snapped[i]
-    const b = snapped[i + 1]
-    const dx = Math.abs(b.x - a.x)
-    const dy = Math.abs(b.y - a.y)
+  const dp = new Array(n).fill(Infinity)
+  const parent = new Array(n).fill(-1)
+  const corner: (Vector2 | null)[] = new Array(n).fill(null)
+  const pathLength = new Array(n).fill(Infinity)
 
-    if (dx > dy) {
-      // Горизонтальный отрезок
-      const y = snapToWallY((a.y + b.y) / 2, plan, clearance, tolerance)
-      if (y !== null) {
-        a.y = y
-        b.y = y
+  dp[0] = 1
+  pathLength[0] = 0
+
+  for (let i = 0; i < n; i++) {
+    if (dp[i] === Infinity) continue
+
+    for (let j = i + 1; j < n; j++) {
+      const a = route[i]
+      const b = route[j]
+
+      let bestCorner: Vector2 | null = null
+      let feasible = false
+      let segLen = 0
+
+      const axisAligned = Math.abs(a.x - b.x) < 1e-3 || Math.abs(a.y - b.y) < 1e-3
+      if (axisAligned && segmentIsAllowed(a, b, plan)) {
+        feasible = true
+        segLen = a.distanceTo(b)
+      } else {
+        const candidates = [new Vector2(a.x, b.y), new Vector2(b.x, a.y)]
+        for (const c of candidates) {
+          if (segmentIsAllowed(a, c, plan) && segmentIsAllowed(c, b, plan)) {
+            bestCorner = c
+            feasible = true
+            segLen = a.distanceTo(c) + c.distanceTo(b)
+            break
+          }
+        }
       }
-    } else if (dy > dx) {
-      // Вертикальный отрезок
-      const x = snapToWallX((a.x + b.x) / 2, plan, clearance, tolerance)
-      if (x !== null) {
-        a.x = x
-        b.x = x
-      }
-    }
-  }
 
-  // Удаляем дублирующиеся точки
-  const result: Vector2[] = [snapped[0]]
-  for (let i = 1; i < snapped.length; i++) {
-    if (snapped[i].distanceTo(result[result.length - 1]) > 1e-3) {
-      result.push(snapped[i])
-    }
-  }
-  return result
-}
+      if (!feasible) continue
 
-function snapToWallY(
-  y: number,
-  plan: NavigablePlan,
-  clearance: number,
-  tolerance: number
-): number | null {
-  let best: { y: number; dist: number } | null = null
-  for (const wall of plan.walls) {
-    for (let i = 0; i < wallPolyline(wall).length - 1; i++) {
-      const wa = wallPolyline(wall)[i]
-      const wb = wallPolyline(wall)[i + 1]
-      if (Math.abs(wa.y - wb.y) > 1) continue // не горизонтальная
-      const wallY = wa.y
-      const dist = Math.abs(y - wallY)
-      if (dist > tolerance) continue
-      const side = Math.sign(y - wallY)
-      const snappedY = wallY + side * clearance
-      const finalDist = Math.abs(y - snappedY)
-      if (!best || finalDist < best.dist) {
-        best = { y: snappedY, dist: finalDist }
+      const added = bestCorner ? 2 : 1
+      const totalLen = pathLength[i] + segLen
+      if (dp[i] + added < dp[j] || (dp[i] + added === dp[j] && totalLen < pathLength[j])) {
+        dp[j] = dp[i] + added
+        parent[j] = i
+        corner[j] = bestCorner
+        pathLength[j] = totalLen
       }
     }
   }
-  return best ? best.y : null
-}
 
-function snapToWallX(
-  x: number,
-  plan: NavigablePlan,
-  clearance: number,
-  tolerance: number
-): number | null {
-  let best: { x: number; dist: number } | null = null
-  for (const wall of plan.walls) {
-    for (let i = 0; i < wallPolyline(wall).length - 1; i++) {
-      const wa = wallPolyline(wall)[i]
-      const wb = wallPolyline(wall)[i + 1]
-      if (Math.abs(wa.x - wb.x) > 1) continue // не вертикальная
-      const wallX = wa.x
-      const dist = Math.abs(x - wallX)
-      if (dist > tolerance) continue
-      const side = Math.sign(x - wallX)
-      const snappedX = wallX + side * clearance
-      const finalDist = Math.abs(x - snappedX)
-      if (!best || finalDist < best.dist) {
-        best = { x: snappedX, dist: finalDist }
-      }
-    }
+  if (dp[n - 1] === Infinity) {
+    // Если DP не нашло допустимого упрощения, возвращаем исходный маршрут
+    return route.map((p) => p.clone())
   }
-  return best ? best.x : null
+
+  // Восстановление маршрута
+  const result: Vector2[] = []
+  let idx = n - 1
+  while (idx !== -1) {
+    result.push(route[idx].clone())
+    const c = corner[idx]
+    if (c) result.push(c.clone())
+    idx = parent[idx]
+  }
+  result.reverse()
+  return deduplicateRoute(result)
 }
 
 /**
- * Минимальный зазор от маршрута до любой стены.
+ * Добавляет в маршрут вспомогательные точки — центры проёмов.
+ * Это помогает DP строить короткие маршруты через дверные/оконные проёмы,
+ * даже если A* не прошёл точно через центр проёма.
  */
-function segmentRouteClearance(a: Vector2, b: Vector2, plan: NavigablePlan): number {
-  let minClearance = Infinity
+function insertOpeningWaypoints(route: Vector2[], plan: NavigablePlan): Vector2[] {
+  if (route.length < 2) return route.map((p) => p.clone())
+
+  const start = route[0]
+  const end = route[route.length - 1]
+  const dir = end.sub(start)
+  const lenSq = dir.dot(dir)
+
+  const existing = route.map((p) => ({
+    p,
+    t: lenSq > 0 ? p.sub(start).dot(dir) / lenSq : 0,
+  }))
+
+  const extras: { p: Vector2; t: number }[] = []
   for (const wall of plan.walls) {
-    minClearance = Math.min(minClearance, segmentClearanceToWall(a, b, wall))
+    if (wallHasArc(wall)) continue
+    const wallDir = wall.b.sub(wall.a)
+    if (wallDir.length() < 1e-9) continue
+
+    for (const opening of wall.openings) {
+      const center = openingCenterOnWall(wall, opening)
+      const t = paramAlongRoute(center, start, end)
+      // Не добавляем точки за пределами маршрута — они нарушат порядок
+      if (t > 1e-6 && t < 1 - 1e-6) {
+        extras.push({ p: center, t })
+      }
+    }
   }
-  return minClearance
+
+  extras.sort((a, b) => a.t - b.t)
+
+  const result: Vector2[] = []
+  let i = 0
+  const eps = 1e-6
+  for (const extra of extras) {
+    while (i < route.length && existing[i].t < extra.t - eps) {
+      result.push(route[i].clone())
+      i++
+    }
+    if (result.length === 0 || result[result.length - 1].distanceTo(extra.p) > eps) {
+      result.push(extra.p.clone())
+    }
+  }
+  while (i < route.length) {
+    result.push(route[i].clone())
+    i++
+  }
+
+  return result
 }
 
+function paramAlongRoute(p: Vector2, start: Vector2, end: Vector2): number {
+  const dir = end.sub(start)
+  const lenSq = dir.dot(dir)
+  return lenSq > 0 ? p.sub(start).dot(dir) / lenSq : 0
+}
+
+/**
+ * Центр проёма на осевой линии стены.
+ */
+function openingCenterOnWall(wall: Wall, opening: Opening): Vector2 {
+  const len = wallLength(wall)
+  if (len < 1e-9) return wall.a.clone()
+  const dir = wall.b.sub(wall.a).scale(1 / len)
+  return wall.a.add(dir.scale(opening.t * len))
+}
+
+/**
+ * Если отрезок [a,b] пересекает стену через проём, возвращает информацию
+ * о пересечении и точке, привязанной к центральной линии проёма.
+ */
+function findWallOpeningCrossing(
+  a: Vector2,
+  b: Vector2,
+  wall: Wall,
+): { opening: Opening; crossing: Vector2; snapped: Vector2 } | null {
+  const poly = wallPolyline(wall)
+  const wallLen = wallLength(wall)
+
+  for (let i = 0; i < poly.length - 1; i++) {
+    const wa = poly[i]
+    const wb = poly[i + 1]
+    const p = segmentsIntersection(a, b, wa, wb)
+    if (!p) continue
+
+    const v = wb.sub(wa)
+    const lenSq = v.dot(v)
+    if (lenSq < 1e-9) continue
+
+    const t = Math.max(0, Math.min(1, p.sub(wa).dot(v) / lenSq))
+    const along = t * Math.sqrt(lenSq)
+
+    for (const opening of wall.openings) {
+      const centerDist = opening.t * wallLen
+      const half = opening.width / 2
+      if (along >= centerDist - half - 1e-3 && along <= centerDist + half + 1e-3) {
+        const snapped = snapCrossingToOpening(a, b, wall, opening)
+        return { opening, crossing: p, snapped }
+      }
+    }
+  }
+
+  return null
+}
+
+/**
+ * Возвращает true, если отрезок [a,b] пересекает хотя бы одну стену
+ * вне дверного/оконного проёма.
+ */
+export function segmentCrossesWallOutsideOpening(
+  a: Vector2,
+  b: Vector2,
+  plan: NavigablePlan,
+): boolean {
+  for (const wall of plan.walls) {
+    const crossing = findWallOpeningCrossing(a, b, wall)
+    if (crossing) continue
+    if (segmentIntersectsWall(a, b, wall)) return true
+  }
+  return false
+}
+
+/**
+ * Привязывает точку пересечения со стеной к центральной линии проёма.
+ */
+export function snapCrossingToOpening(
+  a: Vector2,
+  b: Vector2,
+  wall: Wall,
+  opening: Opening,
+): Vector2 {
+  // Центр проёма на оси стены — целевая точка пересечения
+  return openingCenterOnWall(wall, opening)
+}
+
+/**
+ * Проверяет, что отрезок [a,b] или L-образная ломаная между ними
+ * может быть частью упрощённого маршрута.
+ */
+function segmentIsAllowed(a: Vector2, b: Vector2, plan: NavigablePlan): boolean {
+  if (a.distanceTo(b) < 1e-3) return false
+
+  const axisAligned = Math.abs(a.x - b.x) < 1e-3 || Math.abs(a.y - b.y) < 1e-3
+  if (axisAligned) {
+    return straightSegmentIsAllowed(a, b, plan)
+  }
+
+  // Пробуем два варианта L-образного пути
+  const c1 = new Vector2(a.x, b.y)
+  if (straightSegmentIsAllowed(a, c1, plan) && straightSegmentIsAllowed(c1, b, plan)) {
+    return true
+  }
+  const c2 = new Vector2(b.x, a.y)
+  return straightSegmentIsAllowed(a, c2, plan) && straightSegmentIsAllowed(c2, b, plan)
+}
+
+/**
+ * Проверяет, что прямой горизонтальный/вертикальный отрезок [a,b]
+ * не пересекает стены вне проёмов и сохраняет зазор WALL_CLEARANCE.
+ */
+function straightSegmentIsAllowed(a: Vector2, b: Vector2, plan: NavigablePlan): boolean {
+  if (a.distanceTo(b) < 1e-3) return false
+
+  // Упрощённый маршрут состоит только из горизонтальных/вертикальных отрезков
+  if (Math.abs(a.x - b.x) >= 1e-3 && Math.abs(a.y - b.y) >= 1e-3) return false
+
+  for (const wall of plan.walls) {
+    const crossing = findWallOpeningCrossing(a, b, wall)
+    if (crossing) {
+      // Пересечение только через проём — допустимо
+      continue
+    }
+
+    if (segmentIntersectsWall(a, b, wall)) return false
+
+    const clearance = segmentClearanceToWall(a, b, wall)
+    if (clearance < WALL_CLEARANCE - 1e-6) return false
+  }
+
+  return true
+}
+
+function segmentIntersectsWall(a: Vector2, b: Vector2, wall: Wall): boolean {
+  const poly = wallPolyline(wall)
+  for (let i = 0; i < poly.length - 1; i++) {
+    if (segmentsIntersect(a, b, poly[i], poly[i + 1])) return true
+  }
+  return false
+}
+
+/**
+ * Минимальный зазор от отрезка [a,b] до осевой линии стены.
+ * Зазор измеряется от осевой линии (как и сетка проходимости A*).
+ */
 function segmentClearanceToWall(a: Vector2, b: Vector2, wall: Wall): number {
   const poly = wallPolyline(wall)
   let minDist = Infinity
@@ -406,7 +608,7 @@ function segmentClearanceToWall(a: Vector2, b: Vector2, wall: Wall): number {
     const wb = poly[i + 1]
     minDist = Math.min(minDist, segmentToSegmentDistance(a, b, wa, wb))
   }
-  return minDist - wall.thickness / 2
+  return minDist
 }
 
 function segmentToSegmentDistance(a1: Vector2, a2: Vector2, b1: Vector2, b2: Vector2): number {
@@ -425,6 +627,62 @@ function segmentsIntersect(a1: Vector2, a2: Vector2, b1: Vector2, b2: Vector2): 
     return (C.y - A.y) * (B.x - A.x) > (B.y - A.y) * (C.x - A.x)
   }
   return ccw(a1, b1, b2) !== ccw(a2, b1, b2) && ccw(a1, a2, b1) !== ccw(a1, a2, b2)
+}
+
+/**
+ * Снимает внутренние точки пересечения со стенами через проёмы
+ * к центральной линии проёма, сдвигая весь пересекающий сегмент.
+ * Сегменты, примыкающие к началу/концу маршрута, не сдвигаем,
+ * чтобы не отрывать кабель от точек подключения.
+ */
+function snapCrossingsToOpenings(route: Vector2[], plan: NavigablePlan): Vector2[] {
+  if (route.length < 2) return route.map((p) => p.clone())
+
+  const list = route.map((p) => p.clone())
+  const eps = 1e-3
+
+  for (let i = 0; i < list.length - 1; i++) {
+    // Не сдвигаем сегменты, которые начинаются/заканчиваются в точках подключения
+    if (i === 0 || i + 1 === list.length - 1) continue
+
+    const a = list[i]
+    const b = list[i + 1]
+
+    let snapped: Vector2 | null = null
+    for (const wall of plan.walls) {
+      const crossing = findWallOpeningCrossing(a, b, wall)
+      if (crossing) {
+        snapped = crossing.snapped
+        break
+      }
+    }
+    if (!snapped) continue
+
+    if (Math.abs(a.y - b.y) < eps) {
+      // Горизонтальный отрезок пересекает вертикальную стену
+      const y = snapped.y
+      a.y = y
+      b.y = y
+    } else if (Math.abs(a.x - b.x) < eps) {
+      // Вертикальный отрезок пересекает горизонтальную стену
+      const x = snapped.x
+      a.x = x
+      b.x = x
+    }
+  }
+
+  return deduplicateRoute(list)
+}
+
+function deduplicateRoute(route: Vector2[]): Vector2[] {
+  const eps = 1e-3
+  const result: Vector2[] = []
+  for (const p of route) {
+    if (result.length === 0 || p.distanceTo(result[result.length - 1]) > eps) {
+      result.push(p.clone())
+    }
+  }
+  return result
 }
 
 /**
