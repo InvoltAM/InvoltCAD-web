@@ -3,6 +3,7 @@ import { Plan } from '../model/Plan';
 import { ThemeManager } from '../editor/ThemeManager';
 import { Vector2 } from '../geometry/Vector2';
 import { DrawingPrimitive } from '../model/DrawingPrimitive';
+import { projectPointToSegment } from '../geometry/Geometry';
 
 /**
  * Отрисовка примитивов рисования (полилиния, отрезок, прямоугольник, круг).
@@ -255,7 +256,6 @@ export class PrimitiveRenderer {
 
   /** Hit-test примитива: ближайший сегмент/грань/окружность в пределах thresholdPx. */
   hitTest(screenPoint: { x: number; y: number }, thresholdPx = 8): import('../model/DrawingPrimitive').DrawingPrimitive | null {
-    const { projectPointToSegment } = require('../geometry/Geometry');
     const world = this.camera.screenToWorld(new Vector2(screenPoint.x, screenPoint.y));
     const thresholdWorld = thresholdPx / this.camera.scale;
     let best: { primitive: import('../model/DrawingPrimitive').DrawingPrimitive; distWorld: number } | null = null;

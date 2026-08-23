@@ -38,6 +38,11 @@ import {
 import { MoveSelectionCommand, type MoveSelectionState, UpdatePrimitiveCommand } from '../editor/ModifyCommands';
 import { TableResizeCorner } from '../render/TableRenderer';
 import { SheetFrameRenderer } from '../render/SheetFrameRenderer';
+import {
+  moveCableEdgeOrthogonal,
+  moveCableVertexOrthogonal,
+  rerouteCableEdgeAroundObstacles,
+} from './CableEditHelper';
 
 const ROOM_VERTEX_SCREEN_THRESHOLD = 8; // px
 const ROOM_VERTEX_WORLD_THRESHOLD = 5; // мм
@@ -664,34 +669,33 @@ export class SelectTool implements Tool {
       }
     } else if (this.dragCableVertex) {
       const world = this.canvas.camera.screenToWorld(e.screenPoint);
-      const delta = world.sub(this.dragCableVertex.startWorld);
       const cable = this.dragCableVertex.cable;
-      const index = this.dragCableVertex.index;
-      const original = this.dragCableVertex.originalRoute[index];
-      cable.route[index] = original.add(delta);
+      cable.route = moveCableVertexOrthogonal(
+        this.dragCableVertex.originalRoute,
+        this.dragCableVertex.index,
+        this.dragCableVertex.startWorld,
+        world,
+      );
       cable.routing = 'manual';
       this.dragCableVertex.moved = true;
       updateCableLength(cable);
-      // Пересчёт всех кабелей при каждом движении мыши не нужен и вызывает зависания
       this.canvas.requestRender();
       return;
     } else if (this.dragCableEdge) {
       const world = this.canvas.camera.screenToWorld(e.screenPoint);
-      const delta = world.sub(this.dragCableEdge.startWorld);
       const cable = this.dragCableEdge.cable;
       const i = this.dragCableEdge.edgeIndex;
-      const original = this.dragCableEdge.originalRoute;
-      // Перемещаем только редактируемые вершины грани (не anchor-концы)
-      if (i > 0) {
-        cable.route[i] = original[i].add(delta);
-      }
-      if (i + 1 < original.length - 1) {
-        cable.route[i + 1] = original[i + 1].add(delta);
-      }
+      const moved = moveCableEdgeOrthogonal(
+        this.dragCableEdge.originalRoute,
+        i,
+        this.dragCableEdge.startWorld,
+        world,
+      );
+      // Если грань уперлась в стену, автоматически добавляем вершины обхода.
+      cable.route = rerouteCableEdgeAroundObstacles(this.plan, moved, i);
       cable.routing = 'manual';
       this.dragCableEdge.moved = true;
       updateCableLength(cable);
-      // Пересчёт всех кабелей при каждом движении мыши не нужен и вызывает зависания
       this.canvas.requestRender();
       return;
     } else if (this.dragDeviceName) {

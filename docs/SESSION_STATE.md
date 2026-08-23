@@ -2338,3 +2338,19 @@ Dev-сервер Next.js работает на `http://localhost:3002`.
 
 - `npx tsc --noEmit` — успешно.
 - `npm test` — 84/84 теста проходят.
+## 2026-08-23 (продолжение) — Кабель: редактирование граней/вершин как прямоугольный соединитель MS Visio
+
+### Цель
+Сделать drag граней и вершин кабеля ортогональным, как в MS Visio, и автоматически добавлять вершины обхода при столкновении грани со стеной.
+
+### Изменённые файлы
+
+- `packages/core/tools/CableEditHelper.ts` (новый)  - `moveCableEdgeOrthogonal`: смещает грань только перпендикулярно её направлению; anchor-точки (устройства) остаются неподвижными.  - `moveCableVertexOrthogonal`: перемещает вершину с каскадным сдвигом соседних редактируемых точек, сохраняя горизонтальность/вертикальность сегментов.  - `rerouteCableEdgeAroundObstacles`: если смещённая грань пересекает стены вне дверных проёмов, заменяет её на автотрассированный подмаршрут обхода через `routeCableWithVia`.
+- `packages/core/tools/SelectTool.ts`  - `onPointerMove` для `dragCableEdge` теперь использует `moveCableEdgeOrthogonal` + `rerouteCableEdgeAroundObstacles`.  - `onPointerMove` для `dragCableVertex` теперь использует `moveCableVertexOrthogonal`.- `packages/core/render/PrimitiveRenderer.ts`  - Убран динамический `require('../geometry/Geometry')`, добавлен статический импорт `projectPointToSegment`. Исправляет падение тестов под Vitest/jsdom.
+- `packages/core/tools/CableEditHelper.test.ts` (новый) — unit-тест обхода перегородки.
+- `packages/core/tools/SelectTool.cableEdit.test.ts` (новый) — тесты drag граней и автоматического добавления вершин обхода.
+
+### Проверки
+
+- `npx tsc --noEmit` — успешно.
+- `npm test` — 88/88 тестов проходят.
