@@ -46,8 +46,8 @@ describe('cableRouting', () => {
     plan.addWall(new Vector2(2000, 1500), new Vector2(-2000, 1500))
     plan.addWall(new Vector2(-2000, 1500), new Vector2(-2000, -1500))
     plan.addWall(new Vector2(0, -1500), new Vector2(0, 500))
-    const from = new Vector2(-1000, 1000)
-    const to = new Vector2(1000, 1000)
+    const from = new Vector2(-1000, 0)
+    const to = new Vector2(1000, 0)
     const route = routeCable(plan, from, to, 50)
     expect(route).toBeTruthy()
     expect(route!.length).toBeGreaterThanOrEqual(3)
@@ -74,6 +74,33 @@ describe('cableRouting', () => {
         if (Math.abs(t) <= halfWidth) {
           crossesOpening = true
         }
+      }
+    }
+    expect(crossesOpening).toBe(true)
+  })
+
+  it('обходит вертикальную перегородку между устройствами на одной стене', () => {
+    const plan = new Plan()
+    plan.addWall(new Vector2(1000, 1000), new Vector2(7000, 1000))
+    plan.addWall(new Vector2(7000, 1000), new Vector2(7000, 5000))
+    plan.addWall(new Vector2(7000, 5000), new Vector2(1000, 5000))
+    plan.addWall(new Vector2(1000, 5000), new Vector2(1000, 1000))
+    const partition = plan.addWall(new Vector2(4000, 1000), new Vector2(4000, 5000))
+    plan.addOpening(partition.id, 'door', 0.5, 1200)
+    const from = plan.deviceCableEntryPoint(plan.addDevice(plan.walls[2].id, 'socket', 0.3, 0, 1)!)
+    const to = plan.deviceCableEntryPoint(plan.addDevice(plan.walls[2].id, 'socket', 0.7, 0, 1)!)
+    const route = routeCable(plan, from, to, 50)
+    expect(route).toBeTruthy()
+    expect(route!.length).toBeGreaterThanOrEqual(3)
+    // Маршрут должен пройти через проём в перегородке (y ≈ 3000 ± 700)
+    let crossesOpening = false
+    for (let i = 1; i < route!.length; i++) {
+      const a = route![i - 1]
+      const b = route![i]
+      if ((a.x < 4000 && b.x > 4000) || (a.x > 4000 && b.x < 4000)) {
+        const t = a.x === b.x ? 0 : (4000 - a.x) / (b.x - a.x)
+        const y = a.y + (b.y - a.y) * t
+        if (Math.abs(y - 3000) <= 700) crossesOpening = true
       }
     }
     expect(crossesOpening).toBe(true)

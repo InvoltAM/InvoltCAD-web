@@ -1,6 +1,11 @@
 import { Vector2 } from '../geometry/Vector2'
 import { NavGrid, NavigablePlan } from './navGrid'
 import { findPath } from './astar'
+import { Wall, wallPolyline } from '../model/Wall'
+import { distPointToSegment } from '../geometry/Geometry'
+
+const WALL_CLEARANCE = 100 // мм — минимальный зазор от стены
+const SNAP_TOLERANCE = 75  // мм — допуск привязки к стене
 
 /**
  * Автотрассировка кабеля между двумя точками с учётом стен и существующих кабелей.
@@ -44,7 +49,9 @@ export function routeCable(
   if (!path) return null
 
   // Преобразуем путь обратно в мировые координаты
-  return path.map((p) => grid.gridToWorld(p.x, p.y))
+  const raw = path.map((p) => grid.gridToWorld(p.x, p.y))
+  // Приводим маршрут к прямым углам, удаляем лишние вершины и прижимаем к стенам
+  return postprocessRoute(raw, plan, cellSize)
 }
 
 /**
@@ -205,6 +212,219 @@ function pointLineDistance(p: Vector2, a: Vector2, b: Vector2): number {
   const t = Math.max(0, Math.min(1, p.sub(a).dot(v) / lenSq))
   const projection = a.add(v.scale(t))
   return p.distanceTo(projection)
+}
+
+/**
+ * Постобработка A* маршрута:
+ * - выравнивает отрезки под прямые углы,
+ * - удаляет избыточные промежуточные вершины,
+ * - прижимает маршрут к параллельным стенам, сохраняя зазор.
+ */
+export function postprocessRoute(
+  route: Vector2[],
+  plan: NavigablePlan,
+  cellSize = 50
+): Vector2[] {
+  if (route.length < 2) return route.map((p) => p.clone())
+
+  const tolerance = cellSize / 2
+  let result = straightenRoute(route, tolerance)
+  result = removeRedundantVertices(result, plan)
+  result = snapRouteToWalls(result, plan, WALL_CLEARANCE, cellSize)
+  result = removeRedundantVertices(result, plan)
+  result = straightenRoute(result, tolerance)
+
+  // Если постобработка удалила все точки — возвращаем исходный маршрут
+  if (result.length < 2) return route.map((p) => p.clone())
+  return result
+}
+
+/**
+ * Выравнивает отрезки маршрута по горизонтали/вертикали.
+ * Отрезок считается горизонтальным, если |dx| > |dy|, вертикальным, если |dy| > |dx|.
+ * При равенстве (|dx| ≈ |dy|, включая 45°) выравниваем по горизонтали — так маршрут
+ * остаётся из прямых углов и лучше ложится вдоль стен.
+ */
+function straightenRoute(route: Vector2[], tolerance: number): Vector2[] {
+  if (route.length < 2) return route.map((p) => p.clone())
+  const result: Vector2[] = [route[0].clone()]
+  for (let i = 1; i < route.length; i++) {
+    const prev = result[result.length - 1]
+    const curr = route[i].clone()
+    const dx = Math.abs(curr.x - prev.x)
+    const dy = Math.abs(curr.y - prev.y)
+    if (dx >= dy) {
+      curr.y = prev.y
+    } else {
+      curr.x = prev.x
+    }
+    // Избегаем дублирования точек
+    if (curr.distanceTo(prev) > 1e-3) {
+      result.push(curr)
+    }
+  }
+  return result
+}
+
+/**
+ * Удаляет промежуточные вершины, если прямой отрезок между соседними точками
+ * не нарушает зазор до стен.
+ */
+function removeRedundantVertices(route: Vector2[], plan: NavigablePlan): Vector2[] {
+  if (route.length <= 2) return route.map((p) => p.clone())
+  const result: Vector2[] = [route[0].clone()]
+  let i = 1
+  while (i < route.length - 1) {
+    const a = result[result.length - 1]
+    const c = route[i + 1]
+    if (segmentRouteClearance(a, c, plan) >= WALL_CLEARANCE) {
+      // Точка i лишняя
+      i++
+    } else {
+      result.push(route[i].clone())
+      i++
+    }
+  }
+  result.push(route[route.length - 1].clone())
+  return result
+}
+
+/**
+ * Прижимает горизонтальные отрезки к ближайшим горизонтальным стенам,
+ * а вертикальные — к вертикальным, сохраняя WALL_CLEARANCE.
+ */
+function snapRouteToWalls(
+  route: Vector2[],
+  plan: NavigablePlan,
+  clearance: number,
+  tolerance: number
+): Vector2[] {
+  if (route.length < 2) return route.map((p) => p.clone())
+
+  const snapped = route.map((p) => p.clone())
+  for (let i = 0; i < snapped.length - 1; i++) {
+    const a = snapped[i]
+    const b = snapped[i + 1]
+    const dx = Math.abs(b.x - a.x)
+    const dy = Math.abs(b.y - a.y)
+
+    if (dx > dy) {
+      // Горизонтальный отрезок
+      const y = snapToWallY((a.y + b.y) / 2, plan, clearance, tolerance)
+      if (y !== null) {
+        a.y = y
+        b.y = y
+      }
+    } else if (dy > dx) {
+      // Вертикальный отрезок
+      const x = snapToWallX((a.x + b.x) / 2, plan, clearance, tolerance)
+      if (x !== null) {
+        a.x = x
+        b.x = x
+      }
+    }
+  }
+
+  // Удаляем дублирующиеся точки
+  const result: Vector2[] = [snapped[0]]
+  for (let i = 1; i < snapped.length; i++) {
+    if (snapped[i].distanceTo(result[result.length - 1]) > 1e-3) {
+      result.push(snapped[i])
+    }
+  }
+  return result
+}
+
+function snapToWallY(
+  y: number,
+  plan: NavigablePlan,
+  clearance: number,
+  tolerance: number
+): number | null {
+  let best: { y: number; dist: number } | null = null
+  for (const wall of plan.walls) {
+    for (let i = 0; i < wallPolyline(wall).length - 1; i++) {
+      const wa = wallPolyline(wall)[i]
+      const wb = wallPolyline(wall)[i + 1]
+      if (Math.abs(wa.y - wb.y) > 1) continue // не горизонтальная
+      const wallY = wa.y
+      const dist = Math.abs(y - wallY)
+      if (dist > tolerance) continue
+      const side = Math.sign(y - wallY)
+      const snappedY = wallY + side * clearance
+      const finalDist = Math.abs(y - snappedY)
+      if (!best || finalDist < best.dist) {
+        best = { y: snappedY, dist: finalDist }
+      }
+    }
+  }
+  return best ? best.y : null
+}
+
+function snapToWallX(
+  x: number,
+  plan: NavigablePlan,
+  clearance: number,
+  tolerance: number
+): number | null {
+  let best: { x: number; dist: number } | null = null
+  for (const wall of plan.walls) {
+    for (let i = 0; i < wallPolyline(wall).length - 1; i++) {
+      const wa = wallPolyline(wall)[i]
+      const wb = wallPolyline(wall)[i + 1]
+      if (Math.abs(wa.x - wb.x) > 1) continue // не вертикальная
+      const wallX = wa.x
+      const dist = Math.abs(x - wallX)
+      if (dist > tolerance) continue
+      const side = Math.sign(x - wallX)
+      const snappedX = wallX + side * clearance
+      const finalDist = Math.abs(x - snappedX)
+      if (!best || finalDist < best.dist) {
+        best = { x: snappedX, dist: finalDist }
+      }
+    }
+  }
+  return best ? best.x : null
+}
+
+/**
+ * Минимальный зазор от маршрута до любой стены.
+ */
+function segmentRouteClearance(a: Vector2, b: Vector2, plan: NavigablePlan): number {
+  let minClearance = Infinity
+  for (const wall of plan.walls) {
+    minClearance = Math.min(minClearance, segmentClearanceToWall(a, b, wall))
+  }
+  return minClearance
+}
+
+function segmentClearanceToWall(a: Vector2, b: Vector2, wall: Wall): number {
+  const poly = wallPolyline(wall)
+  let minDist = Infinity
+  for (let i = 0; i < poly.length - 1; i++) {
+    const wa = poly[i]
+    const wb = poly[i + 1]
+    minDist = Math.min(minDist, segmentToSegmentDistance(a, b, wa, wb))
+  }
+  return minDist - wall.thickness / 2
+}
+
+function segmentToSegmentDistance(a1: Vector2, a2: Vector2, b1: Vector2, b2: Vector2): number {
+  if (segmentsIntersect(a1, a2, b1, b2)) return 0
+  return Math.min(
+    distPointToSegment(a1, b1, b2),
+    distPointToSegment(a2, b1, b2),
+    distPointToSegment(b1, a1, a2),
+    distPointToSegment(b2, a1, a2),
+  )
+}
+
+/** Пересечение двух отрезков. */
+function segmentsIntersect(a1: Vector2, a2: Vector2, b1: Vector2, b2: Vector2): boolean {
+  function ccw(A: Vector2, B: Vector2, C: Vector2): boolean {
+    return (C.y - A.y) * (B.x - A.x) > (B.y - A.y) * (C.x - A.x)
+  }
+  return ccw(a1, b1, b2) !== ccw(a2, b1, b2) && ccw(a1, a2, b1) !== ccw(a1, a2, b2)
 }
 
 /**
