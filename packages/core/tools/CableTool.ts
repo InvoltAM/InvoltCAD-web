@@ -110,9 +110,23 @@ export class CableTool implements Tool {
     }
 
     // Автотрассировка с обходом стен и существующих кабелей.
-    const routingPoints = [this.from.point.clone(), ...this.viaPoints.map(p => p.clone()), endpoint.point.clone()];
+    // Для устройств используем точки маршрутизации, смещённые в комнату,
+    // чтобы A* не застревал у границы стены; якоря крепления остаются на грани блока.
+    const fromAnchor = this.from.point.clone();
+    const toAnchor = endpoint.point.clone();
+    const fromRouting = this.from.type === 'device' && this.from.deviceId
+      ? this.plan.deviceCableRoutingPoint(this.plan.findDevice(this.from.deviceId)!)
+      : fromAnchor;
+    const toRouting = endpoint.type === 'device' && endpoint.deviceId
+      ? this.plan.deviceCableRoutingPoint(this.plan.findDevice(endpoint.deviceId)!)
+      : toAnchor;
+    const routingPoints = [fromRouting, ...this.viaPoints.map(p => p.clone()), toRouting];
     const routed = routeCableWithVia(this.plan, routingPoints, 50);
-    const route = routed && routed.length >= 2 ? simplifyRoute(routed, 1e-3, 25, this.viaPoints) : undefined;
+    let route: Vector2[] | undefined;
+    if (routed && routed.length >= 2) {
+      route = [fromAnchor, ...routed, toAnchor];
+      route = simplifyRoute(route, 1e-3, 25, this.viaPoints);
+    }
 
     this.canvas.commandManager.execute(
       new AddCableCommand(

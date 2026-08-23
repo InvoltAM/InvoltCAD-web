@@ -168,3 +168,52 @@ describe('Plan cable routing', () => {
     });
   });
 });
+
+describe('Plan.deviceCableEntryPoint', () => {
+  it('для настенного устройства возвращает центр грани, прилегающей к стене', () => {
+    const plan = new Plan();
+    const wall = plan.addWall(new Vector2(-1000, 0), new Vector2(1000, 0));
+    const device = plan.addDevice(wall.id, 'socket', 0.25, 0, 1)!;
+
+    const entry = plan.deviceCableEntryPoint(device);
+    const surface = plan.deviceWorldPosition(device);
+
+    expect(entry.x).toBeCloseTo(surface.x, 1);
+    expect(entry.y).toBeCloseTo(surface.y, 1);
+
+    // Точка должна лежать на поверхности стены (ось стены + половина толщины по нормали)
+    const centerOnWall = wall.a.add(wall.b.sub(wall.a).scale(device.t));
+    const expectedSurfaceY = centerOnWall.y + (wall.thickness / 2) * device.side;
+    expect(entry.y).toBeCloseTo(expectedSurfaceY, 1);
+  });
+
+  it('для свободно размещённого устройства возвращает позицию устройства', () => {
+    const plan = new Plan();
+    const device = plan.addFreeDevice('light', new Vector2(300, 400))!;
+
+    expect(plan.deviceCableEntryPoint(device)).toEqual(new Vector2(300, 400));
+  });
+});
+
+describe('Plan.deviceCableRoutingPoint', () => {
+  it('для настенного устройства смещена в комнату от поверхности стены', () => {
+    const plan = new Plan();
+    const wall = plan.addWall(new Vector2(-1000, 0), new Vector2(1000, 0));
+    const device = plan.addDevice(wall.id, 'socket', 0.25, 0, 1)!;
+
+    const entry = plan.deviceCableEntryPoint(device);
+    const routing = plan.deviceCableRoutingPoint(device);
+
+    // Точка маршрутизации дальше от оси стены, чем точка крепления
+    expect(Math.abs(routing.y)).toBeGreaterThan(Math.abs(entry.y));
+    // Смещение равно CABLE_ROUTING_OFFSET от поверхности стены
+    expect(routing.distanceTo(entry)).toBeCloseTo(50, 1);
+  });
+
+  it('для свободно размещённого устройства совпадает с позицией устройства', () => {
+    const plan = new Plan();
+    const device = plan.addFreeDevice('light', new Vector2(300, 400))!;
+
+    expect(plan.deviceCableRoutingPoint(device)).toEqual(new Vector2(300, 400));
+  });
+});

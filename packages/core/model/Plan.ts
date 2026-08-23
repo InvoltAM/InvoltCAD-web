@@ -1,7 +1,7 @@
 import { Vector2 } from '../geometry/Vector2';
 import { Wall, DEFAULT_WALL_THICKNESS, wallLength, wallDirection } from './Wall';
 import { Opening, OpeningType, DEFAULT_DOOR_WIDTH, DEFAULT_WINDOW_WIDTH } from './Opening';
-import { Device, DeviceType, DEVICE_SIZE, DEFAULT_DEVICE_NAMES, findDeviceCatalogItem, getDeviceIconScale } from './Device';
+import { Device, DeviceType, DEVICE_SIZE, DEFAULT_DEVICE_NAMES } from './Device';
 import { Cable, CableType, DEFAULT_CABLE } from './Cable';
 import { Dimension, createDimension } from './Dimension';
 import { DrawingPrimitive, DrawingPrimitiveType, createDrawingPrimitive } from './DrawingPrimitive';
@@ -14,6 +14,9 @@ import { Sheet, createDefaultSheets, createEmptyTitleBlock, SheetTitleBlock } fr
 import { createSheetTable, SheetTable, SheetTableType } from './SheetTable';
 import { CableRunData } from '../electrical/CableRunEngine';
 import { routeCableWithVia, simplifyRoute } from '../cables/cableRouting';
+
+/** Отступ точки автотрассировки от поверхности стены в комнату (мм). */
+const CABLE_ROUTING_OFFSET = 50;
 
 export interface PlanElectrical {
   consumers: any[];
@@ -732,27 +735,38 @@ export class Plan {
   /** Пересчитать маршруты и длины всех кабелей после изменения устройств. */
   recalcCableRoutes(): void {
     for (const cable of this.cables) {
-      const fromPos = this.cableEndpointPosition(cable, 'from');
-      const toPos = this.cableEndpointPosition(cable, 'to');
+      const fromAnchor = this.cableEndpointPosition(cable, 'from');
+      const toAnchor = this.cableEndpointPosition(cable, 'to');
 
       if (cable.routing === 'auto') {
         const via = cable.viaPoints ?? [];
-        const points = [fromPos, ...via.map(p => p.clone()), toPos];
+        const fromDevice = cable.fromDeviceId ? this.findDevice(cable.fromDeviceId) : undefined;
+        const toDevice = cable.toDeviceId ? this.findDevice(cable.toDeviceId) : undefined;
+        const fromRouting = fromDevice ? this.deviceCableRoutingPoint(fromDevice) : fromAnchor;
+        const toRouting = toDevice ? this.deviceCableRoutingPoint(toDevice) : toAnchor;
+        const points = [fromRouting, ...via.map(p => p.clone()), toRouting];
         const routed = routeCableWithVia(this, points, 50);
-        cable.route = routed && routed.length >= 2
-          ? simplifyRoute(routed, 1e-3, 25, via)
-          : (via.length > 0
-            ? [fromPos, ...via.map(p => p.clone()), toPos]
-            : Plan.computeManhattanRoute(fromPos, toPos));
+        let route: Vector2[];
+        if (routed && routed.length >= 2) {
+          route = simplifyRoute(routed, 1e-3, 25, via);
+        } else if (via.length > 0) {
+          route = [fromAnchor, ...via.map(p => p.clone()), toAnchor];
+        } else {
+          route = Plan.computeManhattanRoute(fromAnchor, toAnchor);
+        }
+        // Якоря крепления кабеля остаются на грани устройства, прилегающей к стене.
+        route[0] = fromAnchor.clone();
+        route[route.length - 1] = toAnchor.clone();
+        cable.route = route;
       } else {
         // Ручной маршрут: сохраняем промежуточные вершины, обновляем только
         // точки подключения к устройствам, чтобы кабель следовал за ними.
         const route = cable.route;
         if (route.length >= 2) {
-          route[0] = fromPos.clone();
-          route[route.length - 1] = toPos.clone();
+          route[0] = fromAnchor.clone();
+          route[route.length - 1] = toAnchor.clone();
         } else {
-          cable.route = Plan.computeManhattanRoute(fromPos, toPos);
+          cable.route = Plan.computeManhattanRoute(fromAnchor, toAnchor);
         }
       }
 
@@ -832,8 +846,7 @@ export class Plan {
 
   /**
    * Точка входа кабеля в устройство.
-   * Для устройств на стене — центр верхней грани (грани, противоположной стене),
-   * с отступом от стены, большим размера блока.
+   * Для устройств на стене — центр грани, прилегающей к стене.
    * Для свободно размещённых устройств — позиция устройства.
    */
   deviceCableEntryPoint(device: Device): Vector2 {
@@ -848,15 +861,29 @@ export class Plan {
     const dir = wallDirection(wall);
     const n = dir.perpendicular();
     const centerOnWall = wall.a.add(dir.scale(device.t * len));
-    const surfacePos = centerOnWall.add(n.scale((wall.thickness / 2) * device.side));
+    // Центр грани устройства, прилегающей к стене (на поверхности стены)
+    return centerOnWall.add(n.scale((wall.thickness / 2) * device.side));
+  }
 
-    const item = findDeviceCatalogItem(device.type);
-    const baseSize = item ? Math.max(item.width, item.height) : 600;
-    const sizeWorld = baseSize * this.deviceIconScale * getDeviceIconScale(device);
-    // Отступ от стены больше размера блока, чтобы кабель проходил за блоком
-    // и входил в центр верхней грани (противоположной стене)
-    const entryOffset = sizeWorld * 1.5;
-    return surfacePos.add(n.scale(entryOffset * device.side));
+  /**
+   * Точка начала/конца автотрассировки для устройства.
+   * Смещена от поверхности стены в комнату, чтобы A* не попадал
+   * в непроходимую ячейку у границы стены.
+   */
+  deviceCableRoutingPoint(device: Device): Vector2 {
+    // Свободно размещённое устройство
+    if (device.position) {
+      return new Vector2(device.position.x, device.position.y);
+    }
+
+    const wall = this.findWall(device.wallId);
+    if (!wall) return new Vector2(0, 0);
+    const len = wallLength(wall);
+    const dir = wallDirection(wall);
+    const n = dir.perpendicular();
+    const centerOnWall = wall.a.add(dir.scale(device.t * len));
+    // Отступ в комнату от поверхности стены
+    return centerOnWall.add(n.scale((wall.thickness / 2 + CABLE_ROUTING_OFFSET) * device.side));
   }
 
   toJSON(): object {

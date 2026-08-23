@@ -2364,4 +2364,24 @@ Dev-сервер Next.js работает на `http://localhost:3002`.
 ### Проверки
 
 - `npx tsc --noEmit` — успешно.
-- `npm test` — 89/89 тестов проходят.
+- `npm test` — 89/89 тестов проходят.
+
+## 2026-08-23 (продолжение) — Кабель: крепление к стенной грани блока
+
+### Изменённые файлы
+
+- `packages/core/model/Plan.ts`
+  - `deviceCableEntryPoint` теперь возвращает центр грани устройства, прилегающей к стене (на её поверхности).
+  - Добавлен метод `deviceCableRoutingPoint` — точка автотрассировки, смещённая в комнату от поверхности стены на `CABLE_ROUTING_OFFSET = 50` мм.
+  - `recalcCableRoutes` использует `deviceCableRoutingPoint` для устройств, а затем возвращает якорные точки (`deviceCableEntryPoint`) в начало/конец маршрута.
+- `packages/core/tools/CableTool.ts`
+  - При завершении кабеля строится маршрут от/к точкам маршрутизации устройств, но сохранённый маршрут начинается и заканчивается на грани блока.
+- `packages/core/cables/cableRouting.test.ts`
+  - Тесты с настенными устройствами используют `deviceCableRoutingPoint`, чтобы маршрут оставался компактным.
+- `packages/core/model/Plan.cables.test.ts`
+  - Добавлены тесты для `deviceCableEntryPoint` и `deviceCableRoutingPoint`.
+
+### Проверки
+
+- `npx tsc --noEmit` — успешно.
+- `npm test` — 93/93 теста проходят.
