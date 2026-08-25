@@ -620,7 +620,7 @@ export class SelectTool implements Tool {
         device.wallId = '';
         device.t = 0;
         this.dragDevice.moved = true;
-        this.plan.recalcCableRoutes();
+        // recalcCableRoutes откладываем до pointer up, чтобы не тормозить drag A* на каждом кадре.
         this.canvas.notifyChanged();
       } else {
         // Перетаскивание вдоль стены или перенос на ближайшую стену.
@@ -663,25 +663,19 @@ export class SelectTool implements Tool {
           device.side = side;
           this.dragDevice.wall = targetWall;
           this.dragDevice.moved = true;
-          this.plan.recalcCableRoutes();
+          // recalcCableRoutes выполняем один раз при отпускании мыши.
           this.canvas.notifyChanged();
         }
       }
     } else if (this.dragCableVertex) {
       const world = this.canvas.camera.screenToWorld(e.screenPoint);
       const cable = this.dragCableVertex.cable;
-      const moved = moveCableVertexOrthogonal(
+      cable.route = moveCableVertexOrthogonal(
         this.dragCableVertex.originalRoute,
         this.dragCableVertex.index,
         this.dragCableVertex.startWorld,
         world,
       );
-      // После перемещения вершины проверяем весь маршрут на пересечения со стенами.
-      // Если починить не удалось — откатываемся к исходному маршруту.
-      const repair = repairCableRoute(this.plan, moved);
-      cable.route = repair.repaired
-        ? repair.route
-        : this.dragCableVertex.originalRoute.map((p) => p.clone());
       cable.routing = 'manual';
       this.dragCableVertex.moved = true;
       updateCableLength(cable);
@@ -691,18 +685,12 @@ export class SelectTool implements Tool {
       const world = this.canvas.camera.screenToWorld(e.screenPoint);
       const cable = this.dragCableEdge.cable;
       const i = this.dragCableEdge.edgeIndex;
-      const moved = moveCableEdgeOrthogonal(
+      cable.route = moveCableEdgeOrthogonal(
         this.dragCableEdge.originalRoute,
         i,
         this.dragCableEdge.startWorld,
         world,
       );
-      // После перемещения грани проверяем весь маршрут на пересечения со стенами.
-      // Если починить не удалось — откатываемся к исходному маршруту.
-      const repair = repairCableRoute(this.plan, moved);
-      cable.route = repair.repaired
-        ? repair.route
-        : this.dragCableEdge.originalRoute.map((p) => p.clone());
       cable.routing = 'manual';
       this.dragCableEdge.moved = true;
       updateCableLength(cable);
@@ -783,6 +771,10 @@ export class SelectTool implements Tool {
     if (this.dragCableVertex) {
       const { cable, originalRoute, moved } = this.dragCableVertex;
       if (moved) {
+        // Перемещение завершено — один раз проверяем маршрут и обходим препятствия.
+        const repair = repairCableRoute(this.plan, cable.route);
+        cable.route = repair.repaired ? repair.route : originalRoute.map(p => p.clone());
+        updateCableLength(cable);
         this.canvas.commandManager.execute(
           new UpdateCableRouteCommand(this.plan, cable.id, cable.route.map(p => p.clone())),
         );
@@ -798,6 +790,10 @@ export class SelectTool implements Tool {
     if (this.dragCableEdge) {
       const { cable, originalRoute, moved } = this.dragCableEdge;
       if (moved) {
+        // Перемещение завершено — один раз проверяем маршрут и обходим препятствия.
+        const repair = repairCableRoute(this.plan, cable.route);
+        cable.route = repair.repaired ? repair.route : originalRoute.map(p => p.clone());
+        updateCableLength(cable);
         this.canvas.commandManager.execute(
           new UpdateCableRouteCommand(this.plan, cable.id, cable.route.map(p => p.clone())),
         );

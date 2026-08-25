@@ -61,22 +61,18 @@ export class CableRenderer {
       const selected = this.isCableSelected(cable);
       ctx.strokeStyle = selected ? this.themeManager.getColor('selected') : this.themeManager.getColor(typeToColorKey(cable.type));
       // Толщина фиксирована в экранных пикселях, поэтому делим на масштаб камеры.
-      ctx.lineWidth = (selected ? 5 : 4) / this.camera.scale;
+      ctx.lineWidth = (selected ? 7 : 5) / this.camera.scale;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.beginPath();
 
-      for (let i = 0; i < route.length; i++) {
-        const p = route[i];
-        if (i === 0) ctx.moveTo(p.x, p.y);
-        else ctx.lineTo(p.x, p.y);
-      }
+      this.drawCablePath(ctx, route);
       ctx.stroke();
 
       const a = route[0];
       const b = route[route.length - 1];
       ctx.fillStyle = ctx.strokeStyle;
-      const dotRadius = 3 / this.camera.scale;
+      const dotRadius = 4 / this.camera.scale;
       this.drawDot(ctx, a.x, a.y, dotRadius);
       this.drawDot(ctx, b.x, b.y, dotRadius);
 
@@ -152,6 +148,71 @@ export class CableRenderer {
         ctx.fill();
         ctx.stroke();
       }
+    }
+  }
+
+  /**
+   * Рисует путь кабеля со скруглёнными углами (fillet) между ортогональными
+   * сегментами. Радиус fillet адаптируется к длине смежных сегментов.
+   */
+  private drawCablePath(ctx: CanvasRenderingContext2D, route: Vector2[]): void {
+    const CORNER_RADIUS = 40 // мм
+
+    if (route.length < 2) return
+
+    const start = this.camera.worldToScreen(route[0])
+    ctx.moveTo(start.x, start.y)
+
+    for (let i = 1; i < route.length; i++) {
+      const p0 = route[i - 1]
+      const p1 = route[i]
+
+      if (i === route.length - 1) {
+        // Последний сегмент — просто линия
+        const s1 = this.camera.worldToScreen(p1)
+        ctx.lineTo(s1.x, s1.y)
+        continue
+      }
+
+      const p2 = route[i + 1]
+      const v1 = p1.sub(p0)
+      const v2 = p2.sub(p1)
+      const len1 = v1.length()
+      const len2 = v2.length()
+      if (len1 < 1e-6 || len2 < 1e-6) {
+        const s1 = this.camera.worldToScreen(p1)
+        ctx.lineTo(s1.x, s1.y)
+        continue
+      }
+      const d1 = v1.scale(1 / len1)
+      const d2 = v2.scale(1 / len2)
+      const dot = d1.dot(d2)
+
+      // Скругляем только прямые углы (|dot| ≈ 0). Коллинеарные сегменты — линией.
+      if (Math.abs(dot) > 0.1) {
+        const s1 = this.camera.worldToScreen(p1)
+        ctx.lineTo(s1.x, s1.y)
+        continue
+      }
+
+      const seg1Len = len1
+      const seg2Len = len2
+      const r = Math.min(CORNER_RADIUS, seg1Len * 0.35, seg2Len * 0.35)
+      if (r < 1) {
+        const s1 = this.camera.worldToScreen(p1)
+        ctx.lineTo(s1.x, s1.y)
+        continue
+      }
+
+      const rScreen = r / this.camera.scale
+      const t1World = p1.sub(d1.scale(r))
+      const t2World = p1.add(d2.scale(r))
+      const t1 = this.camera.worldToScreen(t1World)
+      const t2 = this.camera.worldToScreen(t2World)
+      const corner = this.camera.worldToScreen(p1)
+
+      ctx.lineTo(t1.x, t1.y)
+      ctx.arcTo(corner.x, corner.y, t2.x, t2.y, rScreen)
     }
   }
 }
