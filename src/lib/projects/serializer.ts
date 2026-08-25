@@ -2,7 +2,7 @@ import { Plan, createEmptyElectrical } from '@core/model/Plan'
 import { Wall } from '@core/model/Wall'
 import { Opening } from '@core/model/Opening'
 import { Device, DeviceType } from '@core/model/Device'
-import { Cable, CableType } from '@core/model/Cable'
+import { Cable, CableType, type CablePhase, type CableStyle, type CableRoutingMode, type CableBundleMode } from '@core/model/Cable'
 import { Dimension } from '@core/model/Dimension'
 import { DrawingPrimitiveType } from '@core/model/DrawingPrimitive'
 import { Vector2 } from '@core/geometry/Vector2'
@@ -62,6 +62,12 @@ export interface SerializedCable {
   marking?: string
   laid?: boolean
   visible?: boolean
+  phase?: CablePhase
+  style?: CableStyle
+  routingMode?: CableRoutingMode
+  bundleMode?: CableBundleMode
+  bundleGroup?: string | null
+  trunkPoint?: { x: number; y: number } | null
 }
 
 export interface SerializedDimension {
@@ -241,6 +247,12 @@ export function serializePlan(plan: Plan): SerializedPlan {
     marking: cable.marking,
     laid: cable.laid,
     visible: cable.visible,
+    phase: cable.phase,
+    style: cable.style,
+    routingMode: cable.routingMode,
+    bundleMode: cable.bundleMode,
+    bundleGroup: cable.bundleGroup,
+    trunkPoint: cable.trunkPoint,
   }))
 
   const dimensions: SerializedDimension[] = plan.dimensions.map((dim) => ({
@@ -439,6 +451,12 @@ export function deserializePlan(data: SerializedPlan): Plan {
       marking: c.marking,
       laid: c.laid,
       visible: c.visible,
+      phase: c.phase,
+      style: c.style,
+      routingMode: c.routingMode,
+      bundleMode: c.bundleMode,
+      bundleGroup: c.bundleGroup,
+      trunkPoint: c.trunkPoint,
     }
     plan.cables.push(cable)
   }

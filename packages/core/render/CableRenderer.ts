@@ -4,6 +4,7 @@ import { EditorState } from '../editor/EditorState';
 import { Vector2 } from '../geometry/Vector2';
 import { ThemeManager, ThemeColorKey } from '../editor/ThemeManager';
 import { validateCable, highlightCableViolations } from '../cables/CableValidator';
+import { getCableStyle, CableStyle } from '../model/Cable';
 
 function typeToColorKey(type: string): ThemeColorKey {
   switch (type) {
@@ -60,15 +61,18 @@ export class CableRenderer {
       if (!this.isRouteVisible(route, rect)) continue;
 
       const selected = this.isCableSelected(cable);
-      ctx.strokeStyle = selected ? this.themeManager.getColor('selected') : this.themeManager.getColor(typeToColorKey(cable.type));
+      const style: CableStyle = getCableStyle(cable);
+      ctx.strokeStyle = selected ? this.themeManager.getColor('selected') : style.color;
       // Толщина фиксирована в экранных пикселях, поэтому делим на масштаб камеры.
-      ctx.lineWidth = (selected ? 7 : 5) / this.camera.scale;
-      ctx.lineCap = 'round';
+      ctx.lineWidth = (selected ? 7 : style.lineWidth * 2 + 2) / this.camera.scale;
+      ctx.lineCap = style.capStyle;
       ctx.lineJoin = 'round';
+      ctx.setLineDash(style.dashPattern.map((d) => d / this.camera.scale));
       ctx.beginPath();
 
       this.drawCablePath(ctx, route);
       ctx.stroke();
+      ctx.setLineDash([]);
 
       const a = route[0];
       const b = route[route.length - 1];

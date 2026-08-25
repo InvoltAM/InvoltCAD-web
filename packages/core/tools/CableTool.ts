@@ -139,7 +139,7 @@ export class CableTool implements Tool {
     if (routed && routed.length >= 2) {
       // Сохраняем connector-отступы: anchor -> routingPoint (100 мм) -> A* -> routingPoint -> anchor.
       route = [fromAnchor, fromRouting, ...routed, toRouting, toAnchor];
-      route = simplifyRoute(route, 1e-3, 25, [...this.viaPoints, fromRouting, toRouting]);
+      route = simplifyRoute(route, 1e-3, 25, [...this.viaPoints, fromRouting, toRouting], this.plan);
     }
 
     this.canvas.commandManager.execute(

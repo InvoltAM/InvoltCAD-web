@@ -42,7 +42,9 @@ import {
   moveCableEdgeOrthogonal,
   moveCableVertexOrthogonal,
   repairCableRoute,
+  cableRouteHasWallCrossing,
 } from './CableEditHelper';
+import { WallCollisionResolver } from '../cables/WallCollisionResolver';
 
 const ROOM_VERTEX_SCREEN_THRESHOLD = 8; // px
 const ROOM_VERTEX_WORLD_THRESHOLD = 5; // мм
@@ -178,12 +180,17 @@ export class SelectTool implements Tool {
   private hasDragged = false;
   private pointerDownScreen = new Vector2(0, 0);
   private pointerDownWorld = new Vector2(0, 0);
+  private collisionResolver: WallCollisionResolver;
+  private lastCableRepairTime = 0;
+  private readonly CABLE_REPAIR_THROTTLE_MS = 50;
 
   constructor(
     private canvas: CanvasEngine,
     private plan: Plan,
     private snapEngine: SnapEngine,
-  ) {}
+  ) {
+    this.collisionResolver = new WallCollisionResolver(plan);
+  }
 
   onActivate(): void {
     this.canvas.setGhost(null);
@@ -669,13 +676,22 @@ export class SelectTool implements Tool {
       }
     } else if (this.dragCableVertex) {
       const world = this.canvas.camera.screenToWorld(e.screenPoint);
+      const clamped = this.collisionResolver.resolvePoint(world, false).point;
       const cable = this.dragCableVertex.cable;
-      cable.route = moveCableVertexOrthogonal(
-        this.dragCableVertex.originalRoute,
+      const originalRoute = this.dragCableVertex.originalRoute;
+      let route = moveCableVertexOrthogonal(
+        originalRoute,
         this.dragCableVertex.index,
         this.dragCableVertex.startWorld,
-        world,
+        clamped,
       );
+      const now = Date.now();
+      if (cableRouteHasWallCrossing(this.plan, route) && now - this.lastCableRepairTime > this.CABLE_REPAIR_THROTTLE_MS) {
+        this.lastCableRepairTime = now;
+        const repair = repairCableRoute(this.plan, route);
+        route = repair.repaired ? repair.route : originalRoute.map((p) => p.clone());
+      }
+      cable.route = route;
       cable.routing = 'manual';
       this.dragCableVertex.moved = true;
       updateCableLength(cable);
@@ -683,14 +699,23 @@ export class SelectTool implements Tool {
       return;
     } else if (this.dragCableEdge) {
       const world = this.canvas.camera.screenToWorld(e.screenPoint);
+      const clamped = this.collisionResolver.resolvePoint(world, false).point;
       const cable = this.dragCableEdge.cable;
+      const originalRoute = this.dragCableEdge.originalRoute;
       const i = this.dragCableEdge.edgeIndex;
-      cable.route = moveCableEdgeOrthogonal(
-        this.dragCableEdge.originalRoute,
+      let route = moveCableEdgeOrthogonal(
+        originalRoute,
         i,
         this.dragCableEdge.startWorld,
-        world,
+        clamped,
       );
+      const now = Date.now();
+      if (cableRouteHasWallCrossing(this.plan, route) && now - this.lastCableRepairTime > this.CABLE_REPAIR_THROTTLE_MS) {
+        this.lastCableRepairTime = now;
+        const repair = repairCableRoute(this.plan, route);
+        route = repair.repaired ? repair.route : originalRoute.map((p) => p.clone());
+      }
+      cable.route = route;
       cable.routing = 'manual';
       this.dragCableEdge.moved = true;
       updateCableLength(cable);

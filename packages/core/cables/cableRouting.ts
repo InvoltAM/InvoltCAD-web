@@ -98,6 +98,7 @@ export function simplifyRoute(
   tolerance = 1e-3,
   dpTolerance = 25,
   preservePoints: Vector2[] = [],
+  plan?: NavigablePlan,
 ): Vector2[] {
   if (route.length <= 2) return route.map((p) => p.clone())
 
@@ -152,7 +153,18 @@ export function simplifyRoute(
     }
   }
 
-  return douglasPeucker(collinear, dpTolerance, protectedSimplified)
+  let result = douglasPeucker(collinear, dpTolerance, protectedSimplified)
+
+  // Если передан план, дополнительно удаляем избыточные вершины,
+  // не нарушающие зазор и не пересекающие стены.
+  if (plan) {
+    result = mergeCollinearSegments(result, plan)
+    result = removeRedundantVertices(result, plan)
+    result = mergeCollinearSegments(result, plan)
+    result = deduplicateRoute(result)
+  }
+
+  return result
 }
 
 /**

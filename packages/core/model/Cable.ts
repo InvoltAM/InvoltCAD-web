@@ -2,6 +2,19 @@ import { Vector2 } from '../geometry/Vector2';
 
 export type CableType = 'power' | 'lighting' | 'low-current';
 
+export type CablePhase = 'L1' | 'L2' | 'L3' | 'N' | 'PE' | 'low-voltage';
+
+export type CableRoutingMode = 'auto' | 'wall' | 'manual' | 'through-doorway';
+
+export type CableBundleMode = 'trunk' | 'parallel' | 'none';
+
+export interface CableStyle {
+  color: string;         // hex, например '#e74c3c'
+  lineWidth: number;     // мм, например 1.5
+  dashPattern: number[]; // [] = сплошная, [8, 4] = пунктир
+  capStyle: 'round' | 'butt';
+}
+
 export interface Cable {
   id: string;
   fromDeviceId: string | null; // null если начало — точка на стене/в пространстве
@@ -21,6 +34,45 @@ export interface Cable {
   brand?: string;       // марка кабеля
   marking?: string;     // маркировка линии
   laid?: boolean;       // проложен по факту
+  /** Визуальный стиль линии. Если не задан — берётся по фазе/типу кабеля. */
+  style?: CableStyle;
+  /** Фаза/назначение кабеля (L1, L2, L3, N, PE, слаботочка). */
+  phase?: CablePhase;
+  /** Режим прокладки из спецификации. */
+  routingMode?: CableRoutingMode;
+  /** Режим групповой прокладки нескольких кабелей. */
+  bundleMode?: CableBundleMode;
+  /** Идентификатор группы пучка/параллельной прокладки. */
+  bundleGroup?: string | null;
+  /** Точка разветвления пучка (для trunk-режима). */
+  trunkPoint?: { x: number; y: number } | null;
+}
+
+/** Стандартные стили кабеля по фазе (соответствуют спецификации v3.1). */
+export const DEFAULT_CABLE_STYLES: Record<CablePhase, CableStyle> = {
+  'L1': { color: '#e74c3c', lineWidth: 1.5, dashPattern: [], capStyle: 'round' },
+  'L2': { color: '#2ecc71', lineWidth: 1.5, dashPattern: [], capStyle: 'round' },
+  'L3': { color: '#3498db', lineWidth: 1.5, dashPattern: [], capStyle: 'round' },
+  'N':  { color: '#95a5a6', lineWidth: 1.5, dashPattern: [], capStyle: 'round' },
+  'PE': { color: '#f1c40f', lineWidth: 2.0, dashPattern: [4, 4], capStyle: 'round' },
+  'low-voltage': { color: '#9b59b6', lineWidth: 1.0, dashPattern: [2, 2], capStyle: 'round' },
+};
+
+/** Фаза по умолчанию для типа кабеля. */
+export function defaultPhaseForType(type: CableType): CablePhase {
+  switch (type) {
+    case 'lighting': return 'L2';
+    case 'low-current': return 'low-voltage';
+    case 'power':
+    default: return 'L1';
+  }
+}
+
+/** Возвращает эффективный стиль кабеля (явный или по фазе/типу). */
+export function getCableStyle(cable: Cable): CableStyle {
+  if (cable.style) return cable.style;
+  const phase = cable.phase ?? defaultPhaseForType(cable.type);
+  return DEFAULT_CABLE_STYLES[phase];
 }
 
 export const DEFAULT_CABLE: { type: CableType; crossSection: number; visible: boolean; brand: string; marking: string; laid: boolean } = {

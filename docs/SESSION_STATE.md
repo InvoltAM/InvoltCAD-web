@@ -1,3 +1,44 @@
+# Сессия разработки — 2026-08-25 (кабель: Visio-style редактирование, стили и bundle)
+
+## Текущий контекст
+
+Работа ведётся в репозитории **InvoltCAD-web**, ветка `main`.
+Dev-сервер Next.js работает на `http://localhost:3002/editor`.
+
+## Что сделано в текущей сессии
+
+### Фаза 3: Visio-style drag с автообходом препятствий
+
+- `packages/core/tools/SelectTool.ts` — drag вершин/граней кабеля теперь:
+  - clamp'ит курсор к допустимой зоне через `WallCollisionResolver` (нельзя зайти внутрь стены);
+  - в реальном времени проверяет пересечения со стенами;
+  - автоматически вызывает `repairCableRoute` и добавляет вершины обхода при появлении препятствий;
+  - дросселирует repair (50 мс), чтобы избежать зависаний при частых событиях `pointermove`;
+  - при невозможности обхода возвращает маршрут к исходному (кабель никогда не пересекает стену).
+- `packages/core/cables/cableRouting.ts` — `simplifyRoute` теперь принимает опциональный `plan` и дополнительно сокращает вершины через `mergeCollinearSegments` / `removeRedundantVertices`.
+- Обновлены `Plan.recalcCableRoutes` и `CableTool` — передают `plan` в `simplifyRoute`.
+- Прокладка кабеля всё ещё разрешена только через **дверные** проёмы; оконные проёмы остаются препятствием.
+
+### Фаза 4: стили кабеля и multi-cable bundle
+
+- `packages/core/model/Cable.ts`:
+  - добавлены `CableStyle`, `CablePhase`, `CableRoutingMode`, `CableBundleMode`;
+  - поля кабеля: `style`, `phase`, `routingMode`, `bundleMode`, `bundleGroup`, `trunkPoint`;
+  - `DEFAULT_CABLE_STYLES` по фазам (L1/L2/L3/N/PE/слаботочка);
+  - `getCableStyle(cable)` — явный стиль или по фазе/типу.
+- `packages/core/render/CableRenderer.ts` — рендер использует `style.color`, `style.lineWidth`, `style.dashPattern`, `style.capStyle`.
+- `packages/core/cables/CableBundle.ts` — helper'ы для групповой прокладки:
+  - `offsetRoute` / `calculateParallelOffsets`;
+  - `createParallelBundle`;
+  - `createTrunkGroup` / `recalcTrunkBranches`.
+- `src/lib/projects/serializer.ts` — новые поля кабеля сохраняются и восстанавливаются.
+- `packages/core/cables/CableBundle.test.ts` — 3 теста bundle.
+- Проверки:
+  - `npx tsc --noEmit` — чисто.
+  - `npm test -- --run` — 20 файлов, **104 теста** пройдены.
+
+---
+
 # Сессия разработки — 2026-08-25 (кабель: валидация и Wall Collision Resolver)
 
 ## Текущий контекст

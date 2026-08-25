@@ -2,7 +2,7 @@ import { Vector2 } from '../geometry/Vector2';
 import { Wall, DEFAULT_WALL_THICKNESS, wallLength, wallDirection } from './Wall';
 import { Opening, OpeningType, DEFAULT_DOOR_WIDTH, DEFAULT_WINDOW_WIDTH } from './Opening';
 import { Device, DeviceType, DEVICE_SIZE, DEFAULT_DEVICE_NAMES } from './Device';
-import { Cable, CableType, DEFAULT_CABLE } from './Cable';
+import { Cable, CableType, DEFAULT_CABLE, defaultPhaseForType, type CablePhase, type CableStyle, type CableRoutingMode, type CableBundleMode } from './Cable';
 import { Dimension, createDimension } from './Dimension';
 import { DrawingPrimitive, DrawingPrimitiveType, createDrawingPrimitive } from './DrawingPrimitive';
 import { detectRooms, Room } from '../geometry/RoomDetector';
@@ -530,6 +530,12 @@ export class Plan {
       viaPoints?: Vector2[];
       circuitId?: string;
       route?: Vector2[];
+      phase?: import('../model/Cable.js').CablePhase;
+      style?: import('../model/Cable.js').CableStyle;
+      routingMode?: import('../model/Cable.js').CableRoutingMode;
+      bundleMode?: import('../model/Cable.js').CableBundleMode;
+      bundleGroup?: string | null;
+      trunkPoint?: { x: number; y: number } | null;
     },
   ): Cable | null {
     const hasFromDevice = !!fromDeviceId;
@@ -560,6 +566,7 @@ export class Plan {
     }
     const length = Plan.routeLength(route);
 
+    const phase: CablePhase = options?.phase ?? defaultPhaseForType(type);
     const cable: Cable = {
       id: crypto.randomUUID(),
       fromDeviceId,
@@ -573,6 +580,12 @@ export class Plan {
       viaPoints: via.map(p => p.clone()),
       routing,
       circuitId: options?.circuitId,
+      phase,
+      style: options?.style,
+      routingMode: options?.routingMode ?? routing,
+      bundleMode: options?.bundleMode ?? 'none',
+      bundleGroup: options?.bundleGroup ?? null,
+      trunkPoint: options?.trunkPoint ?? null,
     };
     this.cables.push(cable);
 
@@ -750,7 +763,7 @@ export class Plan {
         let route: Vector2[];
         if (routed && routed.length >= 2) {
           route = [fromAnchor, fromRouting, ...routed, toRouting, toAnchor];
-          route = simplifyRoute(route, 1e-3, 25, [...via, fromRouting, toRouting]);
+          route = simplifyRoute(route, 1e-3, 25, [...via, fromRouting, toRouting], this);
         } else if (via.length > 0) {
           route = [fromAnchor, ...via.map(p => p.clone()), toAnchor];
         } else {
