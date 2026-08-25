@@ -1272,7 +1272,7 @@ export class SelectTool implements Tool {
   private hitTestCable(screenPoint: Vector2): import('../model/Cable.js').Cable | null {
     const world = this.canvas.camera.screenToWorld(screenPoint);
     // Увеличенная зона захвата для кабеля, чтобы было проще попасть кликом.
-    const thresholdMm = 16 / this.canvas.camera.scale;
+    const thresholdMm = 24 / this.canvas.camera.scale;
 
     for (const cable of this.plan.cables) {
       const route = cable.route.length >= 2 ? cable.route : [];
@@ -1288,7 +1288,7 @@ export class SelectTool implements Tool {
 
   private hitTestCableVertex(screenPoint: Vector2): { cable: import('../model/Cable.js').Cable; index: number } | null {
     const world = this.canvas.camera.screenToWorld(screenPoint);
-    const thresholdMm = 10 / this.canvas.camera.scale;
+    const thresholdMm = 12 / this.canvas.camera.scale;
 
     for (const cable of this.plan.cables) {
       const route = cable.route;
@@ -1303,7 +1303,7 @@ export class SelectTool implements Tool {
 
   private hitTestCableEdge(screenPoint: Vector2): { cable: import('../model/Cable.js').Cable; edgeIndex: number } | null {
     const world = this.canvas.camera.screenToWorld(screenPoint);
-    const thresholdMm = 10 / this.canvas.camera.scale;
+    const thresholdMm = 12 / this.canvas.camera.scale;
 
     for (const cable of this.plan.cables) {
       const route = cable.route;
