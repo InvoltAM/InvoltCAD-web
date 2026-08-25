@@ -73,6 +73,10 @@ export default function Toolbar() {
   const setOrthoMode = useCadStore((s) => s.setOrthoMode)
   const gridVisible = useCadStore((s) => s.gridVisible)
   const setGridVisible = useCadStore((s) => s.setGridVisible)
+  const showWallClearance = useCadStore((s) => s.showWallClearance)
+  const setShowWallClearance = useCadStore((s) => s.setShowWallClearance)
+  const cableValidationMode = useCadStore((s) => s.cableValidationMode)
+  const setCableValidationMode = useCadStore((s) => s.setCableValidationMode)
   const olsOpen = useCadStore((s) => s.olsOpen)
   const setOlsOpen = useCadStore((s) => s.setOlsOpen)
   const panelEditorOpen = useCadStore((s) => s.panelEditorOpen)
@@ -590,6 +594,20 @@ export default function Toolbar() {
       icon: icon('grid'),
       active: gridVisible,
       onClick: handleToggleGrid,
+    },
+    {
+      id: 'wallClearance',
+      label: showWallClearance ? 'Скрыть зону стены' : 'Зона стены',
+      icon: icon('validation'),
+      active: showWallClearance,
+      onClick: () => setShowWallClearance(!showWallClearance),
+    },
+    {
+      id: 'cableMode',
+      label: cableValidationMode === 'strict' ? 'Кабель: авто' : 'Кабель: ручной',
+      icon: icon(cableValidationMode === 'strict' ? 'validation' : 'edit'),
+      active: cableValidationMode === 'strict',
+      onClick: () => setCableValidationMode(cableValidationMode === 'strict' ? 'user' : 'strict'),
     },
   ]
 

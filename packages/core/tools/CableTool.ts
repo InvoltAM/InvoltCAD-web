@@ -49,6 +49,10 @@ export class CableTool implements Tool {
     this.collisionResolver = new WallCollisionResolver(plan);
   }
 
+  private isUserMode(): boolean {
+    return this.canvas.editorState.get('cableValidationMode') === 'user';
+  }
+
   onActivate(): void {
     this.reset();
     this.canvas.canvas.style.cursor = 'crosshair';
@@ -76,7 +80,7 @@ export class CableTool implements Tool {
     const endpoint = this.resolveEndpoint(e.screenPoint, true, isConnector);
     if (!endpoint) return;
 
-    if (this.collisionResolver.resolvePoint(endpoint.point, isConnector).blocked) {
+    if (!this.isUserMode() && this.collisionResolver.resolvePoint(endpoint.point, isConnector).blocked) {
       // Нельзя начать/закончить кабель внутри стены.
       return;
     }
@@ -96,7 +100,7 @@ export class CableTool implements Tool {
     if (e.shiftKey) {
       // Добавляем промежуточный узел
       const via = this.resolveEndpoint(e.screenPoint, true, false);
-      if (via && !this.collisionResolver.resolvePoint(via.point, false).blocked) {
+      if (via && (this.isUserMode() || !this.collisionResolver.resolvePoint(via.point, false).blocked)) {
         this.viaPoints.push(via.point.clone());
       }
       this.updateGhost(e);
@@ -194,7 +198,10 @@ export class CableTool implements Tool {
 
   private updateGhost(e: InputEvent): void {
     const cursor = this.resolveEndpoint(e.screenPoint, false, true);
-    const blocked = cursor ? this.collisionResolver.resolvePoint(cursor.point, true).blocked : false;
+    const resolved = cursor && !this.isUserMode()
+      ? this.collisionResolver.resolvePoint(cursor.point, true)
+      : { point: cursor?.point.clone(), blocked: false };
+    const blocked = resolved.blocked;
     this.pending = cursor ? { point: cursor.point.clone(), snapType: cursor.type } : null;
 
     const route = this.buildGhostRoute();
@@ -226,6 +233,20 @@ export class CableTool implements Tool {
         ctx.beginPath();
         ctx.arc(p.x, p.y, 4 / this.canvas.camera.scale, 0, Math.PI * 2);
         ctx.fill();
+      }
+
+      // Красный X при блокировке
+      if (blocked && resolved.point) {
+        ctx.strokeStyle = '#d32f2f';
+        ctx.lineWidth = 2 / this.canvas.camera.scale;
+        const size = 10 / this.canvas.camera.scale;
+        const p = resolved.point;
+        ctx.beginPath();
+        ctx.moveTo(p.x - size, p.y - size);
+        ctx.lineTo(p.x + size, p.y + size);
+        ctx.moveTo(p.x + size, p.y - size);
+        ctx.lineTo(p.x - size, p.y + size);
+        ctx.stroke();
       }
 
       // Подсветка ближайшего устройства (точка входа кабеля)
@@ -308,6 +329,10 @@ export class CableTool implements Tool {
       if (device) {
         return { type: 'device', deviceId: device.id, point: this.plan.deviceCableEntryPoint(device) };
       }
+    }
+
+    if (this.isUserMode()) {
+      return { type: 'point', point: snap.point.clone() };
     }
 
     const resolved = this.collisionResolver.resolvePoint(snap.point, isConnector);

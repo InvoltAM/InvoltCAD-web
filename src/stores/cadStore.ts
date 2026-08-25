@@ -87,6 +87,8 @@ interface CadStoreState {
   defaultCableType: import('@core/model/Cable').CableType
   defaultCableSection: number
   defaultCircuitId: string | null
+  cableValidationMode: 'strict' | 'user'
+  showWallClearance: boolean
   deviceIconScale: number
   wallJoinStyle: WallJoinStyle
   validationIssues: ValidationIssue[]
@@ -138,6 +140,8 @@ interface CadStoreState {
   setDefaultCableType: (type: import('@core/model/Cable').CableType) => void
   setDefaultCableSection: (section: number) => void
   setDefaultCircuitId: (id: string | null) => void
+  setCableValidationMode: (mode: 'strict' | 'user') => void
+  setShowWallClearance: (show: boolean) => void
   setDeviceIconScale: (scale: number) => void
   setWallJoinStyle: (style: WallJoinStyle) => void
   setValidationIssues: (issues: ValidationIssue[]) => void
@@ -203,6 +207,8 @@ export const useCadStore = create<CadStoreState>((set) => ({
   defaultCableType: 'power',
   defaultCableSection: 2.5,
   defaultCircuitId: null,
+  cableValidationMode: 'strict',
+  showWallClearance: false,
   deviceIconScale: 1,
   wallJoinStyle: 'square',
   validationIssues: [],
@@ -257,6 +263,8 @@ export const useCadStore = create<CadStoreState>((set) => ({
   setDefaultCableType: (defaultCableType) => set({ defaultCableType }),
   setDefaultCableSection: (defaultCableSection) => set({ defaultCableSection }),
   setDefaultCircuitId: (defaultCircuitId) => set({ defaultCircuitId }),
+  setCableValidationMode: (cableValidationMode) => set({ cableValidationMode }),
+  setShowWallClearance: (showWallClearance) => set({ showWallClearance }),
   setDeviceIconScale: (deviceIconScale) => set({ deviceIconScale }),
   setWallJoinStyle: (wallJoinStyle) => set({ wallJoinStyle }),
   setValidationIssues: (validationIssues) => set({ validationIssues }),

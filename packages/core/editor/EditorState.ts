@@ -50,6 +50,8 @@ export interface EditorStateData {
   defaultCableType: import('../model/Cable').CableType;
   defaultCableSection: number;
   defaultCircuitId: string | null;
+  cableValidationMode: 'strict' | 'user';
+  showWallClearance: boolean;
   deviceIconScale: number;
   wallJoinStyle: WallJoinStyle;
   validationIssues: ValidationIssue[];
@@ -98,6 +100,8 @@ export class EditorState {
     defaultCableType: 'power',
     defaultCableSection: 2.5,
     defaultCircuitId: null,
+    cableValidationMode: 'strict',
+    showWallClearance: false,
     deviceIconScale: 1,
     wallJoinStyle: 'square',
     validationIssues: [],

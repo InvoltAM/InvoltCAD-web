@@ -21,6 +21,7 @@ import { ValidationIssue } from '../rules/ValidationTypes';
 import { ThemeManager } from '../editor/ThemeManager';
 import { SheetFrameRenderer } from '../render/SheetFrameRenderer';
 import { UnderlayRenderer } from '../render/UnderlayRenderer';
+import { WallClearanceRenderer } from '../render/WallClearanceRenderer';
 import { getSheetDimensions } from '../model/Sheet';
 
 /**
@@ -46,6 +47,7 @@ export class CanvasEngine {
   primitiveRenderer: PrimitiveRenderer;
   sheetFrameRenderer: SheetFrameRenderer;
   underlayRenderer: UnderlayRenderer;
+  wallClearanceRenderer: WallClearanceRenderer;
   input: InputManager;
   snapEngine: SnapEngine;
   toolManager: ToolManager;
@@ -62,6 +64,8 @@ export class CanvasEngine {
   private themeUnsubscribe: (() => void) | null = null;
   private layersUnsubscribe: (() => void) | null = null;
   private snapUnsubscribe: (() => void) | null = null;
+  private wallClearanceUnsubscribe: (() => void) | null = null;
+  private cableModeUnsubscribe: (() => void) | null = null;
 
   onChange?: () => void;
 
@@ -95,6 +99,7 @@ export class CanvasEngine {
     this.primitiveRenderer = new PrimitiveRenderer(plan, this.camera, this.themeManager);
     this.sheetFrameRenderer = new SheetFrameRenderer(plan, this.camera, this.themeManager, () => this.requestRender());
     this.underlayRenderer = new UnderlayRenderer(plan, this.camera, this.themeManager, () => this.requestRender());
+    this.wallClearanceRenderer = new WallClearanceRenderer(plan, this.camera);
 
     this.input = new InputManager(canvas, this.camera);
     this.setupInput();
@@ -116,6 +121,8 @@ export class CanvasEngine {
     // Перерисовка при изменении настроек слоёв/привязки
     this.layersUnsubscribe = this.editorState.subscribe('layers', () => this.requestRender());
     this.snapUnsubscribe = this.editorState.subscribe('snap', () => this.requestRender());
+    this.wallClearanceUnsubscribe = this.editorState.subscribe('showWallClearance', () => this.requestRender());
+    this.cableModeUnsubscribe = this.editorState.subscribe('cableValidationMode', () => this.requestRender());
 
     this.requestRender();
   }
@@ -131,6 +138,8 @@ export class CanvasEngine {
     this.themeUnsubscribe?.();
     this.layersUnsubscribe?.();
     this.snapUnsubscribe?.();
+    this.wallClearanceUnsubscribe?.();
+    this.cableModeUnsubscribe?.();
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
@@ -276,6 +285,11 @@ export class CanvasEngine {
     // 8. Стены
     if (layers.walls) {
       this.wallRenderer.render(ctx);
+    }
+
+    // 8a. Wall Clearance Zone
+    if (this.editorState.get('showWallClearance')) {
+      this.wallClearanceRenderer.render(ctx);
     }
 
     // 9. Проемы

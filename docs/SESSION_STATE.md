@@ -1,4 +1,4 @@
-# Сессия разработки — 2026-08-25 (кабель: Visio-style редактирование, стили и bundle)
+# Сессия разработки — 2026-08-25 (кабель: UI дополнения — зона стены, strict/user, стили)
 
 ## Текущий контекст
 
@@ -6,6 +6,36 @@
 Dev-сервер Next.js работает на `http://localhost:3002/editor`.
 
 ## Что сделано в текущей сессии
+
+### UI и визуализация по спецификации
+
+- `packages/core/render/WallClearanceRenderer.ts` — отрисовка Wall Clearance Zone (40 см от поверхности стен) полупрозрачным красным слоём.
+- `packages/core/engine/CanvasEngine.ts`:
+  - добавлен рендерер зоны стены;
+  - перерисовка по `showWallClearance` / `cableValidationMode`;
+  - корректная отписка при уничтожении.
+- `packages/core/editor/EditorState.ts` + `src/stores/cadStore.ts` + `src/components/editor/PlanEditor.tsx`:
+  - новые поля `cableValidationMode` ('strict' | 'user') и `showWallClearance` (boolean);
+  - двусторонняя синхронизация между React-стором и `EditorState`.
+- `src/components/editor/Toolbar.tsx` — две новые кнопки в dock:
+  - «Зона стены» — показать/скрыть Wall Clearance Zone;
+  - «Кабель: авто / ручной» — переключение `cableValidationMode`.
+- `packages/core/tools/CableTool.ts`:
+  - в `strict`-режиме сохраняются все проверки `WallCollisionResolver`;
+  - в `user`-режиме клик не clamp'ится и не блокируется (можно рисовать внутри стен);
+  - при блокировке в ghost-режиме рисуется красный X в точке запрета.
+- `src/components/editor/PropertyPanel.tsx` — панель стилей кабеля:
+  - выбор фазы (L1/L2/L3/N/PE/слаботочка);
+  - цвет линии;
+  - толщина линии;
+  - пунктир (через пробел, мм);
+  - режим прокладки (auto/wall/manual/through-doorway);
+  - групповая прокладка (none/trunk/parallel);
+  - сброс стиля к дефолтному.
+- `src/components/editor/icons.ts` — добавлена иконка `edit`.
+- Проверки:
+  - `npx tsc --noEmit` — чисто.
+  - `npm test -- --run` — 20 файлов, **104 теста** пройдены.
 
 ### Фаза 3: Visio-style drag с автообходом препятствий
 

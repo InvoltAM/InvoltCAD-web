@@ -1,5 +1,5 @@
 export type IconName =
-  | 'wall' | 'door' | 'window' | 'device' | 'cable' | 'dimension' | 'select' | 'hand'
+  | 'wall' | 'door' | 'window' | 'device' | 'cable' | 'dimension' | 'select' | 'hand' | 'edit'
   | 'drawing' | 'polyline' | 'segment' | 'rectangle' | 'circle'
   | 'move' | 'rotate' | 'trim' | 'extend'
   | 'text' | 'table' | 'underlay' | 'calibrate' | 'eye' | 'eyeSlash'
@@ -23,6 +23,7 @@ const MAP: Record<IconName, string> = {
   dimension: 'ruler',
   select: 'selection',
   hand: 'hand',
+  edit: 'pencil-simple',
   drawing: 'pencil',
   polyline: 'polygon',
   segment: 'line-segment',

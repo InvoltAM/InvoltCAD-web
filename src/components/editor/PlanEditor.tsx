@@ -100,6 +100,8 @@ export default function PlanEditor() {
     engine.editorState.set('windowWidth', initial.windowWidth)
     engine.editorState.set('defaultCableType', initial.defaultCableType)
     engine.editorState.set('defaultCableSection', initial.defaultCableSection)
+    engine.editorState.set('cableValidationMode', initial.cableValidationMode)
+    engine.editorState.set('showWallClearance', initial.showWallClearance)
     engine.editorState.set('layers', initial.layers)
     engine.editorState.set('snap', initial.snap)
     engine.editorState.set('customDevices', initial.customDevices)
@@ -118,6 +120,8 @@ export default function PlanEditor() {
       'windowWidth',
       'defaultCableType',
       'defaultCableSection',
+      'cableValidationMode',
+      'showWallClearance',
       'layers',
       'snap',
       'customDevices',

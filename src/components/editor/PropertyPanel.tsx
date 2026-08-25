@@ -8,7 +8,15 @@ import { Plan } from '@core/model/Plan'
 import { Wall, wallHasArc, createWallArcFromChord } from '@core/model/Wall'
 import { Opening } from '@core/model/Opening'
 import { Device, DEVICE_SIZE } from '@core/model/Device'
-import { Cable } from '@core/model/Cable'
+import {
+  Cable,
+  CableStyle,
+  CablePhase,
+  CableRoutingMode,
+  CableBundleMode,
+  DEFAULT_CABLE_STYLES,
+  getCableStyle,
+} from '@core/model/Cable'
 import { Dimension } from '@core/model/Dimension'
 import { DrawingPrimitive } from '@core/model/DrawingPrimitive'
 import { UpdateWallArcCommand } from '@core/editor/CommandManager'
@@ -635,6 +643,12 @@ function CableProperties({ cables, plan }: { cables: Cable[]; plan: Plan }) {
   const commonMarking = commonValue(cables, (c) => c.marking ?? '')
   const commonLaid = commonValue(cables, (c) => c.laid ?? false)
   const commonVisible = commonValue(cables, (c) => c.visible ?? true)
+  const commonPhase = commonValue(cables, (c) => c.phase)
+  const commonRoutingMode = commonValue(cables, (c) => c.routingMode)
+  const commonBundleMode = commonValue(cables, (c) => c.bundleMode)
+  const commonColor = commonValue(cables, (c) => c.style?.color)
+  const commonLineWidth = commonValue(cables, (c) => c.style?.lineWidth)
+  const commonDashPattern = commonValue(cables, (c) => c.style?.dashPattern)
 
   const handleTypeChange = (type: string) => {
     for (const cable of cables) {
@@ -681,6 +695,71 @@ function CableProperties({ cables, plan }: { cables: Cable[]; plan: Plan }) {
   const handleVisibleChange = (visible: boolean) => {
     for (const cable of cables) {
       cable.visible = visible
+    }
+    engineRef.current?.notifyChanged()
+    engineRef.current?.requestRender()
+  }
+
+  const handlePhaseChange = (phase: CablePhase) => {
+    for (const cable of cables) {
+      cable.phase = phase
+    }
+    engineRef.current?.notifyChanged()
+    engineRef.current?.requestRender()
+  }
+
+  const handleColorChange = (color: string) => {
+    for (const cable of cables) {
+      cable.style = { ...getCableStyle(cable), color }
+    }
+    engineRef.current?.notifyChanged()
+    engineRef.current?.requestRender()
+  }
+
+  const handleLineWidthChange = (lineWidth: number) => {
+    for (const cable of cables) {
+      cable.style = { ...getCableStyle(cable), lineWidth }
+    }
+    engineRef.current?.notifyChanged()
+    engineRef.current?.requestRender()
+  }
+
+  const handleDashPatternChange = (dashText: string) => {
+    const dashPattern = dashText
+      .split(/\s+/)
+      .map((s) => parseFloat(s))
+      .filter((n) => !isNaN(n) && n > 0)
+    for (const cable of cables) {
+      cable.style = { ...getCableStyle(cable), dashPattern }
+    }
+    engineRef.current?.notifyChanged()
+    engineRef.current?.requestRender()
+  }
+
+  const handleRoutingModeChange = (routingMode: CableRoutingMode) => {
+    for (const cable of cables) {
+      cable.routingMode = routingMode
+      if (routingMode === 'auto') {
+        cable.routing = 'auto'
+      } else if (routingMode === 'manual') {
+        cable.routing = 'manual'
+      }
+    }
+    engineRef.current?.notifyChanged()
+    engineRef.current?.requestRender()
+  }
+
+  const handleBundleModeChange = (bundleMode: CableBundleMode) => {
+    for (const cable of cables) {
+      cable.bundleMode = bundleMode
+    }
+    engineRef.current?.notifyChanged()
+    engineRef.current?.requestRender()
+  }
+
+  const handleResetStyle = () => {
+    for (const cable of cables) {
+      cable.style = undefined
     }
     engineRef.current?.notifyChanged()
     engineRef.current?.requestRender()
@@ -783,6 +862,99 @@ function CableProperties({ cables, plan }: { cables: Cable[]; plan: Plan }) {
         />
         Проложен по факту
       </label>
+
+      <div className="border-t border-gray-300 pt-2 dark:border-gray-600">
+        <div className="mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">Стиль и режим</div>
+
+        <div>
+          <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Фаза / назначение</label>
+          <select
+            value={commonPhase ?? ''}
+            onChange={(e) => handlePhaseChange(e.target.value as CablePhase)}
+            className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          >
+            {commonPhase === undefined && <option value="">разные</option>}
+            <option value="L1">L1</option>
+            <option value="L2">L2</option>
+            <option value="L3">L3</option>
+            <option value="N">N</option>
+            <option value="PE">PE</option>
+            <option value="low-voltage">Слаботочка</option>
+          </select>
+        </div>
+
+        <div className="mt-2 flex items-center gap-2">
+          <label className="text-xs text-gray-600 dark:text-gray-400">Цвет</label>
+          <input
+            type="color"
+            value={commonColor ?? '#e74c3c'}
+            onChange={(e) => handleColorChange(e.target.value)}
+            className="h-7 w-10 cursor-pointer rounded border border-gray-300 dark:border-gray-600"
+          />
+          <button
+            onClick={handleResetStyle}
+            className="ml-auto text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+          >
+            Сбросить стиль
+          </button>
+        </div>
+
+        <div className="mt-2">
+          <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Толщина линии, мм</label>
+          <input
+            type="number"
+            step="0.1"
+            min="0.1"
+            value={commonLineWidth ?? ''}
+            placeholder={commonLineWidth === undefined ? 'разные' : ''}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value)
+              if (!isNaN(v) && v > 0) handleLineWidthChange(v)
+            }}
+            className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          />
+        </div>
+
+        <div className="mt-2">
+          <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Пунктир (через пробел, мм)</label>
+          <input
+            type="text"
+            value={commonDashPattern?.join(' ') ?? ''}
+            placeholder={commonDashPattern === undefined ? 'разные' : 'сплошная'}
+            onChange={(e) => handleDashPatternChange(e.target.value)}
+            className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          />
+        </div>
+
+        <div className="mt-2">
+          <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Режим прокладки</label>
+          <select
+            value={commonRoutingMode ?? ''}
+            onChange={(e) => handleRoutingModeChange(e.target.value as CableRoutingMode)}
+            className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          >
+            {commonRoutingMode === undefined && <option value="">разные</option>}
+            <option value="auto">Авто (A* + обход стен)</option>
+            <option value="wall">Вдоль стены</option>
+            <option value="manual">Ручной</option>
+            <option value="through-doorway">Через проём</option>
+          </select>
+        </div>
+
+        <div className="mt-2">
+          <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Групповая прокладка</label>
+          <select
+            value={commonBundleMode ?? ''}
+            onChange={(e) => handleBundleModeChange(e.target.value as CableBundleMode)}
+            className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          >
+            {commonBundleMode === undefined && <option value="">разные</option>}
+            <option value="none">Нет</option>
+            <option value="trunk">Пучок (trunk)</option>
+            <option value="parallel">Параллельная</option>
+          </select>
+        </div>
+      </div>
     </div>
   )
 }
