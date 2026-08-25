@@ -8,6 +8,7 @@ import { CanvasEngine } from '../engine/CanvasEngine';
 import { Tool } from './ToolManager';
 import { AddCableCommand } from '../editor/CommandManager';
 import { routeCableWithVia, simplifyRoute } from '../cables/cableRouting';
+import { WallCollisionResolver } from '../cables/WallCollisionResolver';
 
 type EndpointType = 'device' | 'point';
 
@@ -39,11 +40,14 @@ export class CableTool implements Tool {
   private pending: PendingPoint | null = null;
   private hoveredDevice: Device | null = null;
   private currentSnap: ReturnType<SnapEngine['snap']> | null = null;
+  private collisionResolver: WallCollisionResolver;
 
   constructor(
     private canvas: CanvasEngine,
     private plan: Plan,
-  ) {}
+  ) {
+    this.collisionResolver = new WallCollisionResolver(plan);
+  }
 
   onActivate(): void {
     this.reset();
@@ -68,8 +72,14 @@ export class CableTool implements Tool {
   }
 
   onPointerDown(e: InputEvent): void {
-    const endpoint = this.resolveEndpoint(e.screenPoint, true);
+    const isConnector = true;
+    const endpoint = this.resolveEndpoint(e.screenPoint, true, isConnector);
     if (!endpoint) return;
+
+    if (this.collisionResolver.resolvePoint(endpoint.point, isConnector).blocked) {
+      // Нельзя начать/закончить кабель внутри стены.
+      return;
+    }
 
     if (this.state === 'idle') {
       this.from = endpoint;
@@ -85,7 +95,10 @@ export class CableTool implements Tool {
     // drawing state
     if (e.shiftKey) {
       // Добавляем промежуточный узел
-      this.viaPoints.push(endpoint.point.clone());
+      const via = this.resolveEndpoint(e.screenPoint, true, false);
+      if (via && !this.collisionResolver.resolvePoint(via.point, false).blocked) {
+        this.viaPoints.push(via.point.clone());
+      }
       this.updateGhost(e);
       return;
     }
@@ -180,7 +193,8 @@ export class CableTool implements Tool {
   }
 
   private updateGhost(e: InputEvent): void {
-    const cursor = this.resolveEndpoint(e.screenPoint, false);
+    const cursor = this.resolveEndpoint(e.screenPoint, false, true);
+    const blocked = cursor ? this.collisionResolver.resolvePoint(cursor.point, true).blocked : false;
     this.pending = cursor ? { point: cursor.point.clone(), snapType: cursor.type } : null;
 
     const route = this.buildGhostRoute();
@@ -191,7 +205,7 @@ export class CableTool implements Tool {
     }
 
     this.canvas.setGhost((ctx) => {
-      const color = '#d32f2f';
+      const color = blocked ? '#d32f2f' : '#388e3c';
       ctx.strokeStyle = color;
       ctx.lineWidth = 2 / this.canvas.camera.scale;
       ctx.setLineDash([10 / this.canvas.camera.scale, 5 / this.canvas.camera.scale]);
@@ -279,7 +293,7 @@ export class CableTool implements Tool {
     return points;
   }
 
-  private resolveEndpoint(screenPoint: Vector2, allowDevice: boolean): CableEndpoint | null {
+  private resolveEndpoint(screenPoint: Vector2, allowDevice: boolean, isConnector = false): CableEndpoint | null {
     if (allowDevice) {
       const device = this.hitTestDevice(screenPoint);
       if (device) {
@@ -296,7 +310,8 @@ export class CableTool implements Tool {
       }
     }
 
-    return { type: 'point', point: snap.point.clone() };
+    const resolved = this.collisionResolver.resolvePoint(snap.point, isConnector);
+    return { type: 'point', point: resolved.point };
   }
 
   private hitTestDevice(screenPoint: Vector2): Device | null {

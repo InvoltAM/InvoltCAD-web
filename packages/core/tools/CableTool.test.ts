@@ -55,7 +55,7 @@ describe('CableTool', () => {
   it('создаёт кабель от устройства до точки на стене', () => {
     const wall = plan.addWall(new Vector2(-1000, 0), new Vector2(1000, 0));
     const from = plan.addDevice(wall.id, 'socket', 0.25, 0, 1)!;
-    const toPoint = new Vector2(500, 0);
+    const toPoint = new Vector2(500, 500);
 
     engine.setTool('cable');
     const p1 = engine.camera.worldToScreen(plan.deviceWorldPosition(from));

@@ -6,6 +6,7 @@ import {
   addIssue,
   nextIssueId,
 } from './ValidationTypes';
+import { validateCable } from '../cables/CableValidator';
 
 const MIN_CABLE_CROSS_SECTION: Record<CableType, number> = {
   power: 2.5,
@@ -54,6 +55,26 @@ export function validateCables(plan: Plan): ValidationResult {
         objectId: cable.id,
         position: cableMidpoint(cable),
       });
+    }
+
+    // Геометрическая валидация: отступы от стен, пересечения, проёмы.
+    const geom = validateCable(plan, cable, 'strict', plan.devices);
+    if (!geom.valid) {
+      const count =
+        geom.clearanceViolations.length +
+        geom.intersectionViolations.length +
+        geom.doorwayViolations.length +
+        geom.insideWallViolations.length;
+      if (count > 0) {
+        addIssue(result, {
+          id: nextIssueId(),
+          type: 'cable',
+          severity: 'error',
+          message: `Кабель нарушает правила прокладки (${count})`,
+          objectId: cable.id,
+          position: cableMidpoint(cable),
+        });
+      }
     }
   }
 

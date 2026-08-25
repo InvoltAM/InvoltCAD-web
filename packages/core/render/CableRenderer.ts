@@ -3,6 +3,7 @@ import { Plan } from '../model/Plan';
 import { EditorState } from '../editor/EditorState';
 import { Vector2 } from '../geometry/Vector2';
 import { ThemeManager, ThemeColorKey } from '../editor/ThemeManager';
+import { validateCable, highlightCableViolations } from '../cables/CableValidator';
 
 function typeToColorKey(type: string): ThemeColorKey {
   switch (type) {
@@ -86,6 +87,11 @@ export class CableRenderer {
       // Ручки редактирования маршрута для выделенного кабеля
       if (selected) {
         this.renderRouteHandles(ctx, cable, route, ctx.strokeStyle);
+        // Подсветка геометрических нарушений кабеля (только для выделенного).
+        const validation = validateCable(this.plan, cable, 'strict', this.plan.devices);
+        if (!validation.valid) {
+          highlightCableViolations(ctx, validation, this.camera);
+        }
       }
 
       if (route.length >= 2) {
