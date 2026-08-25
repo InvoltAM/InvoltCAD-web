@@ -2,6 +2,11 @@ import { Vector2 } from '../geometry/Vector2'
 import { Wall, wallPolyline } from '../model/Wall'
 import { Cable } from '../model/Cable'
 
+/** Минимальный зазор кабеля от поверхности стены, мм. */
+const WALL_CLEARANCE = 400
+/** Отступ кабеля от краёв дверного проёма, мм. */
+const DOORWAY_MARGIN = 100
+
 /** Минимальный план, необходимый для построения сетки проходимости. */
 export interface NavigablePlan {
   walls: Wall[]
@@ -154,14 +159,24 @@ export class NavGrid {
    * В отличие от markOpeningSegment с радиусом, не выходит за границы проёма,
    * поэтому кабель не может "обойти" стену по краю проёма.
    */
-  markOpeningRect(minX: number, minY: number, maxX: number, maxY: number): void {
+  markOpeningRect(minX: number, minY: number, maxX: number, maxY: number, minWorldX = -Infinity, minWorldY = -Infinity, maxWorldX = Infinity, maxWorldY = Infinity): void {
     for (let y = minY; y <= maxY; y++) {
       for (let x = minX; x <= maxX; x++) {
         const cell = this.getCell(x, y)
-        if (cell) {
-          cell.walkable = true
-          cell.cost = 1
+        if (!cell) continue
+        // Помечаем только ячейки, центр которых лежит внутри мирового прямоугольника проёма,
+        // чтобы не захватывать клетки, частично выходящие за безопасную зону (DOORWAY_MARGIN).
+        const center = this.gridToWorld(x, y)
+        if (
+          center.x < minWorldX - 1e-6 ||
+          center.x > maxWorldX + 1e-6 ||
+          center.y < minWorldY - 1e-6 ||
+          center.y > maxWorldY + 1e-6
+        ) {
+          continue
         }
+        cell.walkable = true
+        cell.cost = 1
       }
     }
   }
@@ -213,11 +228,10 @@ export class NavGrid {
       cellSize
     )
 
-    // Отмечаем стены как препятствия (с учётом половины толщины стены)
-    const wallGridPositions: { x: number; y: number }[] = []
+    // Отмечаем стены как препятствия (толщина стены + зазор 400 мм от поверхности)
     for (const wall of plan.walls) {
       const polyline = wallPolyline(wall, cellSize / 2)
-      const wallRadius = Math.max(0, Math.ceil((wall.thickness / 2) / cellSize))
+      const wallRadius = Math.max(0, Math.ceil((wall.thickness / 2 + WALL_CLEARANCE) / cellSize))
       for (let i = 0; i < polyline.length - 1; i++) {
         const a = polyline[i]
         const b = polyline[i + 1]
@@ -227,12 +241,13 @@ export class NavGrid {
           const x = a.x + (b.x - a.x) * t
           const y = a.y + (b.y - a.y) * t
           const gridPos = grid.worldToGrid(new Vector2(x, y))
-          wallGridPositions.push(gridPos)
           grid.markWall(gridPos.x, gridPos.y, wallRadius)
         }
       }
 
-      // Отмечаем дверные проёмы как проходимые прямоугольником вдоль стены.
+      // Отмечаем дверные проёмы как проходимые коридором через зазор стены.
+      // Коридор проходит через всю запретную зону 400 мм с каждой стороны,
+      // но ширина ограничена допустимой полосой (doorway - 2×DOORWAY_MARGIN).
       // Оконные проёмы остаются непроходимыми.
       for (const opening of wall.openings) {
         if (opening.type !== 'door') continue
@@ -240,29 +255,30 @@ export class NavGrid {
         const dir = wall.b.sub(wall.a).normalized()
         const n = dir.perpendicular()
         const center = wall.a.add(dir.scale(opening.t * wallLen))
-        const halfWidth = opening.width / 2
-        const halfThick = wall.thickness / 2
+        const halfWidth = Math.max(0, opening.width / 2 - DOORWAY_MARGIN)
+        const halfThick = wall.thickness / 2 + WALL_CLEARANCE
         const start = center.sub(dir.scale(halfWidth))
         const end = center.add(dir.scale(halfWidth))
-        const a = start.add(n.scale(-halfThick))
-        const b = start.add(n.scale(halfThick))
-        const c = end.add(n.scale(halfThick))
-        const d = end.add(n.scale(-halfThick))
-        const min = grid.worldToGrid(new Vector2(
+        // Расширяем коридор поперёк стены на полклетки, чтобы сетка A* гарантированно
+        // соединила проход с внешней проходимой зоной (иначе по краям остаётся
+        // заблокированная клетка, изолирующая коридор).
+        const acrossExpand = grid.cellSize / 2
+        const a = start.add(n.scale(-(halfThick + acrossExpand)))
+        const b = start.add(n.scale(halfThick + acrossExpand))
+        const c = end.add(n.scale(halfThick + acrossExpand))
+        const d = end.add(n.scale(-(halfThick + acrossExpand)))
+        const minWorld = new Vector2(
           Math.min(a.x, b.x, c.x, d.x),
           Math.min(a.y, b.y, c.y, d.y),
-        ))
-        const max = grid.worldToGrid(new Vector2(
+        )
+        const maxWorld = new Vector2(
           Math.max(a.x, b.x, c.x, d.x),
           Math.max(a.y, b.y, c.y, d.y),
-        ))
-        grid.markOpeningRect(min.x, min.y, max.x, max.y)
+        )
+        const min = grid.worldToGrid(minWorld)
+        const max = grid.worldToGrid(maxWorld)
+        grid.markOpeningRect(min.x, min.y, max.x, max.y, minWorld.x, minWorld.y, maxWorld.x, maxWorld.y)
       }
-    }
-
-    // Понижаем стоимость ячеек рядом со стенами — кабель идёт вдоль стен с отступом
-    for (const gridPos of wallGridPositions) {
-      grid.markWallPreference(gridPos.x, gridPos.y, 2)
     }
 
     // Отмечаем существующие кабели

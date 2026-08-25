@@ -2404,4 +2404,35 @@ Dev-сервер Next.js работает на `http://localhost:3002`.
 ### Проверки
 
 - `npx tsc --noEmit` — успешно.
-- `npm test` — 95/95 тестов проходят.
+- `npm test` — 95/95 тестов проходят.
+## 2026-08-23 (продолжение) — Wall Clearance Zone 400 мм и доработка редактирования кабеля
+
+### Изменённые файлы
+
+- `packages/core/cables/cableRouting.ts`
+  - `WALL_CLEARANCE = 400`, `CONNECTOR_CLEARANCE = 100`, `DOORWAY_MARGIN = 100`.
+  - `straightSegmentIsAllowed` теперь экспортирована и проверяет зазор от поверхности стены (осевая − thickness/2).
+  - Экспортированы `WALL_CLEARANCE`, `CONNECTOR_CLEARANCE`, `straightSegmentIsAllowed`, `straightenRoute`.
+  - `routeCable`: при `findNearestWalkable` результат всё равно проходит `postprocessRoute`.
+- `packages/core/cables/navGrid.ts`
+  - Радиус непроходимости включает `wall.thickness/2 + WALL_CLEARANCE`.
+  - Дверной коридор прорезает запретную зону с учётом `DOORWAY_MARGIN` по длине проёма.
+  - `markOpeningRect` теперь помечает только ячейки, центр которых лежит внутри мирового прямоугольника проёма.
+  - Коридор расширяется поперёк стены на `cellSize/2`, чтобы гарантировать связность с внешней проходимой зоной.
+- `packages/core/model/Plan.ts`
+  - `CABLE_ROUTING_OFFSET = 100` (connector offset).
+  - `recalcCableRoutes` сохраняет routing-точки в маршруте и упрощает с их сохранением.
+- `packages/core/tools/CableEditHelper.ts`
+  - `rerouteCableEdgeAroundObstacles` заменяет ребро полностью на детур из `routeCableWithVia`, а затем прогоняет `repairCableRoute`.
+  - `repairCableRoute` теперь проверяет не только пересечение стен, но и зазор 400 мм для внутренних сегментов.
+  - Connector-сегменты (первые/последние 2) проверяются только на пересечение, чтобы не отрывать кабель от точек подключения.
+  - После починки маршрут выравнивается под прямые углами и дедуплицируется.
+- `packages/core/tools/CableEditHelper.test.ts`
+  - Адаптирован под зазор 400 мм.
+- `packages/core/tools/SelectTool.cableEdit.test.ts`
+  - Адаптирован под зазор 400 мм.
+
+### Проверки
+
+- `npx tsc --noEmit` — успешно.
+- `npm test` — 96/96 тестов проходят.

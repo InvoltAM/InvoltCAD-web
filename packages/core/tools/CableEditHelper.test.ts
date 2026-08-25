@@ -7,14 +7,14 @@ import { segmentCrossesWallOutsideOpening, routeCableWithVia } from '../cables/c
 describe('CableEditHelper', () => {
   it('rerouteCableEdgeAroundObstacles обходит перегородку', () => {
     const plan = new Plan();
-    plan.addWall(new Vector2(-1000, -1000), new Vector2(-1000, 1000));
-    plan.addWall(new Vector2(-1000, 1000), new Vector2(1000, 1000));
-    plan.addWall(new Vector2(1000, 1000), new Vector2(1000, -1000));
-    plan.addWall(new Vector2(1000, -1000), new Vector2(-1000, -1000));
-    const partition = plan.addWall(new Vector2(300, -1000), new Vector2(300, 1000));
-    plan.addOpening(partition.id, 'door', 0.5, 600);
+    plan.addWall(new Vector2(-2000, -2000), new Vector2(-2000, 2000));
+    plan.addWall(new Vector2(-2000, 2000), new Vector2(2000, 2000));
+    plan.addWall(new Vector2(2000, 2000), new Vector2(2000, -2000));
+    plan.addWall(new Vector2(2000, -2000), new Vector2(-2000, -2000));
+    const partition = plan.addWall(new Vector2(300, -1500), new Vector2(300, 500));
+    plan.addOpening(partition.id, 'door', 0.75, 600);
 
-    const route = [new Vector2(-500, 500), new Vector2(500, 500)];
+    const route = [new Vector2(-500, 400), new Vector2(500, 400)];
     expect(segmentCrossesWallOutsideOpening(route[0], route[1], plan)).toBe(true);
 
     const via = routeCableWithVia(plan, route, 50);

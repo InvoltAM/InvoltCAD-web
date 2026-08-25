@@ -1,6 +1,6 @@
 import { Vector2 } from '../geometry/Vector2'
 import { Plan } from '../model/Plan'
-import { segmentCrossesWallOutsideOpening, routeCableWithVia } from '../cables/cableRouting'
+import { segmentCrossesWallOutsideOpening, routeCableWithVia, straightSegmentIsAllowed, straightenRoute, WALL_CLEARANCE } from '../cables/cableRouting'
 
 const ORTHO_EPS = 1e-3
 
@@ -147,28 +147,22 @@ export function rerouteCableEdgeAroundObstacles(
     return route.map((p) => p.clone())
   }
 
-  const result: Vector2[] = []
-  for (let j = 0; j <= edgeIndex; j++) {
-    result.push(route[j].clone())
+  // Заменяем ребро полностью на автотрассированный обход, затем прогоняем
+  // repairCableRoute, чтобы убрать возможные пересечения/нарушения зазора,
+  // возникшие из-за округления сетки A*.
+  const candidate: Vector2[] = []
+  for (let j = 0; j < edgeIndex; j++) {
+    candidate.push(route[j].clone())
   }
-  // detour[0] === a, detour[last] === b — их не дублируем
-  for (let j = 1; j < detour.length - 1; j++) {
-    result.push(detour[j].clone())
+  for (const p of detour) {
+    candidate.push(p.clone())
   }
-  for (let j = edgeIndex + 1; j < route.length; j++) {
-    result.push(route[j].clone())
-  }
-
-  // Удалим возможные дубликаты, возникшие из-за совпадения точек.
-  const deduped: Vector2[] = []
-  const eps = 1
-  for (const p of result) {
-    if (deduped.length === 0 || deduped[deduped.length - 1].distanceTo(p) > eps) {
-      deduped.push(p)
-    }
+  for (let j = edgeIndex + 2; j < route.length; j++) {
+    candidate.push(route[j].clone())
   }
 
-  return deduped
+  const repaired = repairCableRoute(plan, deduplicateRoute(candidate), cellSize)
+  return repaired.repaired ? repaired.route : route.map((p) => p.clone())
 }
 
 /**
@@ -200,12 +194,23 @@ export function repairCableRoute(
 
   const result: Vector2[] = [route[0].clone()]
   let repaired = true
+  const n = route.length
+  // Connector-сегменты (первые/последние 2) проверяем только на пересечение стены,
+  // чтобы не отрывать кабель от точек подключения.
+  const connectorIndices = new Set<number>([0, Math.min(1, n - 1), Math.max(0, n - 2), n - 1])
 
-  for (let i = 0; i < route.length - 1; i++) {
+  for (let i = 0; i < n - 1; i++) {
     const a = result[result.length - 1]
     const b = route[i + 1].clone()
 
-    if (segmentCrossesWallOutsideOpening(a, b, plan)) {
+    const crosses = segmentCrossesWallOutsideOpening(a, b, plan)
+    const needsDetour =
+      crosses ||
+      (!connectorIndices.has(i) &&
+        (segmentIsHorizontal(a, b) || segmentIsVertical(a, b)) &&
+        !straightSegmentIsAllowed(a, b, plan, WALL_CLEARANCE))
+
+    if (needsDetour) {
       const detour = routeCableWithVia(plan, [a.clone(), b.clone()], cellSize)
       if (detour && detour.length >= 2) {
         // detour[0] совпадает с a, последняя точка — с b
@@ -221,7 +226,10 @@ export function repairCableRoute(
     }
   }
 
-  return { route: deduplicateRoute(result), repaired }
+  let final = deduplicateRoute(result)
+  final = straightenRoute(final, cellSize / 2)
+  final = deduplicateRoute(final)
+  return { route: final, repaired }
 }
 
 /**

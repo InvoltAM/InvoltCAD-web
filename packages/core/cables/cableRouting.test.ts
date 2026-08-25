@@ -45,7 +45,7 @@ describe('cableRouting', () => {
     plan.addWall(new Vector2(2000, -1500), new Vector2(2000, 1500))
     plan.addWall(new Vector2(2000, 1500), new Vector2(-2000, 1500))
     plan.addWall(new Vector2(-2000, 1500), new Vector2(-2000, -1500))
-    plan.addWall(new Vector2(0, -1500), new Vector2(0, 500))
+    plan.addWall(new Vector2(0, -1500), new Vector2(0, 0))
     const from = new Vector2(-1000, 0)
     const to = new Vector2(1000, 0)
     const route = routeCable(plan, from, to, 50)

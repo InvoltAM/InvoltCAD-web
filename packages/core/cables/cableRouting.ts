@@ -1,11 +1,13 @@
 import { Vector2 } from '../geometry/Vector2'
 import { NavGrid, NavigablePlan } from './navGrid'
 import { findPath } from './astar'
-import { Wall, wallHasArc, wallLength, wallPolyline } from '../model/Wall'
+import { Wall, wallHasArc, wallLength, wallDirection, wallPolyline } from '../model/Wall'
 import { Opening } from '../model/Opening'
 import { distPointToSegment, segmentsIntersection } from '../geometry/Geometry'
 
-const WALL_CLEARANCE = 100 // мм — минимальный зазор от осевой линии стены
+export const WALL_CLEARANCE = 400 // мм — минимальный зазор от ПОВЕРХНОСТИ стены
+export const CONNECTOR_CLEARANCE = 100 // мм — зазор от поверхности стены для первых/последних 2 сегментов (connector offset)
+export const DOORWAY_MARGIN = 100 // мм — отступ от краёв дверного проёма
 const SNAP_TOLERANCE = 75  // мм — допуск привязки к стене
 
 /**
@@ -17,8 +19,8 @@ export function routeCable(
   to: Vector2,
   cellSize = 50
 ): Vector2[] | null {
-  // Строим NavGrid из плана, расширив границы до начала/конца кабеля
-  const grid = NavGrid.fromPlan(plan, cellSize, 200, [from, to])
+  // Строим NavGrid из плана с запасом для обхода стен с зазором 400 мм
+  const grid = NavGrid.fromPlan(plan, cellSize, 800, [from, to])
 
   // Преобразуем мировые координаты в координаты сетки
   const start = grid.worldToGrid(from)
@@ -41,8 +43,9 @@ export function routeCable(
     const path = findPath(grid, adjustedStart.x, adjustedStart.y, adjustedEnd.x, adjustedEnd.y)
     if (!path) return null
 
-    // Преобразуем путь обратно в мировые координаты
-    return path.map((p) => grid.gridToWorld(p.x, p.y))
+    // Преобразуем путь обратно в мировые координаты и упрощаем
+    const raw = path.map((p) => grid.gridToWorld(p.x, p.y))
+    return postprocessRoute(raw, plan, cellSize)
   }
 
   // Ищем путь A*
@@ -235,7 +238,7 @@ export function postprocessRoute(
   result = deduplicateRoute(result)
   result = insertOpeningWaypoints(result, plan)
   result = orthogonalDPSimplify(result, plan)
-  result = snapCrossingsToOpenings(result, plan)
+  // result = snapCrossingsToOpenings(result, plan)
   result = mergeCollinearSegments(result, plan)
   result = removeRedundantVertices(result, plan)
   result = straightenRoute(result, tolerance)
@@ -281,7 +284,7 @@ function mergeCollinearSegments(route: Vector2[], plan: NavigablePlan): Vector2[
  * При равенстве (|dx| ≈ |dy|, включая 45°) выравниваем по горизонтали — так маршрут
  * остаётся из прямых углов и лучше ложится вдоль стен.
  */
-function straightenRoute(route: Vector2[], tolerance: number): Vector2[] {
+export function straightenRoute(route: Vector2[], tolerance: number): Vector2[] {
   if (route.length < 2) return route.map((p) => p.clone())
   const result: Vector2[] = [route[0].clone()]
   for (let i = 1; i < route.length; i++) {
@@ -504,7 +507,7 @@ function findWallOpeningCrossing(
       // Только дверные проёмы считаются проходимыми.
       if (opening.type !== 'door') continue
       const centerDist = opening.t * wallLen
-      const half = opening.width / 2
+      const half = Math.max(0, opening.width / 2 - DOORWAY_MARGIN)
       if (along >= centerDist - half - 1e-3 && along <= centerDist + half + 1e-3) {
         const snapped = snapCrossingToOpening(a, b, wall, opening)
         return { opening, crossing: p, snapped }
@@ -568,9 +571,15 @@ function segmentIsAllowed(a: Vector2, b: Vector2, plan: NavigablePlan): boolean 
 
 /**
  * Проверяет, что прямой горизонтальный/вертикальный отрезок [a,b]
- * не пересекает стены вне проёмов и сохраняет зазор WALL_CLEARANCE.
+ * не пересекает стены вне проёмов и сохраняет зазор от ПОВЕРХНОСТИ стены.
+ * Для connector-сегментов (первые/последние устройства) допускается меньший зазор.
  */
-function straightSegmentIsAllowed(a: Vector2, b: Vector2, plan: NavigablePlan): boolean {
+export function straightSegmentIsAllowed(
+  a: Vector2,
+  b: Vector2,
+  plan: NavigablePlan,
+  requiredClearance = WALL_CLEARANCE,
+): boolean {
   if (a.distanceTo(b) < 1e-3) return false
 
   // Упрощённый маршрут состоит только из горизонтальных/вертикальных отрезков
@@ -585,11 +594,47 @@ function straightSegmentIsAllowed(a: Vector2, b: Vector2, plan: NavigablePlan): 
 
     if (segmentIntersectsWall(a, b, wall)) return false
 
-    const clearance = segmentClearanceToWall(a, b, wall)
-    if (clearance < WALL_CLEARANCE - 1e-6) return false
+    // Если оба конца отрезка лежат внутри дверного коридора,
+    // применяем пониженный зазор (коридор уже прорезан в запретной зоне).
+    if (segmentInDoorwayCorridor(a, b, wall)) {
+      if (segmentClearanceToWall(a, b, wall) < wall.thickness / 2 - 1e-6) return false
+      continue
+    }
+
+    // Зазор от осевой линии минус половина толщины = зазор от поверхности
+    const clearance = segmentClearanceToWall(a, b, wall) - wall.thickness / 2
+    if (clearance < requiredClearance - 1e-6) return false
   }
 
   return true
+}
+
+/**
+ * Проверяет, что оба конца отрезка лежат внутри коридора хотя бы одного
+ * дверного проёма. Коридор прорезает запретную зону 400 мм и имеет
+ * ширину doorway - 2×DOORWAY_MARGIN вдоль стены.
+ */
+function segmentInDoorwayCorridor(a: Vector2, b: Vector2, wall: Wall): boolean {
+  const wallLen = wallLength(wall)
+  if (wallLen < 1e-9) return false
+  const dir = wallDirection(wall)
+  const n = dir.perpendicular()
+
+  for (const opening of wall.openings) {
+    if (opening.type !== 'door') continue
+    const center = wall.a.add(dir.scale(opening.t * wallLen))
+    const halfAlong = Math.max(0, opening.width / 2 - DOORWAY_MARGIN)
+    const halfAcross = wall.thickness / 2 + WALL_CLEARANCE
+
+    const localA = new Vector2(a.sub(center).dot(dir), a.sub(center).dot(n))
+    const localB = new Vector2(b.sub(center).dot(dir), b.sub(center).dot(n))
+
+    const inA = Math.abs(localA.x) <= halfAlong + 1e-3 && Math.abs(localA.y) <= halfAcross + 1e-3
+    const inB = Math.abs(localB.x) <= halfAlong + 1e-3 && Math.abs(localB.y) <= halfAcross + 1e-3
+    if (inA && inB) return true
+  }
+
+  return false
 }
 
 function segmentIntersectsWall(a: Vector2, b: Vector2, wall: Wall): boolean {

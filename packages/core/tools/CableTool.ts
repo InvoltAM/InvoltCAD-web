@@ -124,8 +124,9 @@ export class CableTool implements Tool {
     const routed = routeCableWithVia(this.plan, routingPoints, 50);
     let route: Vector2[] | undefined;
     if (routed && routed.length >= 2) {
-      route = [fromAnchor, ...routed, toAnchor];
-      route = simplifyRoute(route, 1e-3, 25, this.viaPoints);
+      // Сохраняем connector-отступы: anchor -> routingPoint (100 мм) -> A* -> routingPoint -> anchor.
+      route = [fromAnchor, fromRouting, ...routed, toRouting, toAnchor];
+      route = simplifyRoute(route, 1e-3, 25, [...this.viaPoints, fromRouting, toRouting]);
     }
 
     this.canvas.commandManager.execute(

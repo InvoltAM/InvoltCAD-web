@@ -43,9 +43,9 @@ describe('Plan cable routing', () => {
     expect(cable!.routing).toBe('auto');
     expect(cable!.route.length).toBeGreaterThanOrEqual(3);
 
-    // Маршрут должен обходить стену с запасом
+    // Маршрут должен обходить стену с запасом ≥ 400 мм от поверхности
     const wall = plan.walls[0];
-    expect(routeClearanceToWall(cable!.route, wall)).toBeGreaterThanOrEqual(90);
+    expect(routeClearanceToWall(cable!.route, wall) - wall.thickness / 2).toBeGreaterThanOrEqual(390);
   });
 
   it('recalcCableRoutes сохраняет автотрассированный маршрут', () => {
@@ -70,7 +70,7 @@ describe('Plan cable routing', () => {
 
     // После пересчёта маршрут всё ещё не должен проходить через стену
     const wall = plan.walls[0];
-    expect(routeClearanceToWall(cable.route, wall)).toBeGreaterThanOrEqual(90);
+    expect(routeClearanceToWall(cable.route, wall) - wall.thickness / 2).toBeGreaterThanOrEqual(390);
 
     // Маршрут не должен быть заменён на прямой (Manhattan) из двух точек
     expect(cable.route.length).toBeGreaterThan(2);
@@ -207,7 +207,7 @@ describe('Plan.deviceCableRoutingPoint', () => {
     // Точка маршрутизации дальше от оси стены, чем точка крепления
     expect(Math.abs(routing.y)).toBeGreaterThan(Math.abs(entry.y));
     // Смещение равно CABLE_ROUTING_OFFSET от поверхности стены
-    expect(routing.distanceTo(entry)).toBeCloseTo(50, 1);
+    expect(routing.distanceTo(entry)).toBeCloseTo(100, 1);
   });
 
   it('для свободно размещённого устройства совпадает с позицией устройства', () => {

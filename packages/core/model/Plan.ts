@@ -15,8 +15,9 @@ import { createSheetTable, SheetTable, SheetTableType } from './SheetTable';
 import { CableRunData } from '../electrical/CableRunEngine';
 import { routeCableWithVia, simplifyRoute } from '../cables/cableRouting';
 
-/** Отступ точки автотрассировки от поверхности стены в комнату (мм). */
-const CABLE_ROUTING_OFFSET = 50;
+/** Отступ точки автотрассировки от поверхности стены в комнату (мм).
+ *  Соответствует connector offset из спецификации (100 мм). */
+const CABLE_ROUTING_OFFSET = 100;
 
 export interface PlanElectrical {
   consumers: any[];
@@ -748,7 +749,8 @@ export class Plan {
         const routed = routeCableWithVia(this, points, 50);
         let route: Vector2[];
         if (routed && routed.length >= 2) {
-          route = simplifyRoute(routed, 1e-3, 25, via);
+          route = [fromAnchor, fromRouting, ...routed, toRouting, toAnchor];
+          route = simplifyRoute(route, 1e-3, 25, [...via, fromRouting, toRouting]);
         } else if (via.length > 0) {
           route = [fromAnchor, ...via.map(p => p.clone()), toAnchor];
         } else {
