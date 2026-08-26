@@ -99,7 +99,7 @@ export class CanvasEngine {
     this.primitiveRenderer = new PrimitiveRenderer(plan, this.camera, this.themeManager);
     this.sheetFrameRenderer = new SheetFrameRenderer(plan, this.camera, this.themeManager, () => this.requestRender());
     this.underlayRenderer = new UnderlayRenderer(plan, this.camera, this.themeManager, () => this.requestRender());
-    this.wallClearanceRenderer = new WallClearanceRenderer(plan, this.camera);
+    this.wallClearanceRenderer = new WallClearanceRenderer(plan);
 
     this.input = new InputManager(canvas, this.camera);
     this.setupInput();

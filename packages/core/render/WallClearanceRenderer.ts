@@ -1,4 +1,3 @@
-import { Camera } from '../engine/Camera';
 import { Plan } from '../model/Plan';
 import { Wall, wallDirection } from '../model/Wall';
 
@@ -6,13 +5,10 @@ const WALL_CLEARANCE = 400; // мм от поверхности стены
 
 /**
  * Рендерит Wall Clearance Zone — запретную зону 40 см от поверхности стен.
- * Полупрозрачная красная подсветка помогает понять, где кабель не может прокладываться.
+ * Рисование ведётся в мировых координатах (контекст уже трансформирован камерой).
  */
 export class WallClearanceRenderer {
-  constructor(
-    private plan: Plan,
-    private camera: Camera,
-  ) {}
+  constructor(private plan: Plan) {}
 
   render(ctx: CanvasRenderingContext2D): void {
     if (this.plan.walls.length === 0) return;
@@ -20,7 +16,6 @@ export class WallClearanceRenderer {
     ctx.save();
     ctx.fillStyle = 'rgba(255, 200, 200, 0.15)';
     ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
-    ctx.setLineDash([4 / this.camera.scale, 4 / this.camera.scale]);
 
     for (const wall of this.plan.walls) {
       this.renderWallZone(ctx, wall);
@@ -40,16 +35,11 @@ export class WallClearanceRenderer {
     const p3 = wall.b.sub(n.scale(h));
     const p4 = wall.a.sub(n.scale(h));
 
-    const s1 = this.camera.worldToScreen(p1);
-    const s2 = this.camera.worldToScreen(p2);
-    const s3 = this.camera.worldToScreen(p3);
-    const s4 = this.camera.worldToScreen(p4);
-
     ctx.beginPath();
-    ctx.moveTo(s1.x, s1.y);
-    ctx.lineTo(s2.x, s2.y);
-    ctx.lineTo(s3.x, s3.y);
-    ctx.lineTo(s4.x, s4.y);
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.lineTo(p3.x, p3.y);
+    ctx.lineTo(p4.x, p4.y);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
