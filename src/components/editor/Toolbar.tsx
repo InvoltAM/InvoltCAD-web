@@ -841,7 +841,10 @@ export default function Toolbar() {
             elements.push(
               <button
                 key={tool.name}
-                onClick={() => setTool(tool.name)}
+                onClick={() => {
+                  setTool(tool.name)
+                  engineRef.current?.setTool(tool.name)
+                }}
                 onMouseEnter={() => setHoveredDockId(tool.name)}
                 className={`editor-dock-item ${currentTool === tool.name ? 'active' : ''}`}
                 title={tool.label}
