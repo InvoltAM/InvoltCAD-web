@@ -1,4 +1,5 @@
 import { Plan, createEmptyElectrical } from '@core/model/Plan'
+import { PanelTableRow } from '@core/electrical/PanelTableRow'
 import { Wall } from '@core/model/Wall'
 import { Opening } from '@core/model/Opening'
 import { Device, DeviceType } from '@core/model/Device'
@@ -171,6 +172,7 @@ export interface SerializedPlan {
     circuits: any[]
     distributionBoards: any[]
     cableRuns: any[]
+    manualPanelRows?: any[]
     priceItems: any[]
     priceWorkItems: any[]
     estimates: any[]
@@ -508,7 +510,12 @@ export function deserializePlan(data: SerializedPlan): Plan {
     }
   }
 
-  plan.electrical = data.electrical ?? createEmptyElectrical()
+  const electrical = data.electrical ?? createEmptyElectrical()
+  plan.electrical = {
+    ...createEmptyElectrical(),
+    ...electrical,
+    manualPanelRows: (electrical.manualPanelRows as PanelTableRow[] | undefined) ?? [],
+  }
   if (data.underlay) {
     plan.activeSheet.underlay = { ...data.underlay }
   }

@@ -13,6 +13,7 @@ import { projectPointToSegment } from '../geometry/Geometry';
 import { Sheet, createDefaultSheets, createEmptyTitleBlock, SheetTitleBlock } from './Sheet';
 import { createSheetTable, SheetTable, SheetTableType } from './SheetTable';
 import { CableRunData } from '../electrical/CableRunEngine';
+import { PanelTableRow } from '../electrical/PanelTableRow';
 import { routeCableWithVia, simplifyRoute } from '../cables/cableRouting';
 
 /** Отступ точки автотрассировки от поверхности стены в комнату (мм).
@@ -24,6 +25,7 @@ export interface PlanElectrical {
   circuits: any[];
   distributionBoards: any[];
   cableRuns: CableRunData[];
+  manualPanelRows: PanelTableRow[];
   priceItems: any[];
   priceWorkItems: any[];
   estimates: any[];
@@ -38,6 +40,7 @@ export function createEmptyElectrical(): PlanElectrical {
     circuits: [],
     distributionBoards: [],
     cableRuns: [],
+    manualPanelRows: [],
     priceItems: [],
     priceWorkItems: [],
     estimates: [],
