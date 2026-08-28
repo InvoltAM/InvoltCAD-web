@@ -114,6 +114,9 @@ export default function Toolbar() {
   const [wallMenuOpen, setWallMenuOpen] = useState(false)
   const wallMenuBtnRef = useRef<HTMLButtonElement>(null)
 
+  const [cableMenuOpen, setCableMenuOpen] = useState(false)
+  const cableMenuBtnRef = useRef<HTMLButtonElement>(null)
+
   const [drawingMenuOpen, setDrawingMenuOpen] = useState(false)
   const drawingMenuBtnRef = useRef<HTMLButtonElement>(null)
 
@@ -161,6 +164,17 @@ export default function Toolbar() {
     document.addEventListener('click', onDocClick)
     return () => document.removeEventListener('click', onDocClick)
   }, [wallMenuOpen])
+
+  useEffect(() => {
+    if (!cableMenuOpen) return
+    const onDocClick = (e: MouseEvent) => {
+      if (!cableMenuBtnRef.current?.contains(e.target as Node)) {
+        setCableMenuOpen(false)
+      }
+    }
+    document.addEventListener('click', onDocClick)
+    return () => document.removeEventListener('click', onDocClick)
+  }, [cableMenuOpen])
 
   useEffect(() => {
     if (!drawingMenuOpen) return
@@ -213,6 +227,17 @@ export default function Toolbar() {
   const handleSelectWallTool = (name: ToolName) => {
     setTool(name)
     setWallMenuOpen(false)
+  }
+
+  const handleToggleCableMenu = () => {
+    setCableMenuOpen((prev) => !prev)
+  }
+
+  const handleSelectCableMode = (mode: 'user' | 'strict') => {
+    setCableValidationMode(mode)
+    setTool('cable')
+    engineRef.current?.setTool('cable')
+    setCableMenuOpen(false)
   }
 
   const handleToggleDrawingMenu = () => {
@@ -602,13 +627,6 @@ export default function Toolbar() {
       active: showWallClearance,
       onClick: () => setShowWallClearance(!showWallClearance),
     },
-    {
-      id: 'cableMode',
-      label: cableValidationMode === 'strict' ? 'Кабель: авто' : 'Кабель: ручной',
-      icon: icon(cableValidationMode === 'strict' ? 'validation' : 'edit'),
-      active: cableValidationMode === 'strict',
-      onClick: () => setCableValidationMode(cableValidationMode === 'strict' ? 'user' : 'strict'),
-    },
   ]
 
   return (
@@ -749,6 +767,7 @@ export default function Toolbar() {
         onMouseLeave={() => {
           setHoveredDockId(null)
           setWallMenuOpen(false)
+          setCableMenuOpen(false)
           setDrawingMenuOpen(false)
           setTextMenuOpen(false)
         }}
@@ -833,6 +852,43 @@ export default function Toolbar() {
                         <span>{wt.label}</span>
                       </button>
                     ))}
+                  </div>
+                )}
+              </div>
+            )
+          } else if (tool.name === 'cable') {
+            const activeCableMode = cableValidationMode === 'strict' ? 'авто' : 'ручной'
+            const isCableActive = currentTool === 'cable'
+            elements.push(
+              <div key="cable" className="editor-dock-group">
+                <button
+                  ref={cableMenuBtnRef}
+                  onClick={handleToggleCableMenu}
+                  onMouseEnter={() => setHoveredDockId('cable')}
+                  className={`editor-dock-item editor-dock-item-menu ${isCableActive ? 'active' : ''}`}
+                  title={`Кабель: ${activeCableMode} ▼`}
+                  style={{ transform: `scale(${getDockScale('cable')})` }}
+                >
+                  <span className="ui-icon" dangerouslySetInnerHTML={{ __html: tool.icon }} />
+                  <span className="editor-dock-arrow">▼</span>
+                  <span className="editor-dock-tooltip">Кабель: {activeCableMode}</span>
+                </button>
+                {cableMenuOpen && (
+                  <div className="editor-dock-submenu">
+                    <button
+                      className={`editor-dock-submenu-item ${currentTool === 'cable' && cableValidationMode === 'user' ? 'active' : ''}`}
+                      onClick={() => handleSelectCableMode('user')}
+                    >
+                      <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('edit') }} />
+                      <span>Ручной</span>
+                    </button>
+                    <button
+                      className={`editor-dock-submenu-item ${currentTool === 'cable' && cableValidationMode === 'strict' ? 'active' : ''}`}
+                      onClick={() => handleSelectCableMode('strict')}
+                    >
+                      <span className="ui-icon" dangerouslySetInnerHTML={{ __html: icon('validation') }} />
+                      <span>Авто</span>
+                    </button>
                   </div>
                 )}
               </div>

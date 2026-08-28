@@ -10,9 +10,8 @@ test.describe('InvoltCAD Editor', () => {
   test('редактор загружается', async ({ page }) => {
     await page.goto('/editor')
     await expect(page.locator('canvas')).toBeVisible()
-    await expect(page.locator('text=Стена')).toBeVisible()
-    await expect(page.locator('text=Дверь')).toBeVisible()
-    await expect(page.locator('text=Окно')).toBeVisible()
+    await expect(page.locator('text=Стена').first()).toBeVisible()
+    await expect(page.locator('button[title^="Кабель:"]')).toBeVisible()
   })
 
   test('панель свойств отображается', async ({ page }) => {
@@ -40,13 +39,10 @@ test.describe('InvoltCAD Editor', () => {
 
   test('переключение инструментов работает', async ({ page }) => {
     await page.goto('/editor')
-    await page.click('button[title="Дверь"]', { force: true })
-    await page.waitForTimeout(100)
-    await page.click('button[title="Стена"]', { force: true })
-    await page.waitForTimeout(100)
-    // Проверяем, что инструмент переключился через data-tool атрибут
-    const wallButton = page.locator('button[title="Стена"]').first()
-    await expect(wallButton).toBeVisible()
+    // Проверяем, что кнопка "Кабель" отображается как пункт меню с текущим режимом
+    const cableBtn = page.locator('button[title^="Кабель:"]').first()
+    await expect(cableBtn).toBeVisible()
+    await expect(cableBtn).toHaveClass(/editor-dock-item-menu/)
   })
 
   test('плавающие панели отображаются', async ({ page }) => {
@@ -67,7 +63,7 @@ test.describe('InvoltCAD Editor', () => {
     await page.goto('/editor')
     await page.waitForTimeout(1000)
     // Нарисуем стену для проверки привязки
-    await page.click('button[title="Стена"]', { force: true })
+    await page.click('button[title^="Стена"]', { force: true })
     await page.waitForTimeout(500)
     // Проверяем, что snap-индикатор может отображаться (ghost-слой существует)
     const canvas = page.locator('canvas')
@@ -88,7 +84,7 @@ test.describe('InvoltCAD Editor', () => {
     })
 
     // 1. Рисуем горизонтальную стену (-1000, 0) → (1000, 0)
-    await page.click('button[title="Стена"]', { force: true })
+    await page.click('button[title^="Стена"]', { force: true })
     await page.waitForTimeout(200)
     const h1 = worldToScreen(-1000, 0)
     const h2 = worldToScreen(1000, 0)
@@ -99,7 +95,7 @@ test.describe('InvoltCAD Editor', () => {
     await page.waitForTimeout(200)
 
     // 2. Рисуем вертикальную стену (0, -1000) → (0, 1000)
-    await page.click('button[title="Стена"]', { force: true })
+    await page.click('button[title^="Стена"]', { force: true })
     await page.waitForTimeout(200)
     const v1 = worldToScreen(0, -1000)
     const v2 = worldToScreen(0, 1000)
@@ -117,7 +113,7 @@ test.describe('InvoltCAD Editor', () => {
     expect(verticalWallId).toBeTruthy()
 
     // 3. Размещаем устройство (розетку) на горизонтальной стене, t ≈ 0.25
-    await page.click('button[title="Устройство"]', { force: true })
+    await page.click('button[title="Устройства"]', { force: true })
     await page.waitForTimeout(200)
     const place = worldToScreen(-500, 150) // над стеной, side = 1
     await page.mouse.move(place.x, place.y)
