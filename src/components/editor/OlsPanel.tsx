@@ -73,16 +73,43 @@ export default function OlsPanel() {
     URL.revokeObjectURL(url)
   }
 
-  const tableItems = useMemo(() => {
-    if (!board) return []
-    return board.components.map((c) => ({
-      id: c.id,
-      name: c.name,
-      type: c.type,
-      rating: c.ratingA ?? 0,
-      width: c.widthModules,
-    }))
-  }, [board])
+  interface PanelTableRow {
+    id: string
+    panelName: string
+    groupNo: number
+    groupName: string
+    brand: string
+    section: number
+    lengthM: number
+    routingType: string
+    diameterMm: number
+  }
+
+  const tableItems = useMemo<PanelTableRow[]>(() => {
+    if (!board || !plan) return []
+    const cableMap = new Map(plan.cables.map((c) => [c.id, c]))
+    return board.circuits.map((circuit, idx) => {
+      const runs = plan.electrical.cableRuns?.filter((r) => r.circuitId === circuit.id) ?? []
+      const totalLength = runs.reduce((sum, r) => sum + r.totalM, 0)
+      const firstRun = runs[0]
+      const cable = firstRun ? cableMap.get(firstRun.cableId) : undefined
+      const section = firstRun?.crossSectionMm2 ?? cable?.crossSection ?? 0
+      const brand = cable?.brand?.trim() || '—'
+      const routingType = cable?.routingMode ? routingModeLabel(cable.routingMode) : cableTypeLabel(cable?.type ?? firstRun?.cableType ?? '')
+      const diameterMm = section > 0 ? estimateCableDiameter(section) : 0
+      return {
+        id: circuit.id,
+        panelName: board.name,
+        groupNo: idx + 1,
+        groupName: circuit.name,
+        brand,
+        section,
+        lengthM: totalLength,
+        routingType,
+        diameterMm,
+      }
+    })
+  }, [board, plan])
 
   const specItems = useMemo(() => {
     if (!board) return []
@@ -218,20 +245,28 @@ export default function OlsPanel() {
                     <thead>
                       <tr className="border-b border-gray-200 dark:border-gray-600">
                         <th className="py-1 pr-4">№</th>
-                        <th className="py-1 pr-4">Наименование</th>
-                        <th className="py-1 pr-4">Тип</th>
-                        <th className="py-1 pr-4">Iном, А</th>
-                        <th className="py-1 pr-4">Модули</th>
+                        <th className="py-1 pr-4">Щит</th>
+                        <th className="py-1 pr-4">Группа</th>
+                        <th className="py-1 pr-4">Наименование группы</th>
+                        <th className="py-1 pr-4">Марка</th>
+                        <th className="py-1 pr-4">Сечение</th>
+                        <th className="py-1 pr-4">Длина</th>
+                        <th className="py-1 pr-4">Тип прокладки</th>
+                        <th className="py-1 pr-4">Диаметр</th>
                       </tr>
                     </thead>
                     <tbody>
                       {tableItems.map((d, i) => (
                         <tr key={d.id} className="border-b border-gray-100 dark:border-gray-700">
                           <td className="py-1 pr-4">{i + 1}</td>
-                          <td className="py-1 pr-4">{d.name}</td>
-                          <td className="py-1 pr-4">{d.type}</td>
-                          <td className="py-1 pr-4">{d.rating > 0 ? d.rating : '—'}</td>
-                          <td className="py-1 pr-4">{d.width}</td>
+                          <td className="py-1 pr-4">{d.panelName}</td>
+                          <td className="py-1 pr-4">{d.groupNo}</td>
+                          <td className="py-1 pr-4">{d.groupName}</td>
+                          <td className="py-1 pr-4">{d.brand}</td>
+                          <td className="py-1 pr-4">{d.section > 0 ? `${d.section} мм²` : '—'}</td>
+                          <td className="py-1 pr-4">{d.lengthM > 0 ? `${d.lengthM.toFixed(2)} м` : '—'}</td>
+                          <td className="py-1 pr-4">{d.routingType}</td>
+                          <td className="py-1 pr-4">{d.diameterMm > 0 ? `${d.diameterMm.toFixed(2)} мм` : '—'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -280,4 +315,29 @@ export default function OlsPanel() {
       </div>
     </div>
   )
+}
+
+function routingModeLabel(mode: string): string {
+  switch (mode) {
+    case 'auto': return 'Авто'
+    case 'wall': return 'Вдоль стены'
+    case 'manual': return 'Ручной'
+    case 'through-doorway': return 'Через дверной проем'
+    default: return mode
+  }
+}
+
+function cableTypeLabel(type: string): string {
+  switch (type) {
+    case 'power': return 'Силовой'
+    case 'lighting': return 'Освещение'
+    case 'low-current': return 'Слаботочка'
+    default: return type || '—'
+  }
+}
+
+function estimateCableDiameter(sectionMm2: number): number {
+  // Приблизительный наружный диаметр кабеля с изоляцией, мм
+  const coreDiameter = 2 * Math.sqrt(sectionMm2 / Math.PI)
+  return coreDiameter * 1.4
 }
