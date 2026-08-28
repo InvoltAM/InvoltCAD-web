@@ -116,7 +116,7 @@ export default function OlsPanel() {
     const newRow: OlsPanelTableRow = {
       id: crypto.randomUUID(),
       panelName: 'Распределительный щит',
-      groupNo: tableItems.length + 1,
+      groupNo: String(tableItems.length + 1),
       groupName: 'Новая группа',
       brand: BRANDS[0],
       section,
@@ -178,7 +178,7 @@ export default function OlsPanel() {
         rows.push({
           id: circuit.id,
           panelName: board.name,
-          groupNo: idx + 1,
+          groupNo: String(idx + 1),
           groupName: circuit.name,
           brand,
           section,
@@ -194,7 +194,7 @@ export default function OlsPanel() {
     manualRows.forEach((row, idx) => {
       rows.push({
         ...row,
-        groupNo: row.groupNo > 0 ? row.groupNo : baseGroupNo + idx + 1,
+        groupNo: row.groupNo ? row.groupNo : String(baseGroupNo + idx + 1),
         isManual: true,
       })
     })
@@ -377,10 +377,9 @@ export default function OlsPanel() {
                             <td className="py-1 pr-4">
                               {isManual ? (
                                 <input
-                                  type="number"
-                                  min={1}
+                                  type="text"
                                   value={d.groupNo}
-                                  onChange={(e) => handleUpdateManualRow(d.id, { groupNo: Number(e.target.value) })}
+                                  onChange={(e) => handleUpdateManualRow(d.id, { groupNo: e.target.value })}
                                   className="w-16 rounded border border-gray-300 px-1 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-800"
                                 />
                               ) : (

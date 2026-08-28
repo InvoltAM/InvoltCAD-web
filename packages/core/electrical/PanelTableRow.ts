@@ -1,7 +1,7 @@
 export interface PanelTableRow {
   id: string
   panelName: string
-  groupNo: number
+  groupNo: string
   groupName: string
   brand: string
   section: number
