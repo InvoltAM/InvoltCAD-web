@@ -13,6 +13,39 @@ import type { PanelTableRow } from '@core/electrical/PanelTableRow'
 type OlsPanelTableRow = PanelTableRow & { isManual?: boolean }
 import { icon } from './icons'
 
+const BRANDS = ['ВВГнг(А)-LS', 'ППГнг(А)-HF', 'ВВГнг(А)-FRLS', 'ППГнг(А)-FRHF']
+const SECTIONS = [0.5, 0.75, 1.5, 2.5, 4, 6, 10, 16, 25, 50]
+const ROUTING_TYPES = ['ПВХ', 'ПНД', 'ПЛЛ', 'Ст.т.', 'Короб', 'Лоток']
+const SIZE_OPTIONS: Record<string, number[]> = {
+  'ПВХ': [16, 20, 25, 32, 40],
+  'ПНД': [16, 20, 25, 32, 40],
+  'ПЛЛ': [16, 20, 25, 32, 40],
+  'Ст.т.': [16, 20, 25, 32, 40],
+  'Лоток': [50, 100, 150, 200, 300, 400],
+  'Короб': [20, 25, 40, 60, 75, 80, 100, 120, 150],
+}
+
+function sizeOptionsFor(type: string): number[] {
+  return SIZE_OPTIONS[type] ?? SIZE_OPTIONS['ПВХ']
+}
+
+function formatSection(n: number): string {
+  return n.toString().replace('.', ',')
+}
+
+function parseSection(s: string): number {
+  return Number(s.replace(',', '.'))
+}
+
+function nearestSize(type: string, sectionMm2: number): number {
+  const options = sizeOptionsFor(type)
+  const estimate = estimateCableDiameter(sectionMm2)
+  for (const size of options) {
+    if (size >= estimate) return size
+  }
+  return options[options.length - 1]
+}
+
 export default function OlsPanel() {
   const { engineRef } = useEditor()
   const [plan, setPlan] = useState<Plan | null>(null)
@@ -78,16 +111,18 @@ export default function OlsPanel() {
 
   const handleAddManualRow = () => {
     if (!plan) return
+    const routingType = 'ПВХ'
+    const section = 1.5
     const newRow: OlsPanelTableRow = {
       id: crypto.randomUUID(),
       panelName: 'Распределительный щит',
       groupNo: tableItems.length + 1,
       groupName: 'Новая группа',
-      brand: '',
-      section: 0,
+      brand: BRANDS[0],
+      section,
       lengthM: 0,
-      routingType: 'Авто',
-      diameterMm: 0,
+      routingType,
+      diameterMm: nearestSize(routingType, section),
       isManual: true,
     }
     plan.electrical.manualPanelRows = [...manualRows, newRow]
@@ -99,8 +134,18 @@ export default function OlsPanel() {
     plan.electrical.manualPanelRows = manualRows.map((row) => {
       if (row.id !== id) return row
       const updated = { ...row, ...patch }
-      if (patch.section !== undefined && patch.section > 0) {
-        updated.diameterMm = estimateCableDiameter(patch.section)
+      if (patch.section !== undefined) {
+        updated.diameterMm = nearestSize(updated.routingType, updated.section)
+      }
+      if (patch.routingType !== undefined) {
+        const options = sizeOptionsFor(updated.routingType)
+        if (!options.includes(updated.diameterMm)) {
+          updated.diameterMm = options[0]
+        }
+      }
+      if (patch.diameterMm !== undefined) {
+        const options = sizeOptionsFor(updated.routingType)
+        updated.diameterMm = options.includes(updated.diameterMm) ? updated.diameterMm : options[0]
       }
       return updated
     })
@@ -149,7 +194,7 @@ export default function OlsPanel() {
     manualRows.forEach((row, idx) => {
       rows.push({
         ...row,
-        groupNo: baseGroupNo + idx + 1,
+        groupNo: row.groupNo > 0 ? row.groupNo : baseGroupNo + idx + 1,
         isManual: true,
       })
     })
@@ -300,14 +345,14 @@ export default function OlsPanel() {
                     <thead>
                       <tr className="border-b border-gray-200 dark:border-gray-600">
                         <th className="py-1 pr-4">№</th>
-                        <th className="py-1 pr-4">Щит</th>
+                        <th className="min-w-[160px] py-1 pr-4">Щит</th>
                         <th className="py-1 pr-4">Группа</th>
-                        <th className="py-1 pr-4">Наименование группы</th>
-                        <th className="py-1 pr-4">Марка</th>
+                        <th className="min-w-[140px] py-1 pr-4">Наименование группы</th>
+                        <th className="min-w-[160px] py-1 pr-4">Марка</th>
                         <th className="py-1 pr-4">Сечение</th>
                         <th className="py-1 pr-4">Длина</th>
-                        <th className="py-1 pr-4">Тип прокладки</th>
-                        <th className="py-1 pr-4">Диаметр</th>
+                        <th className="min-w-[120px] py-1 pr-4">Тип прокладки</th>
+                        <th className="min-w-[100px] py-1 pr-4">Размер</th>
                         <th className="py-1 pr-4"></th>
                       </tr>
                     </thead>
@@ -317,20 +362,32 @@ export default function OlsPanel() {
                         return (
                           <tr key={d.id} className="border-b border-gray-100 dark:border-gray-700">
                             <td className="py-1 pr-4">{i + 1}</td>
-                            <td className="py-1 pr-4">
+                            <td className="min-w-[160px] py-1 pr-4">
                               {isManual ? (
                                 <input
                                   type="text"
                                   value={d.panelName}
                                   onChange={(e) => handleUpdateManualRow(d.id, { panelName: e.target.value })}
-                                  className="w-32 rounded border border-gray-300 px-1 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-800"
+                                  className="w-64 rounded border border-gray-300 px-1 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-800"
                                 />
                               ) : (
                                 d.panelName
                               )}
                             </td>
-                            <td className="py-1 pr-4">{d.groupNo}</td>
                             <td className="py-1 pr-4">
+                              {isManual ? (
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={d.groupNo}
+                                  onChange={(e) => handleUpdateManualRow(d.id, { groupNo: Number(e.target.value) })}
+                                  className="w-16 rounded border border-gray-300 px-1 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-800"
+                                />
+                              ) : (
+                                d.groupNo
+                              )}
+                            </td>
+                            <td className="min-w-[140px] py-1 pr-4">
                               {isManual ? (
                                 <input
                                   type="text"
@@ -342,28 +399,34 @@ export default function OlsPanel() {
                                 d.groupName
                               )}
                             </td>
-                            <td className="py-1 pr-4">
+                            <td className="min-w-[160px] py-1 pr-4">
                               {isManual ? (
-                                <input
-                                  type="text"
+                                <select
                                   value={d.brand}
                                   onChange={(e) => handleUpdateManualRow(d.id, { brand: e.target.value })}
-                                  className="w-24 rounded border border-gray-300 px-1 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-800"
-                                />
+                                  className="w-40 rounded border border-gray-300 px-1 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-800"
+                                >
+                                  {BRANDS.map((b) => (
+                                    <option key={b} value={b}>{b}</option>
+                                  ))}
+                                </select>
                               ) : (
                                 d.brand
                               )}
                             </td>
                             <td className="py-1 pr-4">
                               {isManual ? (
-                                <input
-                                  type="number"
-                                  value={d.section || ''}
-                                  onChange={(e) => handleUpdateManualRow(d.id, { section: Number(e.target.value) })}
+                                <select
+                                  value={d.section}
+                                  onChange={(e) => handleUpdateManualRow(d.id, { section: parseSection(e.target.value) })}
                                   className="w-20 rounded border border-gray-300 px-1 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-800"
-                                />
+                                >
+                                  {SECTIONS.map((s) => (
+                                    <option key={s} value={s}>{formatSection(s)}</option>
+                                  ))}
+                                </select>
                               ) : (
-                                d.section > 0 ? `${d.section} мм²` : '—'
+                                d.section > 0 ? `${formatSection(d.section)} мм²` : '—'
                               )}
                             </td>
                             <td className="py-1 pr-4">
@@ -379,23 +442,36 @@ export default function OlsPanel() {
                                 d.lengthM > 0 ? `${d.lengthM.toFixed(2)} м` : '—'
                               )}
                             </td>
-                            <td className="py-1 pr-4">
+                            <td className="min-w-[120px] py-1 pr-4">
                               {isManual ? (
                                 <select
                                   value={d.routingType}
                                   onChange={(e) => handleUpdateManualRow(d.id, { routingType: e.target.value })}
                                   className="w-28 rounded border border-gray-300 px-1 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-800"
                                 >
-                                  <option value="Авто">Авто</option>
-                                  <option value="Вдоль стены">Вдоль стены</option>
-                                  <option value="Ручной">Ручной</option>
-                                  <option value="Через дверной проем">Через дверной проем</option>
+                                  {ROUTING_TYPES.map((t) => (
+                                    <option key={t} value={t}>{t}</option>
+                                  ))}
                                 </select>
                               ) : (
                                 d.routingType
                               )}
                             </td>
-                            <td className="py-1 pr-4">{d.diameterMm > 0 ? `${d.diameterMm.toFixed(2)} мм` : '—'}</td>
+                            <td className="min-w-[100px] py-1 pr-4">
+                              {isManual ? (
+                                <select
+                                  value={d.diameterMm}
+                                  onChange={(e) => handleUpdateManualRow(d.id, { diameterMm: Number(e.target.value) })}
+                                  className="w-20 rounded border border-gray-300 px-1 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-800"
+                                >
+                                  {sizeOptionsFor(d.routingType).map((sz) => (
+                                    <option key={sz} value={sz}>{sz}</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                d.diameterMm > 0 ? `${Math.round(d.diameterMm)} мм` : '—'
+                              )}
+                            </td>
                             <td className="py-1 pr-4">
                               {isManual && (
                                 <button
