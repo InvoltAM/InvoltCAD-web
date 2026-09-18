@@ -40,6 +40,8 @@ export interface SerializedDevice {
   side: number
   offset: number
   height?: number
+  group?: string
+  installHeightMm?: number
   rotation: number
   iconScale?: number
   nameOffset?: { x: number; y: number }
@@ -226,6 +228,8 @@ export function serializePlan(plan: Plan): SerializedPlan {
     t: device.t,
     side: device.side,
     offset: device.offset,
+    group: device.group,
+    installHeightMm: device.installHeightMm,
     rotation: device.rotation,
     iconScale: device.iconScale,
     nameOffset: device.nameOffset,
@@ -404,6 +408,8 @@ export function deserializePlan(data: SerializedPlan): Plan {
       t: d.t,
       side: d.side as 1 | -1,
       offset: d.offset,
+      group: d.group,
+      installHeightMm: d.installHeightMm,
       rotation: d.rotation,
       iconScale: d.iconScale,
       nameOffset: d.nameOffset,

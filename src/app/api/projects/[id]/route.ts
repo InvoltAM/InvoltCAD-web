@@ -75,6 +75,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
           side: d.wallSide ?? 1,
           offset: d.offset,
           height: d.height ?? undefined,
+          group: typeof props.group === 'string' ? props.group : undefined,
+          installHeightMm: typeof props.installHeightMm === 'number' ? props.installHeightMm : undefined,
           rotation: d.rotation,
           iconScale: typeof props.iconScale === 'number' ? props.iconScale : undefined,
           nameOffset:
@@ -247,6 +249,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
             iconScale: d.iconScale,
             nameOffset: d.nameOffset,
             position: d.position,
+            group: d.group,
+            installHeightMm: d.installHeightMm,
           },
         },
       })

@@ -26,6 +26,7 @@ const WALL_THICKNESS_PRESETS = [100, 150, 200, 250, 300, 400]
 const DOOR_WIDTH_PRESETS = [700, 800, 900, 1000]
 const WINDOW_WIDTH_PRESETS = [800, 1000, 1200, 1500, 1800]
 const DEVICE_OFFSET_PRESETS = [0, 50, 100, 150]
+const SOCKET_HEIGHT_PRESETS = [150, 200, 300]
 
 export default function PropertyPanel() {
   const selectedWallIds = useCadStore((s) => s.selectedWallIds)
@@ -411,6 +412,23 @@ function DeviceProperties({ devices, plan }: { devices: Device[]; plan: Plan }) 
   const commonIconScale = commonValue(devices, (d) => d.iconScale ?? 1)
   const commonNameOffsetX = commonValue(devices, (d) => Math.round(d.nameOffset?.x ?? 0))
   const commonNameOffsetY = commonValue(devices, (d) => Math.round(d.nameOffset?.y ?? 0))
+  const allSockets = devices.every((d) => DEVICE_CATALOG.find((item) => item.type === d.type)?.category === 'socket')
+  const commonGroup = commonValue(devices, (d) => d.group ?? '')
+  const commonInstallHeight = commonValue(devices, (d) => d.installHeightMm ?? 0)
+
+  const handleGroupChange = (group: string) => {
+    for (const device of devices) {
+      device.group = group || undefined
+    }
+    engineRef.current?.notifyChanged()
+  }
+
+  const handleInstallHeightChange = (installHeightMm: number) => {
+    for (const device of devices) {
+      device.installHeightMm = installHeightMm
+    }
+    engineRef.current?.notifyChanged()
+  }
 
   const handleNameChange = (name: string) => {
     for (const device of devices) {
@@ -492,6 +510,53 @@ function DeviceProperties({ devices, plan }: { devices: Device[]; plan: Plan }) 
           className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
         />
       </div>
+
+      {allSockets && (
+        <div className="rounded border border-gray-200 p-2 dark:border-gray-600">
+          <div className="mb-2 text-xs font-medium text-gray-700 dark:text-gray-300">Атрибуты блока розеток</div>
+
+          <div className="mb-2">
+            <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Группа</label>
+            <input
+              type="text"
+              value={commonGroup ?? ''}
+              placeholder={commonGroup === undefined ? 'разные' : ''}
+              onChange={(e) => handleGroupChange(e.target.value)}
+              className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Н= (высота установки), мм</label>
+            <div className="mb-1 flex flex-wrap gap-1">
+              {SOCKET_HEIGHT_PRESETS.map((h) => (
+                <button
+                  key={h}
+                  onClick={() => handleInstallHeightChange(h)}
+                  className={`rounded border px-2 py-1 text-xs ${
+                    commonInstallHeight === h
+                      ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-600 dark:text-white'
+                      : 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {h}
+                </button>
+              ))}
+            </div>
+            <input
+              type="number"
+              min={0}
+              value={commonInstallHeight ?? ''}
+              placeholder={commonInstallHeight === undefined ? 'разные' : ''}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10)
+                if (!isNaN(v) && v >= 0) handleInstallHeightChange(v)
+              }}
+              className="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            />
+          </div>
+        </div>
+      )}
 
       <div>
         <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">Смещение подписи, мм</label>
