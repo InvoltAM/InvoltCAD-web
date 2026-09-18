@@ -160,6 +160,16 @@ export default function OlsPanel() {
 
   const manualRows = plan?.electrical?.manualPanelRows ?? []
 
+  // Наименования щитов, размещённых на плане (атрибут name устройств типа panel)
+  const panelNames = useMemo(() => {
+    if (!plan) return [] as string[]
+    const names = plan.devices
+      .filter((d) => d.type === 'panel')
+      .map((d) => d.name.trim())
+      .filter(Boolean)
+    return Array.from(new Set(names))
+  }, [plan])
+
   const tableItems = useMemo<OlsPanelTableRow[]>(() => {
     if (!plan) return []
     const cableMap = new Map(plan.cables.map((c) => [c.id, c]))
@@ -345,7 +355,7 @@ export default function OlsPanel() {
                     <thead>
                       <tr className="border-b border-gray-200 dark:border-gray-600">
                         <th className="py-1 pr-4">№</th>
-                        <th className="min-w-[160px] py-1 pr-4">Щит</th>
+                        <th className="min-w-[8ch] py-1 pr-4">Щит</th>
                         <th className="py-1 pr-4">Группа</th>
                         <th className="min-w-[140px] py-1 pr-4">Наименование группы</th>
                         <th className="min-w-[160px] py-1 pr-4">Марка</th>
@@ -362,14 +372,20 @@ export default function OlsPanel() {
                         return (
                           <tr key={d.id} className="border-b border-gray-100 dark:border-gray-700">
                             <td className="py-1 pr-4">{i + 1}</td>
-                            <td className="min-w-[160px] py-1 pr-4">
+                            <td className="min-w-[8ch] py-1 pr-4">
                               {isManual ? (
-                                <input
-                                  type="text"
+                                <select
                                   value={d.panelName}
                                   onChange={(e) => handleUpdateManualRow(d.id, { panelName: e.target.value })}
-                                  className="w-64 rounded border border-gray-300 px-1 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-800"
-                                />
+                                  className="w-[10ch] rounded border border-gray-300 px-1 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-800"
+                                >
+                                  {(panelNames.includes(d.panelName) || !d.panelName
+                                    ? panelNames
+                                    : [d.panelName, ...panelNames]
+                                  ).map((name) => (
+                                    <option key={name} value={name}>{name}</option>
+                                  ))}
+                                </select>
                               ) : (
                                 d.panelName
                               )}
