@@ -61,4 +61,14 @@ export function getDeviceIconScale(device: Device): number {
   return device.iconScale ?? 1;
 }
 
+/**
+ * Текст подписи устройства на плане.
+ * Для блоков розеток выводится атрибут «Группа» — наименование устройства на плане не показывается.
+ */
+export function getDeviceLabelText(device: Device): string {
+  const item = findDeviceCatalogItem(device.type);
+  if (item?.category === 'socket') return device.group ?? '';
+  return device.name;
+}
+
 export { findDeviceCatalogItem };

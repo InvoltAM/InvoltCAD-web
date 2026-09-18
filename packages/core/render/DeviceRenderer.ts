@@ -1,6 +1,6 @@
 import { Camera } from '../engine/Camera';
 import { Plan } from '../model/Plan';
-import { Device, getDeviceIconScale } from '../model/Device';
+import { Device, getDeviceIconScale, getDeviceLabelText } from '../model/Device';
 import { EditorState } from '../editor/EditorState';
 import { wallDirection } from '../model/Wall';
 import { Vector2 } from '../geometry/Vector2';
@@ -120,9 +120,10 @@ export class DeviceRenderer {
       drawDeviceSymbol(ctx, device.type, sizeWorld, this.editorState.get('customDevices'));
       ctx.restore();
 
-      // Имя устройства (атрибут блока) — горизонтально, можно перетаскивать
-      const label = this.getNameLabelBounds(device);
-      if (label) {
+      // Подпись устройства (атрибут «Группа» для блоков розеток) — горизонтально, можно перетаскивать
+      const labelText = getDeviceLabelText(device);
+      const label = labelText ? this.getNameLabelBounds(device) : null;
+      if (label && labelText) {
         ctx.save();
         if (selected) {
           // Рамка-подсказка, что подпись можно перетаскивать
@@ -141,7 +142,7 @@ export class DeviceRenderer {
         ctx.font = `${sizeWorld * 0.3}px ui-sans-serif, system-ui, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(device.name, label.center.x, label.center.y);
+        ctx.fillText(labelText, label.center.x, label.center.y);
         ctx.restore();
       }
     }
@@ -152,7 +153,8 @@ export class DeviceRenderer {
    * (позиция по умолчанию + nameOffset). Используется для hit-test.
    */
   getNameLabelBounds(device: Device): { center: Vector2; halfW: number; halfH: number } | null {
-    if (!device.name) return null;
+    const labelText = getDeviceLabelText(device);
+    if (!labelText) return null;
     const globalIconScale = this.editorState.get('deviceIconScale') ?? 1;
     const item = findDeviceCatalogItem(device.type);
     const baseSizeMm = item ? Math.max(item.width, item.height) : 600;
@@ -177,7 +179,7 @@ export class DeviceRenderer {
     }
 
     const fontSize = sizeWorld * 0.3;
-    const halfW = (device.name.length * fontSize * 0.55) / 2 + fontSize * 0.3;
+    const halfW = (labelText.length * fontSize * 0.55) / 2 + fontSize * 0.3;
     const halfH = fontSize * 0.7;
     return { center, halfW, halfH };
   }
